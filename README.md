@@ -43,6 +43,12 @@ top (S&P 500, NASDAQ, DOW, GOLD, OIL, BTC, EUR/USD, 10Y UST). The core surfaces:
    historical events (MSFT '14, JNJ '10, IBM '92…) with match %, 5Y return, and
    an outcome label (CLOSEST / ECHO / MIXED / WARNING), plus a base-rate card
    (Bull P75 / Base P50 / Bear P25) and a "what matches / what's different" split.
+6. **Read memoir** — the founding note: a centered, broadsheet-quiet statement of
+   *why the product exists* (history as the lens on today's markets), set as a
+   pull-quote with a byline. Reached from the *Read memoir* rail item.
+
+A shared **footer** (divider · *Veridian Markets* wordmark · `HISTORY, READ
+FORWARD`) closes every surface.
 
 ---
 
@@ -274,14 +280,27 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### UI kits
 - **`ui_kits/web/`** — the one product surface. Front page, Company search +
-  eye-preview, Supply chain network, Company dashboard (Overview), and the
-  History / Memoir analogue view, as an interactive prototype.
+  eye-preview, Supply chain network, Company dashboard (Overview), the
+  History / Memoir analogue view, and the Read-memoir founding note — as an
+  interactive prototype with a shared footer on every screen.
 
 ---
 
 ## Changelog
 
 ### 2026-05-28
+- **New "Read memoir" page + a footer on every screen.** Wired up the previously
+  inert *Read memoir* rail item to a new route/page: a centered editorial
+  *founding note* (kicker → oversized quote glyph → the founder's statement with
+  teal emphasis → rule/diamond/rule divider → byline → "Back to the front page"),
+  built with the existing `VM` design tokens and rendered inside `<main>` so the
+  rail + index strip stay. Also added a shared `Footer` (divider motif · *Veridian
+  Markets* wordmark · `HISTORY, READ FORWARD`) rendered once in `App` so it now
+  sits at the foot of **every** surface.
+  Source: [`ui_kits/web/Memoir.jsx`](ui_kits/web/Memoir.jsx) (new page),
+  [`ui_kits/web/chrome.jsx`](ui_kits/web/chrome.jsx) (`Footer`, rail item),
+  [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx) (route + footer mount),
+  [`ui_kits/web/index.html`](ui_kits/web/index.html) (script tag).
 - **Masthead wordmark: "Veridian Memoir" → "Veridian Markets."** Updated the
   `Masthead` component so the sidebar logo reads *Veridian* (italic teal) +
   **Markets** (roman ink), keeping the same Spectral serif and brand colors.

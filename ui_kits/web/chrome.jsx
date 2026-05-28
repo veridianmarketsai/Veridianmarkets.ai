@@ -17,7 +17,7 @@ const RAIL_GROUPS = [
   { head:null, items:[ {id:'search', label:'Company search', icon:'search', isSearch:true } ] },
   { head:'You', items:[ {label:'Sign in'}, {label:'Watchlist'}, {label:'Saved stories'} ] },
   { head:'Explore', items:[ {id:'front', label:'Front page'}, {id:'screener', label:'Company search'}, {id:'supply', label:'Supply chain network'}, {id:'history', label:'History'} ] },
-  { head:null, items:[ {label:'Learn'}, {label:'Read memoir', tone:'teal'} ] },
+  { head:null, items:[ {label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
 function Rail({ route, go }) {
@@ -70,4 +70,24 @@ function IndexStrip() {
   );
 }
 
-Object.assign(window, { Masthead, Rail, IndexStrip });
+// Shared editorial footer — rendered once in App so it sits at the foot of every page.
+function Footer() {
+  return (
+    <footer style={{ borderTop:`1px solid ${VM.borderSoft}`, padding:'30px 24px 40px', textAlign:'center', background:VM.paperWarm }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:16 }}>
+        <span style={{ width:64, height:1, background:`linear-gradient(90deg, transparent, ${VM.faint})` }}></span>
+        <span style={{ width:5, height:5, transform:'rotate(45deg)', background:VM.terra }}></span>
+        <span style={{ width:64, height:1, background:`linear-gradient(90deg, ${VM.faint}, transparent)` }}></span>
+      </div>
+      <div style={{ fontFamily:VM.serif, display:'flex', alignItems:'baseline', justifyContent:'center', gap:6, marginBottom:8 }}>
+        <span style={{ fontStyle:'italic', fontWeight:700, fontSize:16, color:VM.teal, letterSpacing:'-0.01em' }}>Veridian</span>
+        <span style={{ fontWeight:500, fontSize:16, color:VM.ink }}>Markets</span>
+      </div>
+      <div style={{ fontFamily:VM.mono, fontSize:10.5, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.ink3 }}>
+        History, read forward
+      </div>
+    </footer>
+  );
+}
+
+Object.assign(window, { Masthead, Rail, IndexStrip, Footer });
