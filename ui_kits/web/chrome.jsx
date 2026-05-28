@@ -3,10 +3,10 @@ const { useState } = React;
 
 function Masthead() {
   return (
-    <div style={{ padding:'18px 18px 14px' }}>
-      <div style={{ fontFamily:VM.serif, lineHeight:1, display:'flex', alignItems:'baseline', gap:7 }}>
-        <span style={{ fontStyle:'italic', fontWeight:700, fontSize:26, color:VM.teal, letterSpacing:'-0.01em' }}>Veridian</span>
-        <span style={{ fontWeight:500, fontSize:26, color:VM.ink }}>Memoir</span>
+    <div style={{ padding:'18px 16px 14px' }}>
+      <div style={{ fontFamily:VM.serif, lineHeight:1, display:'flex', alignItems:'baseline', gap:6, whiteSpace:'nowrap' }}>
+        <span style={{ fontStyle:'italic', fontWeight:700, fontSize:20, color:VM.teal, letterSpacing:'-0.01em' }}>Veridian</span>
+        <span style={{ fontWeight:500, fontSize:20, color:VM.ink }}>Markets</span>
       </div>
       <div style={{ fontFamily:VM.mono, fontSize:9.5, letterSpacing:'0.14em', textTransform:'uppercase', color:VM.ink3, marginTop:6 }}>history-led finance</div>
     </div>
