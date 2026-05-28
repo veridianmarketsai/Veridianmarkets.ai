@@ -1,0 +1,144 @@
+/* =============================================================
+   VERIDIAN MEMOIR — Design Tokens: Color + Type
+   "history-led finance" — an editorial, almanac-flavored
+   markets research product. Warm paper, deep teal, terracotta.
+   -------------------------------------------------------------
+   Serif = Spectral, Mono = JetBrains Mono (both Google Fonts).
+   See README "Fonts" note.
+   ============================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ---------- BRAND PALETTE ---------- */
+  --vm-paper:        #FBF9F3;  /* primary surface — cards, page "white" */
+  --vm-paper-warm:   #F4F1E8;  /* secondary cream — page background, wells */
+  --vm-paper-deep:   #ECE7DB;  /* tertiary cream — hovers, inset bands */
+  --vm-sidebar:      #E7ECED;  /* cool blue-grey rail behind the chrome */
+
+  --vm-ink:          #1F1D1A;  /* primary ink — near-black, warm */
+  --vm-ink-2:        #4A4640;  /* secondary ink — body, captions */
+  --vm-ink-3:        #8A857D;  /* tertiary ink — muted labels, meta */
+  --vm-ink-faint:    #B6AFA2;  /* faintest — disabled, placeholder */
+
+  --vm-teal:         #2D5E5A;  /* primary brand teal — links, active */
+  --vm-teal-deep:    #1D4E3A;  /* "the principle" forest — fills, hero */
+  --vm-teal-ink:     #0F6E56;  /* positive numerals, deep accents */
+  --vm-teal-tint:    #E1F1EC;  /* teal wash — selected rows, base-rate card */
+  --vm-teal-tint-2:  #CFE5DD;  /* teal border on tinted things */
+
+  --vm-terracotta:   #C46A3B;  /* secondary accent — kickers, external */
+  --vm-rust:         #B35A3A;  /* warning / negative editorial */
+  --vm-rust-deep:    #A8512A;
+
+  /* ---------- MARKET SEMANTICS ---------- */
+  --vm-up:           #1D9E75;  /* price up — sparkline / dot */
+  --vm-up-ink:       #0F6E56;  /* up text on paper (AA contrast) */
+  --vm-down:         #C0563B;  /* price down — sparkline */
+  --vm-down-ink:     #A32D2D;  /* down text on paper */
+  --vm-live:         #1D9E75;  /* the "LIVE" pulse dot */
+
+  /* ---------- SUPPLY-CHAIN NODE COLORS ---------- */
+  --vm-node-input-bg:     #FBF9F3;  /* direct supplier — plain card */
+  --vm-node-input-rule:   #185FA5;  /* blue left-rule on inputs */
+  --vm-node-customer-bg:  #E6F1FB;  /* customer / channel — blue tint */
+  --vm-node-customer-rule:#0C447C;
+  --vm-node-external:     #C46A3B;  /* external factor — dashed terracotta */
+  --vm-node-principle-bg: #1D4E3A;  /* the principle — forest fill */
+  --vm-node-principle-fg: #E1F1EC;
+
+  /* ---------- BORDERS (warm ink, layered by strength) ---------- */
+  --vm-border-strong: rgba(31,29,26,0.30);
+  --vm-border:        rgba(31,29,26,0.18);
+  --vm-border-soft:   rgba(31,29,26,0.10);
+  --vm-border-hair:   rgba(31,29,26,0.06);
+  --vm-rule-dash:     rgba(31,29,26,0.22);  /* dashed/dotted editorial rules */
+
+  /* ---------- RADII ---------- */
+  --vm-radius-sm: 4px;
+  --vm-radius-md: 8px;
+  --vm-radius-lg: 12px;
+  --vm-radius-pill: 999px;
+
+  /* ---------- ELEVATION (low, papery) ---------- */
+  --vm-shadow-flat:  2px 2px 0 rgba(31,29,26,0.05);          /* "printed" offset */
+  --vm-shadow-card:  0 1px 2px rgba(31,29,26,0.06), 0 6px 18px -10px rgba(31,29,26,0.18);
+  --vm-shadow-pop:   0 8px 30px -8px rgba(31,29,26,0.30);    /* preview popover */
+
+  /* ---------- SPACING (4px base) ---------- */
+  --vm-space-1: 4px;
+  --vm-space-2: 8px;
+  --vm-space-3: 12px;
+  --vm-space-4: 16px;
+  --vm-space-5: 24px;
+  --vm-space-6: 32px;
+  --vm-space-7: 48px;
+  --vm-space-8: 64px;
+
+  /* ---------- TYPE FAMILIES ---------- */
+  --vm-serif: 'Spectral', Georgia, 'Times New Roman', serif;   /* display + body */
+  --vm-mono:  'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; /* data + labels */
+
+  /* =========================================================
+     TOKEN ALIASES used by the original product HTML
+     (veridian_v2_rounded.html, dependency_map_v4.html) so
+     those files render correctly against this system.
+     ========================================================= */
+  --color-text-primary:        var(--vm-ink);
+  --color-text-secondary:      var(--vm-ink-2);
+  --color-text-tertiary:       var(--vm-ink-3);
+  --color-background-primary:  var(--vm-paper);
+  --color-background-secondary:var(--vm-paper-warm);
+  --color-background-tertiary: var(--vm-paper-deep);
+  --color-border-primary:      var(--vm-border-strong);
+  --color-border-secondary:    var(--vm-border);
+  --color-border-tertiary:     var(--vm-border-soft);
+  --border-radius-lg:          var(--vm-radius-lg);
+  --border-radius-md:          var(--vm-radius-md);
+}
+
+/* =============================================================
+   SEMANTIC TYPE
+   Editorial serif headlines + monospace "machine" labels.
+   The product pairs a literary serif voice (story, prose,
+   company descriptions) with terse mono data (tickers, %, eras).
+   ============================================================= */
+
+/* Masthead wordmark — "Veridian" italic + "Memoir" roman */
+.vm-wordmark        { font-family: var(--vm-serif); line-height: 1; color: var(--vm-ink); }
+.vm-wordmark .vm-veridian { font-style: italic; font-weight: 700; color: var(--vm-teal); letter-spacing: -0.01em; }
+.vm-wordmark .vm-memoir   { font-weight: 500; }
+
+/* Oversized ticker / page lockup (e.g. "AAPL") */
+.vm-ticker-xl { font-family: var(--vm-serif); font-weight: 700; font-size: 56px; letter-spacing: 0.01em; color: var(--vm-ink); line-height: 0.92; }
+
+/* Editorial headlines */
+.vm-h1 { font-family: var(--vm-serif); font-weight: 700; font-size: 40px; line-height: 1.06; letter-spacing: -0.005em; color: var(--vm-ink); text-wrap: balance; }
+.vm-h2 { font-family: var(--vm-serif); font-weight: 700; font-size: 27px; line-height: 1.12; color: var(--vm-ink); }
+.vm-h3 { font-family: var(--vm-serif); font-weight: 600; font-size: 20px; line-height: 1.18; color: var(--vm-ink); }
+
+/* Running prose — the "memoir" voice */
+.vm-lede { font-family: var(--vm-serif); font-weight: 400; font-size: 18px; line-height: 1.5; color: var(--vm-ink-2); }
+.vm-body { font-family: var(--vm-serif); font-weight: 400; font-size: 16px; line-height: 1.55; color: var(--vm-ink-2); }
+.vm-body em, .vm-caption-serif { font-style: italic; }
+
+/* Captions / serif italic notes under charts */
+.vm-caption-serif { font-family: var(--vm-serif); font-style: italic; font-size: 14px; color: var(--vm-ink-3); }
+
+/* MONO — kickers / eyebrows (uppercase, tracked) */
+.vm-kicker { font-family: var(--vm-mono); font-weight: 700; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--vm-teal); }
+.vm-kicker--rust { color: var(--vm-terracotta); }
+.vm-kicker--muted { color: var(--vm-ink-3); font-weight: 500; }
+
+/* MONO — field labels (tiny, faint) */
+.vm-label { font-family: var(--vm-mono); font-weight: 500; font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--vm-ink-3); }
+
+/* MONO — data / numerics */
+.vm-data    { font-family: var(--vm-mono); font-weight: 500; font-size: 13px; color: var(--vm-ink); font-variant-numeric: tabular-nums; }
+.vm-data-lg { font-family: var(--vm-mono); font-weight: 700; font-size: 22px; color: var(--vm-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.vm-pos { color: var(--vm-up-ink); }
+.vm-neg { color: var(--vm-down-ink); }
+
+/* Breadcrumb / nav text */
+.vm-nav { font-family: var(--vm-serif); font-size: 15px; color: var(--vm-ink-2); }
+.vm-mono-sm { font-family: var(--vm-mono); font-size: 11px; color: var(--vm-ink-3); }
