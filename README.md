@@ -1,4 +1,4 @@
-# Veridian Memoir — Design System
+# Veridian Markets — Design System
 
 > **"history-led finance."** Veridian Memoir is a markets-research web product
 > with an editorial, almanac-like voice. Its signature idea: for any company,
@@ -43,29 +43,6 @@ top (S&P 500, NASDAQ, DOW, GOLD, OIL, BTC, EUR/USD, 10Y UST). The core surfaces:
    historical events (MSFT '14, JNJ '10, IBM '92…) with match %, 5Y return, and
    an outcome label (CLOSEST / ECHO / MIXED / WARNING), plus a base-rate card
    (Bull P75 / Base P50 / Bear P25) and a "what matches / what's different" split.
-
----
-
-## Sources this system was built from
-
-Everything here was reverse-engineered from artifacts the user supplied. The
-reader does **not** need access to these, but they are recorded for provenance:
-
-| Source | What it is | What we took from it |
-|---|---|---|
-| `uploads/veridian markets pdf.pdf` | 8-page export of the **finished, high-fidelity product** (Front page, Screener, Screener+preview, Dashboard/Overview, Supply chain, Financials, Patents, History) | The authoritative visual reference — layouts, copy, color, type, every dashboard tab |
-| `uploads/veridian_v2_rounded.html` | Working HTML of the **screener with eye-preview**, using the product's CSS token names (`--color-text-primary`, etc.) | Token names, row/preview markup, Tabler icon usage |
-| `uploads/dependency_map_v4.html` | Working HTML of the **supply-chain network** ("the principle") | Node colors, breadcrumb behavior, connector logic |
-| `uploads/Veridian Memoir Wireframes _standalone_.html` | A React design-canvas of **low-fi wireframes + a tweak panel** exploring palettes & fonts | Brand palette names ("Deep Teal", "Ink+Cream", "Forest+Rust"), font system, component inventory, nav labels |
-
-**GitHub repos provided:** `https://github.com/veridianmarketsai/vmtest2`
-(referenced as `veridianmarketsai/vmtest2`) and `veridianmarketsai/vmtest1`.
-At build time `vmtest2` returned 404 (does not exist / not accessible) and
-`vmtest1` contained only a 9-byte placeholder README — **no usable code or
-assets**. If you have access to the real Veridian Markets repositories, explore
-them at `https://github.com/veridianmarketsai` to ground future work in the
-production source rather than these reconstructed tokens. *(Flagged to the user —
-see CAVEATS at the bottom.)*
 
 ---
 
@@ -207,10 +184,10 @@ only translucency is in border colors (ink at low alpha) and chart fills
 ## ICONOGRAPHY
 
 Veridian uses **[Tabler Icons](https://tabler.io/icons)** — a 24×24, ~1.6px
-stroke, rounded-join outline set. This is confirmed by the source HTML, which
-renders them via the Tabler **icon webfont** (`<i class="ti ti-eye">`,
-`ti ti-search`, `ti ti-adjustments-horizontal`, `ti ti-external-link`,
-`ti ti-currency-dollar`, `ti ti-lock`, `ti ti-arrow-right`, `ti ti-chevron-down`).
+stroke, rounded-join outline set, rendered via the Tabler **icon webfont**
+(`<i class="ti ti-eye">`, `ti ti-search`, `ti ti-adjustments-horizontal`,
+`ti ti-external-link`, `ti ti-currency-dollar`, `ti ti-lock`,
+`ti ti-arrow-right`, `ti ti-chevron-down`).
 
 - **Stroke style:** thin (1.6px), outline only, rounded caps/joins — it matches
   the hairline, line-art feel of the charts. Icons are inked in `--vm-ink-2`,
@@ -227,8 +204,6 @@ renders them via the Tabler **icon webfont** (`<i class="ti ti-eye">`,
 **How to use icons in this system:** link Tabler from CDN —
 `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">`
 then `<i class="ti ti-eye"></i>`. The UI kit (`ui_kits/web/`) does exactly this.
-*(No proprietary icon assets were shipped in the sources, so there were none to
-copy in — Tabler is the genuine set, not a substitution.)*
 
 **Brand mark:** there is no logo image. The brand is a **typeset wordmark** —
 *Veridian* in italic Spectral teal + **Memoir** in roman Spectral ink, with the
@@ -241,11 +216,9 @@ mono tagline `history-led finance` beneath. See `.vm-wordmark` in
 
 The product's two families, **Spectral** (literary serif) and **JetBrains Mono**,
 are both on Google Fonts and load from there at the top of `colors_and_type.css`.
-They are the *actual* fonts used in the source bundle, so this is genuine
-sourcing, not a visual substitution. An uploaded `fonts/times.ttf` is kept in the
-repo as an alternate serif option but is **not** currently wired in — the system
-uses Spectral. To self-host, drop licensed `woff2` files in `fonts/` and swap the
-`@import` for `@font-face` rules.
+An uploaded `fonts/times.ttf` is kept in the repo as an alternate serif option but
+is **not** currently wired in — the system uses Spectral. To self-host, drop
+licensed `woff2` files in `fonts/` and swap the `@import` for `@font-face` rules.
 
 ---
 
@@ -290,6 +263,7 @@ the prototype outgrows the CDN/Babel approach.)
 | Path | What it is |
 |---|---|
 | `README.md` | This file — context, voice, visual foundations, iconography, index |
+| `index.html` | Repo-root entry point — redirects into `ui_kits/web/` (the site's front door when served from the root) |
 | `dev-server.mjs` | Zero-dependency Node static server for local preview (see *Running & previewing locally*) |
 | `colors_and_type.css` | All design tokens (color, type, spacing, radius, shadow) + semantic type classes and the original product's token aliases |
 | `fonts/times.ttf` | The brand serif (Times New Roman), wired as `VM Serif` via `@font-face` |
@@ -302,18 +276,3 @@ the prototype outgrows the CDN/Babel approach.)
 - **`ui_kits/web/`** — the one product surface. Front page, Company search +
   eye-preview, Supply chain network, Company dashboard (Overview), and the
   History / Memoir analogue view, as an interactive prototype.
-
----
-
-## CAVEATS (please read)
-
-- **GitHub repos were empty/inaccessible.** `vmtest2` 404'd and `vmtest1` held
-  only a placeholder README. The tokens here are reconstructed from the PDF +
-  HTML artifacts, which are high-fidelity but not the production source of truth.
-  If you can grant access to the real repo, I can tighten exact hex values,
-  spacing, and component internals.
-- **Fonts are Google-Fonts-hosted** (Spectral + JetBrains Mono) — the right
-  families. An uploaded `fonts/times.ttf` is kept as an alternate but isn't wired
-  in. If you want self-hosted licensed `woff2`, share them and I'll bundle them.
-- **Exact color hexes are eyedropped** from the artifacts; the production token
-  values may differ by a few points. Easy to correct against the real CSS.
