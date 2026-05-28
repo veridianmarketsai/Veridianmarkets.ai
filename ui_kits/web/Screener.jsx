@@ -1,0 +1,131 @@
+// Veridian Memoir — Company search / screener with eye-preview.
+const { useState: useStateScr } = React;
+
+function Screener({ go }) {
+  const [open, setOpen] = useStateScr(null); // ticker with preview open
+  const filters = [
+    { k:'SECTOR', v:'Technology' }, { k:'MARKET CAP', v:'> $10B' },
+    { k:'P/E', v:'< 40' }, { k:'ANALYST', v:'Buy or better' },
+  ];
+  return (
+    <div style={{ padding:'26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
+      <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Company search</b></Mono>
+      <div style={{ marginTop:14 }}><Kicker>EXPLORE · 4,904 PUBLIC COMPANIES</Kicker></div>
+      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:38, margin:'8px 0 6px' }}>Find a company.</h1>
+      <p style={{ fontFamily:VM.serif, fontSize:16, color:VM.ink3, margin:'0 0 18px' }}>Search by ticker, name, or person. Filter by sector, size, fundamentals, or which 5-year historical analogue matches today.</p>
+
+      {/* search row */}
+      <div style={{ display:'flex', gap:9, alignItems:'center', marginBottom:14 }}>
+        <div style={{ flex:1, display:'flex', alignItems:'center', gap:9, border:`1px solid ${VM.border}`, borderRadius:999, padding:'9px 16px', background:VM.paper }}>
+          <i className="ti ti-search" style={{ color:VM.ink3 }}></i>
+          <input placeholder="search ticker, company, person, era" style={{ border:0, background:'transparent', outline:0, fontFamily:VM.serif, fontSize:14, color:VM.ink, flex:1 }} />
+          <span style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, border:`1px solid ${VM.borderSoft}`, borderRadius:4, padding:'2px 6px' }}>⌘ K</span>
+        </div>
+        <Btn style={{ borderRadius:999 }}>Filter <i className="ti ti-chevron-down" style={{fontSize:12}}></i></Btn>
+        <IconBtn icon="arrows-sort" round size={38} title="Sort" />
+        <IconBtn icon="lock" round size={38} title="Saved" />
+      </div>
+
+      {/* filter chips */}
+      <div style={{ display:'flex', gap:7, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
+        <Label style={{marginRight:2}}>Filters:</Label>
+        {filters.map((f,i)=>(<Pill key={i}><b style={{color:VM.ink,fontWeight:700}}>{f.k}</b> {f.v} ×</Pill>))}
+        <Pill dashed>+ ADD FILTER</Pill>
+      </div>
+      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {VM_COMPANIES.length} of 487 matches · sort: 5Y analogue match</Mono>
+
+      {/* list */}
+      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, overflow:'hidden' }}>
+        <div style={{ display:'grid', gridTemplateColumns:GRID, padding:'7px 18px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}` }}>
+          <Label>Ticker</Label><Label>Company</Label><Label style={{textAlign:'right'}}>Price</Label>
+          <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
+        </div>
+        {VM_COMPANIES.map((c,i)=>(
+          <Row key={c.ticker} c={c} open={open===c.ticker} last={i===VM_COMPANIES.length-1}
+            onEye={()=>setOpen(open===c.ticker?null:c.ticker)}
+            onNet={()=>go('supply', c)} onOpen={()=>go('dashboard', c)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+const GRID = '92px 1fr 90px 68px 76px 104px';
+
+function Row({ c, open, last, onEye, onNet, onOpen }) {
+  return (
+    <div style={{ borderBottom: last&&!open?'none':`1px solid ${VM.borderSoft}`, background: open?VM.tealTint:'transparent' }}>
+      <div style={{ display:'grid', gridTemplateColumns:GRID, alignItems:'center', gap:10, padding:'12px 18px' }}>
+        <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22 }}>{c.ticker}</span>
+        <div><Mono size={11.5} color={VM.ink2}>{c.name}</Mono><div><Label>{c.sector}</Label></div></div>
+        <Mono size={13} weight={700} style={{textAlign:'right'}}>${c.price}</Mono>
+        <span style={{textAlign:'right'}}><Chg dir={c.dir}>{c.chg}</Chg></span>
+        <Sparkline dir={c.dir} w={64} h={22} />
+        <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+          <IconBtn icon="eye" round size={28} active={open} onClick={onEye} title="Preview" />
+          <IconBtn icon="affiliate" round size={28} onClick={onNet} title="Supply chain" />
+          <IconBtn icon="arrow-right" round size={28} onClick={onOpen} title="Open dashboard" />
+        </div>
+      </div>
+      <div style={{ maxHeight: open?420:0, overflow:'hidden', transition:'max-height .3s ease' }}>
+        {c.inputs && <Preview c={c} onOpen={onOpen} />}
+      </div>
+    </div>
+  );
+}
+
+function Preview({ c, onOpen }) {
+  return (
+    <div style={{ margin:'0 18px 16px', background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:12, overflow:'hidden' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}` }}>
+        <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+          <Mono size={16} weight={700}>{c.ticker}</Mono><span style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>{c.name}</span>
+          <Mono size={12} color={VM.ink3}>· ${c.price}</Mono><Chg dir={c.dir}>{c.chg}</Chg>
+        </div>
+        <Btn solid style={{ padding:'5px 12px', fontSize:12 }} onClick={onOpen}><i className="ti ti-external-link" style={{fontSize:11}}></i> Open dashboard</Btn>
+      </div>
+      <div style={{ display:'flex', padding:'0 16px', borderBottom:`1px solid ${VM.borderSoft}`, gap:4 }}>
+        {['Overview','Supply chain','Financials','Patents','History'].map((t,i)=>(
+          <span key={t} style={{ fontFamily:VM.serif, fontSize:12, padding:'7px 9px', color: i===0?VM.ink:VM.ink3, fontWeight:i===0?600:400, borderBottom: i===0?`2px solid ${VM.ink}`:'2px solid transparent', marginBottom:-1 }}>{t}</span>
+        ))}
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:14, padding:14 }}>
+        {/* mini supply chain */}
+        <div>
+          <Label style={{color:VM.terra}}>BOX 1 · SUPPLY CHAIN PREVIEW</Label>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:10, gap:6 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+              {c.inputs.slice(0,4).map(n=> <Node key={n.t} kind="input" t={n.t} />)}
+            </div>
+            <div style={{ width:60, height:60, borderRadius:8, background:VM.forest, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Mono size={12} weight={700} color={VM.tealTint}>{c.ticker}</Mono>
+              <span style={{ fontFamily:VM.mono, fontSize:7, color:'#5DCAA5', marginTop:2 }}>principle</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+              {c.customers.slice(0,4).map(n=> <Node key={n.t} kind="customer" t={n.t} />)}
+            </div>
+          </div>
+          <Mono size={9} color={VM.ink3} style={{ display:'block', marginTop:8 }}>{c.inputs.length} suppliers · {c.customers.length} customers · all public</Mono>
+        </div>
+        {/* history read */}
+        <div style={{ borderLeft:`1px solid ${VM.borderSoft}`, paddingLeft:14 }}>
+          <Label style={{color:VM.terra}}>BOX 3 · HISTORY</Label>
+          <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:16, margin:'8px 0 4px' }}>Reads like {c.analogue} in {c.analogueYear}.</div>
+          <Mono size={9} color={VM.ink3}>CLOSEST ANALOGUE · {c.match}%</Mono>
+          <div style={{ marginTop:8 }}><OverlayChart h={70} legend={false} thenYear={c.analogueYear} /></div>
+          <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
+            <div><Label>Bear P25</Label><div><Mono size={13} weight={700} color={VM.downInk}>-18%</Mono></div></div>
+            <div style={{textAlign:'center'}}><Label>Base P50</Label><div><Mono size={13} weight={700} color={VM.teal}>+62%</Mono></div></div>
+            <div style={{textAlign:'right'}}><Label>Bull P75</Label><div><Mono size={13} weight={700} color={VM.upInk}>+148%</Mono></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Node({ kind, t }) {
+  if(kind==='customer') return <div style={{ padding:'4px 9px', borderRadius:'5px 0 0 5px', border:`1px solid #B5D4F4`, borderRight:'2px solid #0C447C', background:'#E6F1FB', fontFamily:VM.mono, fontSize:10, fontWeight:600, color:'#0C447C', textAlign:'right', minWidth:54 }}>{t}</div>;
+  return <div style={{ padding:'4px 9px', borderRadius:'0 5px 5px 0', border:`1px solid ${VM.border}`, borderLeft:'2px solid #185FA5', background:VM.paper, fontFamily:VM.mono, fontSize:10, fontWeight:600, minWidth:54 }}>{t}</div>;
+}
+
+Object.assign(window, { Screener });
