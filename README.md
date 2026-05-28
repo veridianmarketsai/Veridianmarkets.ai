@@ -276,3 +276,15 @@ the prototype outgrows the CDN/Babel approach.)
 - **`ui_kits/web/`** — the one product surface. Front page, Company search +
   eye-preview, Supply chain network, Company dashboard (Overview), and the
   History / Memoir analogue view, as an interactive prototype.
+
+---
+
+## Changelog
+
+### 2026-05-28
+- **Masthead wordmark: "Veridian Memoir" → "Veridian Markets."** Updated the
+  `Masthead` component so the sidebar logo reads *Veridian* (italic teal) +
+  **Markets** (roman ink), keeping the same Spectral serif and brand colors.
+  Reduced the type from 26px to 20px and tightened the gap/padding so the longer
+  name fits inside the 208px left rail instead of overflowing.
+  Source: [`ui_kits/web/chrome.jsx`](ui_kits/web/chrome.jsx).
