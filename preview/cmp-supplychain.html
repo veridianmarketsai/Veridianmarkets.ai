@@ -1,0 +1,97 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--vm-paper-warm);font-family:var(--vm-serif);color:var(--vm-ink);padding:24px}
+.wrap{--accent:#1D4E3A;--accent2:#C46A3B}
+.cap{font-family:var(--vm-mono);font-size:9px;letter-spacing:.05em;color:var(--vm-ink-3);text-transform:uppercase}
+.node{width:138px;padding:7px 11px;border-radius:0 6px 6px 0;border:1px solid var(--vm-border);border-left:3px solid #185FA5;background:var(--vm-paper);font-family:var(--vm-mono);font-size:11px;font-weight:700}
+.node small{display:block;font-weight:500;font-size:8.5px;color:var(--vm-ink-3);margin-top:1px}
+.node.ext{border-left-color:var(--accent2);border-left-style:dashed}
+.node.cust{border-radius:6px 0 0 6px;border:1px solid #B5D4F4;border-left:none;border-right:3px solid #0C447C;background:#E6F1FB;color:#0C447C;text-align:right}
+.node.cust small{color:#0C447C;opacity:.7}
+.principle{background:var(--accent)}
+.line-in{stroke:#185FA5}.line-ext{stroke:var(--accent2)}.line-cust{stroke:#0C447C}.line-comp{stroke:var(--accent2)}
+/* competitor boxes */
+.comp{padding:9px 6px;border:1.4px dashed var(--accent2);border-radius:7px;text-align:center;background:rgba(251,249,243,0.5)}
+.comp .tk{font-family:var(--vm-mono);font-size:11px;font-weight:700;color:var(--vm-ink)}
+.comp .nm{font-family:var(--vm-serif);font-size:12px;color:var(--vm-ink-2);margin-top:2px}
+/* palette switcher */
+.pal{display:flex;gap:7px;align-items:center}
+.pal button{display:flex;align-items:center;gap:6px;font-family:var(--vm-mono);font-size:9px;letter-spacing:.03em;text-transform:uppercase;color:var(--vm-ink-3);background:var(--vm-paper);border:1px solid var(--vm-border-soft);border-radius:999px;padding:4px 9px 4px 5px;cursor:pointer}
+.pal button[aria-pressed="true"]{border-color:var(--vm-ink);color:var(--vm-ink)}
+.pal .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+</style></head>
+<body><div class="wrap" id="wrap">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px">
+  <span class="cap">Supply-chain network · "the principle"</span>
+  <div class="pal">
+    <button data-a="#1D4E3A" data-b="#C46A3B" aria-pressed="true"><span class="dot" style="background:#1D4E3A"></span>Deep Teal</button>
+    <button data-a="#1F1D1A" data-b="#B48A3A" aria-pressed="false"><span class="dot" style="background:#1F1D1A"></span>Ink + Cream</button>
+    <button data-a="#3A5A3A" data-b="#A8512A" aria-pressed="false"><span class="dot" style="background:#3A5A3A"></span>Forest + Rust</button>
+  </div>
+</div>
+
+<div style="position:relative;width:600px;max-width:100%;margin:0 auto">
+  <!-- TOP: inputs -> principle -> customers -->
+  <div style="position:relative;height:230px">
+    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 600 230">
+      <path class="line-in"   d="M150,48 C220,48 230,115 286,115"   fill="none" stroke-width="2"   stroke-dasharray="4 4" opacity=".85"/>
+      <path class="line-in"   d="M150,115 C220,115 230,115 286,115" fill="none" stroke-width="1.4" stroke-dasharray="4 4" opacity=".85"/>
+      <path class="line-ext"  d="M150,182 C220,182 230,115 286,115" fill="none" stroke-width="1.4" stroke-dasharray="4 4" opacity=".85"/>
+      <path class="line-cust" d="M364,115 C420,115 430,48 450,48"   fill="none" stroke-width="1.3" stroke-dasharray="4 4" opacity=".8"/>
+      <path class="line-cust" d="M364,115 C420,115 430,115 450,115" fill="none" stroke-width="1.3" stroke-dasharray="4 4" opacity=".8"/>
+      <path class="line-cust" d="M364,115 C420,115 430,182 450,182" fill="none" stroke-width="1.8" stroke-dasharray="4 4" opacity=".8"/>
+    </svg>
+    <div class="cap" style="position:absolute;left:0;top:0">01 · Inputs</div>
+    <div style="position:absolute;left:12px;top:24px;display:flex;flex-direction:column;gap:8px">
+      <div class="node">TSM<small>chips</small></div>
+      <div class="node">2317.TW<small>assembly</small></div>
+      <div class="node ext">XOM<small>energy · external</small></div>
+    </div>
+    <div class="principle" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:128px;height:128px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:var(--vm-shadow-card)">
+      <div style="font-family:var(--vm-mono);font-size:8px;letter-spacing:.12em;color:#9FE1CB">NYSE · TECH</div>
+      <div style="font-family:var(--vm-serif);font-weight:700;font-size:26px;color:#E1F1EC;margin-top:4px">AAPL</div>
+      <div style="font-family:var(--vm-mono);font-size:8px;color:#5DCAA5;margin-top:4px">the principle</div>
+    </div>
+    <div class="cap" style="position:absolute;right:0;top:0;text-align:right">03 · Customers</div>
+    <div style="position:absolute;right:12px;top:24px;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <div class="node cust">TMUS<small>carrier</small></div>
+      <div class="node cust">BBY<small>retail</small></div>
+      <div class="node cust">AMZN<small>retail+cloud</small></div>
+    </div>
+  </div>
+  <div class="cap" style="text-align:center">← stroke width = dependency strength · color = relationship</div>
+
+  <!-- BOTTOM: competitors fan -->
+  <div style="position:relative;height:150px;margin-top:6px">
+    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 600 150">
+      <path class="line-comp" d="M300,0 C300,40 75,55 75,110"   fill="none" stroke-width="1.2" stroke-dasharray="2 4" opacity=".7"/>
+      <path class="line-comp" d="M300,0 C300,40 225,55 225,110" fill="none" stroke-width="1.2" stroke-dasharray="2 4" opacity=".7"/>
+      <path class="line-comp" d="M300,0 C300,40 375,55 375,110" fill="none" stroke-width="1.2" stroke-dasharray="2 4" opacity=".7"/>
+      <path class="line-comp" d="M300,0 C300,40 525,55 525,110" fill="none" stroke-width="1.2" stroke-dasharray="2 4" opacity=".7"/>
+    </svg>
+    <div style="position:absolute;left:0;top:42px;display:flex;align-items:baseline;gap:8px">
+      <span style="font-family:var(--vm-serif);font-weight:700;font-size:16px;color:var(--accent2)">Competitors</span>
+      <span class="cap" style="margin:0">· same wallet share · all public</span>
+    </div>
+    <div style="position:absolute;left:0;right:0;top:92px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="comp"><div class="tk">005930.KS</div><div class="nm">Samsung</div></div>
+      <div class="comp"><div class="tk">1810.HK</div><div class="nm">Xiaomi</div></div>
+      <div class="comp"><div class="tk">GOOGL</div><div class="nm">Alphabet</div></div>
+      <div class="comp"><div class="tk">MSFT</div><div class="nm">Microsoft</div></div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+  const wrap=document.getElementById('wrap');
+  document.querySelectorAll('.pal button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.pal button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    wrap.style.setProperty('--accent', b.dataset.a);
+    wrap.style.setProperty('--accent2', b.dataset.b);
+  }));
+</script>
+</body></html>
