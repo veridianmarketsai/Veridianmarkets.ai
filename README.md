@@ -249,11 +249,48 @@ uses Spectral. To self-host, drop licensed `woff2` files in `fonts/` and swap th
 
 ---
 
+## RUNNING & PREVIEWING LOCALLY
+
+The product surface (`ui_kits/web/index.html`) is a **CDN React + in-browser
+Babel** prototype: it loads React from a CDN and pulls the local `.jsx`
+components in over HTTP. That means it **must be served over HTTP** — opening the
+file directly (`file://`) fails, because the browser blocks the `.jsx` fetches.
+
+A dependency-free static server ships at repo root: `dev-server.mjs`. It uses
+only Node's built-in modules (no `npm install`).
+
+**To preview:**
+```bash
+node dev-server.mjs            # serves the repo root on http://localhost:3000
+node dev-server.mjs 8080       # optional: pick another port
+```
+Then open **http://localhost:3000/ui_kits/web/index.html** (design-system
+specimen cards live at **/preview/**).
+
+**Iteration loop — no build step.** Edit any `.jsx` in `ui_kits/web/` or the
+tokens in `colors_and_type.css`, **save**, then **refresh the browser**. Babel
+transpiles the JSX in-browser on load, so a refresh is all that's needed. (There
+is no auto-reload yet; a Vite migration would add that plus real bundling when
+the prototype outgrows the CDN/Babel approach.)
+
+**Environment notes (recorded 2026-05-28):**
+- **Node.js 24.16.0** was installed locally for this (npm 11.13.0).
+- This network does **TLS interception**, so `npm install` fails with
+  `UNABLE_TO_VERIFY_LEAF_SIGNATURE` and `winget`'s `msstore` source throws a cert
+  error. Workarounds: prefer Node built-ins (as `dev-server.mjs` does); for npm
+  use `NODE_OPTIONS=--use-system-ca` or `npm config set cafile <corp-root-ca>`;
+  for winget pin `--source winget`.
+- **Workflow:** changes are made on **feature branches** (not committed straight
+  to `main`).
+
+---
+
 ## INDEX — what's in this folder
 
 | Path | What it is |
 |---|---|
 | `README.md` | This file — context, voice, visual foundations, iconography, index |
+| `dev-server.mjs` | Zero-dependency Node static server for local preview (see *Running & previewing locally*) |
 | `colors_and_type.css` | All design tokens (color, type, spacing, radius, shadow) + semantic type classes and the original product's token aliases |
 | `fonts/times.ttf` | The brand serif (Times New Roman), wired as `VM Serif` via `@font-face` |
 | `SKILL.md` | Agent-Skills manifest so this system can be used as a downloadable skill |
