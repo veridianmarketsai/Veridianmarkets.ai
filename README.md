@@ -317,6 +317,11 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-30
 
+- **21:38 — Reworked the History page into a search/"ask" hub.** Replaced the
+  analogue-engine layout with a centred **Search** page: a "you can search at any
+  time" hint pill, a rounded search bar (submit is a scaffold — no backend yet),
+  and a **Prompts** list of clickable example questions that fill the box. The
+  analogue data stays in `data.jsx`. _(branch: `history-page-1.8`, not yet on main)_
 - **18:59 — Shipped the SCN dependency map to main** (live on veridianmarkets.ai;
   still a work-in-progress — breadcrumbs + company-page entry points to follow).
   _(branch: `scn-live-demo-1.6`)_
