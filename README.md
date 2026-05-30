@@ -289,20 +289,26 @@ the prototype outgrows the CDN/Babel approach.)
 ## Changelog
 
 ### 2026-05-28
-- **New "Read memoir" page + a footer on every screen.** Wired up the previously
-  inert *Read memoir* rail item to a new route/page: a centered editorial
-  *founding note* (kicker → oversized quote glyph → the founder's statement with
-  teal emphasis → rule/diamond/rule divider → byline → "Back to the front page"),
-  built with the existing `VM` design tokens and rendered inside `<main>` so the
-  rail + index strip stay. Also added a shared `Footer` (divider motif · *Veridian
-  Markets* wordmark · `HISTORY, READ FORWARD`) rendered once in `App` so it now
-  sits at the foot of **every** surface.
+
+- **21:20 — New "Read memoir" page.** Wired up the previously inert *Read memoir*
+  rail item to a new route/page: a centered editorial *founding note* (kicker →
+  oversized quote glyph → the founder's statement with teal emphasis →
+  rule/diamond/rule divider → byline → "Back to the front page"), built with the
+  existing `VM` design tokens and rendered inside `<main>` so the rail + index
+  strip stay.
   Source: [`ui_kits/web/Memoir.jsx`](ui_kits/web/Memoir.jsx) (new page),
-  [`ui_kits/web/chrome.jsx`](ui_kits/web/chrome.jsx) (`Footer`, rail item),
-  [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx) (route + footer mount),
+  [`ui_kits/web/chrome.jsx`](ui_kits/web/chrome.jsx) (rail item),
+  [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx) (route),
   [`ui_kits/web/index.html`](ui_kits/web/index.html) (script tag).
-- **Masthead wordmark: "Veridian Memoir" → "Veridian Markets."** Updated the
-  `Masthead` component so the sidebar logo reads *Veridian* (italic teal) +
+
+- **21:20 — Shared footer on every screen.** Added a `Footer` (divider motif ·
+  *Veridian Markets* wordmark · `HISTORY, READ FORWARD`) rendered once in `App`
+  so it now sits at the foot of **every** surface.
+  Source: [`ui_kits/web/chrome.jsx`](ui_kits/web/chrome.jsx) (`Footer`),
+  [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx) (footer mount).
+
+- **20:33 — Masthead wordmark: "Veridian Memoir" → "Veridian Markets."** Updated
+  the `Masthead` component so the sidebar logo reads *Veridian* (italic teal) +
   **Markets** (roman ink), keeping the same Spectral serif and brand colors.
   Reduced the type from 26px to 20px and tightened the gap/padding so the longer
   name fits inside the 208px left rail instead of overflowing.
