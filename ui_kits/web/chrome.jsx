@@ -94,7 +94,7 @@ function Rail({ route, go, mobile, open, onClose }) {
 
 function IndexStrip() {
   return (
-    <div style={{ display:'flex', overflowX:'hidden', background:VM.tealTint, borderBottom:`1px solid ${VM.borderSoft}` }}>
+    <div style={{ display:'flex', overflowX:'hidden', background:VM.tealTint, borderTop:`1px solid ${VM.borderSoft}`, borderBottom:`1px solid ${VM.borderSoft}` }}>
       {VM_INDEX.map((t,i)=>(
         <div key={i} style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderLeft: i?`1px dashed rgba(31,29,26,0.18)`:'none', whiteSpace:'nowrap' }}>
           <Mono size={11} weight={700}>{t.sym}</Mono>

@@ -317,6 +317,24 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-30
 
+- **14:20 — Front page: "Find a company" preview reworked.** Now shows up to 10
+  companies with a live **search box** (filters by ticker/name). Each row reveals
+  `eye / supply-chain / open` action icons and **pops out on hover** (scale +
+  shadow + highlight), matching the screener. Removed the old subtitle line.
+  _(branch: `update-front-page-1.4`)_
+- **14:20 — Front page: story-tile grid (3×3) with a centred pager.** Replaced the
+  single lead story with a 3×3 grid of 27 tiles across 3 pages. A pager **slides
+  the tiles up/down** between pages (same `.38s` easing as the accordion); the
+  control keeps **"More ↓" pinned to the centre** while **"↑ Up"** reveals to its
+  left with a separator. Tiles **pop out on hover**. _(branch: `update-front-page-1.4`)_
+- **14:20 — Front page: right column is now an accordion.** Removed the Watchlist
+  card. **Market recap** and **Mini calendar** are mutually-exclusive collapsible
+  cards (exactly one open, exact-height animation so the section below never
+  bounces); each chevron sits in a **boxed control** that shades on hover.
+  _(branch: `update-front-page-1.4`)_
+- **14:20 — Front page: greeting/ticker swap + ticker border.** "Good morning."
+  now sits **above** the market ticker (front page only); the ticker gained a top
+  border to match its bottom. _(branch: `update-front-page-1.4`)_
 - **12:23 — Gated *My Portfolio* behind sign-in.** New `myportfolio` route +
   scaffold (`MyPortfolio.jsx`), wired the rail item, and added a placeholder
   `signedIn` flag in `app.jsx`: logged-out visitors are **rerouted to Sign in**.
