@@ -40,7 +40,7 @@ belongs to the Toolbar Menu.
 | *logo — "Veridian Markets"*    | **Home Page**        | `front`    | The top-left wordmark **is** the Home button. There is no "Front page" text item. |
 | Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Auth (AWS) wiring TBD. |
 | My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated scaffold (`MyPortfolio.jsx`): reroutes to Sign in when logged out (placeholder `signedIn=false` in `app.jsx`). |
-| Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). Built on branch `scn-live-demo-1.6` (NOT yet merged to main as of 18:39). |
+| Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
 | Search                         | **Main Search Page** | `screener` | Renamed from "Company search". |
 | History                        | **History Page**     | `history`  | |
 | Learn                          | **Learn VM**         | `learn`    | Blank scaffold page (`Learn.jsx`); content TBD. |
@@ -56,7 +56,11 @@ placeholders until their page exists.
 
 ### 2026-05-30
 
-- **18:39 — Built the SCN dependency map (`scn-live-demo-1.6`, NOT merged).**
+- **18:59 — Merged `scn-live-demo-1.6` → main; SCN dependency map is live.** Shipped
+  to veridianmarkets.ai despite being WIP (user chose to publish now, refine later:
+  breadcrumbs + company-page entry points). Also note `api-link-beta-1.7` is open
+  (empty, branched from main) for the Finnhub/data-provider side project — paused.
+- **18:39 — Built the SCN dependency map (`scn-live-demo-1.6`).**
   New interactive page `ScnLiveDemo.jsx` (ported from the user's HTML example):
   principle centre, inputs/external left + customers right, curved SVG connectors,
   hover tooltips, click-to-drill with breadcrumb, All/Companies/External filters
@@ -175,7 +179,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `scn-live-demo-1.6` (next: `<code-name>-1.7`). NB: `scn-live-demo-1.6` is **in development, not merged to main** — `main` still serves the old supply page until it's merged.
+**Latest branch (this scheme):** `scn-live-demo-1.6` (merged to main 18:59). Also open: `api-link-beta-1.7` (empty, paused — Finnhub/data-provider side project). **Next free iteration: `<code-name>-1.8`** (1.7 is taken by api-link-beta).
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within

@@ -317,8 +317,11 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-30
 
-- **18:39 — New interactive Supply-chain dependency map** *(in development, not yet
-  on main)*. New page `ScnLiveDemo.jsx`: a "principle" company centre node with
+- **18:59 — Shipped the SCN dependency map to main** (live on veridianmarkets.ai;
+  still a work-in-progress — breadcrumbs + company-page entry points to follow).
+  _(branch: `scn-live-demo-1.6`)_
+- **18:39 — New interactive Supply-chain dependency map.** New page `ScnLiveDemo.jsx`:
+  a "principle" company centre node with
   inputs/external dependencies on the left and customers/channels on the right,
   joined by curved SVG connectors. **Hover** for detail tooltips + line highlight;
   **click** any node to make it the principle (drill-down) with a **breadcrumb**
