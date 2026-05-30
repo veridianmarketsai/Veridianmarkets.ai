@@ -56,6 +56,12 @@ placeholders until their page exists.
 
 ### 2026-05-30
 
+- **14:50 — Front page + chrome polish & mobile (`update-front-page-1.5`).**
+  Time-based greeting moved into the Toolbar Menu (above "You"); ticker back at the
+  very top; greeting subtitle removed; "Open full screener" boxed. Mobile pass:
+  stacked grid, single-column story tiles (pager → 9 pages), simplified company
+  rows. Ticker is now an auto-scrolling (right→left), drag-to-move marquee; removed
+  the UTC·LIVE chip.
 - **14:20 — Front page overhaul (`update-front-page-1.4`).** Greeting moved above
   the ticker (+ ticker top border); lead story → a 3×3 paged story-tile grid with
   a centred "More ↓ / ↑ Up" pager that scrolls tiles between pages; right column

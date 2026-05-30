@@ -1,12 +1,16 @@
 // Veridian Markets — Front page (editorial home).
-function FrontPage({ go }) {
+function FrontPage({ go, isMobile }) {
   const recap = [
     { k:'Forex', chg:'+0.12%', dir:'up' }, { k:'Bonds', chg:'-0.08%', dir:'down' },
     { k:'Commodities', chg:'+0.94%', dir:'up' }, { k:'Stocks', chg:'+0.41%', dir:'up' },
     { k:'Crypto', chg:'-2.31%', dir:'down' }, { k:'Funds', chg:'+0.27%', dir:'up' },
   ];
-  const [page, setPage] = useState(0);   // story-tile pager: 3 pages of 9 (27 total)
-  const lastPage = page === 2;           // final page → control collapses to just "Back to top"
+  const cols = isMobile ? 1 : 3;                       // story tiles per row (stacks on mobile)
+  const perPage = cols * 3;                            // 3 rows visible per page → 9 desktop / 3 mobile
+  const pageCount = Math.ceil(27 / perPage);           // 3 pages desktop, 9 mobile
+  const [page, setPage] = useState(0);                 // story-tile pager
+  React.useEffect(() => { setPage(p => Math.min(p, pageCount - 1)); }, [pageCount]);  // clamp when the breakpoint changes
+  const lastPage = page === pageCount - 1;             // final page → 'More' is hidden
   const [pagerHover, setPagerHover] = useState(false);  // hover shade on the pager pill
   const moreRef = React.useRef(null);                   // measure 'More' so we can pin it to the centre
   const [anchorX, setAnchorX] = useState(43);           // pill's right edge sits this many px right of centre
@@ -20,27 +24,17 @@ function FrontPage({ go }) {
     .filter(c => !q || c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q))
     .slice(0, 10);
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
+  const [screenerHover, setScreenerHover] = useState(false);  // hover shade on the 'Open full screener' button
   return (
-    <React.Fragment>
-      {/* Greeting now sits ABOVE the market ticker (swapped on the front page). */}
-      <div style={{ padding:'18px 32px', maxWidth:1180, margin:'0 auto' }}>
-        <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
-          <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:24 }}>Good morning.</span>
-          <span style={{ fontFamily:VM.serif, fontSize:17, color:VM.ink3 }}>Three things on the tape — and one from 1973.</span>
-        </div>
-      </div>
-
-      <IndexStrip />
-
-      <div style={{ padding:'18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'1.7fr 1fr', gap:32 }}>
+    <div style={{ padding: isMobile ? '14px 16px 48px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
         {/* STORY TILES — fixed 3×3 window; the button slides through 3 pages of 9 (27 total). Placeholder scaffold. */}
         <div>
           <Kicker>LEAD · 5-YEAR LENS</Kicker>
           {/* One page of 9 tiles, in an overflow-visible area so hover pop-outs are never clipped.
               Changing page remounts StoryPage (via key), which slides + fades the new tiles in. */}
           <div style={{ marginTop:10 }}>
-            <StoryScroller page={page} tileTitles={tileTitles} />
+            <StoryScroller page={page} tileTitles={tileTitles} cols={cols} perPage={perPage} />
           </div>
           {/* Pager — 'More' stays centered; 'Back to top' eases in to its left once you've paged in. */}
           {/* Pager — 'More' is pinned to the page centre (never moves); 'Up' reveals to its left and the box grows leftward only. */}
@@ -58,18 +52,18 @@ function FrontPage({ go }) {
                 <span onClick={()=>setPage(p=>Math.max(p-1,0))} style={{ fontFamily:VM.serif, fontSize:14, color:VM.teal, cursor:'pointer' }}>↑ Up</span>
               </span>
               {/* vertical separator — only on the middle page, where both actions show. */}
-              <span style={{ alignSelf:'stretch', width: page === 1 ? 1 : 0, background:VM.border, overflow:'hidden',
-                margin: page === 1 ? '9px 14px' : '9px 0', opacity: page === 1 ? 1 : 0,
+              <span style={{ alignSelf:'stretch', width: (page >= 1 && !lastPage) ? 1 : 0, background:VM.border, overflow:'hidden',
+                margin: (page >= 1 && !lastPage) ? '9px 14px' : '9px 0', opacity: (page >= 1 && !lastPage) ? 1 : 0,
                 transition:'width .38s cubic-bezier(.4,0,.2,1), margin .38s cubic-bezier(.4,0,.2,1), opacity .3s ease' }}></span>
               {/* More — rightmost item, kept on the centreline via the measured anchor. */}
               <span style={{ display:'inline-flex', alignItems:'center', overflow:'hidden',
                 maxWidth: lastPage ? 0 : 80, opacity: lastPage ? 0 : 1,
                 transition:'max-width .38s cubic-bezier(.4,0,.2,1), opacity .3s ease' }}>
-                <span ref={moreRef} onClick={()=>setPage(p=>Math.min(p+1,2))} style={{ fontFamily:VM.serif, fontSize:14, color:VM.teal, cursor:'pointer' }}>More ↓</span>
+                <span ref={moreRef} onClick={()=>setPage(p=>Math.min(p+1,pageCount-1))} style={{ fontFamily:VM.serif, fontSize:14, color:VM.teal, cursor:'pointer' }}>More ↓</span>
               </span>
             </div>
             <div style={{ position:'absolute', left:'50%', top:'50%', transform:`translate(${anchorX + 12}px, -50%)`,
-              fontFamily:VM.mono, fontSize:10, color:VM.ink3, whiteSpace:'nowrap' }}>{page + 1} / 3</div>
+              fontFamily:VM.mono, fontSize:10, color:VM.ink3, whiteSpace:'nowrap' }}>{page + 1} / {pageCount}</div>
           </div>
         </div>
 
@@ -93,9 +87,13 @@ function FrontPage({ go }) {
       {/* TOP COMPANIES PREVIEW */}
       <div style={{ marginTop:44 }}>
         <Kicker>EXPLORE · 4,904 PUBLIC COMPANIES</Kicker>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', margin:'8px 0 16px' }}>
-          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:27, margin:0 }}>Find a company.</h2>
-          <span onClick={()=>go('screener')} style={{ fontFamily:VM.serif, fontSize:14, color:VM.teal, cursor:'pointer' }}>Open full screener →</span>
+        <div style={{ display:'flex', flexDirection: isMobile?'column':'row', justifyContent:'space-between', alignItems: isMobile?'flex-start':'baseline', gap: isMobile?10:0, margin:'8px 0 16px' }}>
+          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:0 }}>Find a company.</h2>
+          <span onClick={()=>go('screener')} onMouseEnter={()=>setScreenerHover(true)} onMouseLeave={()=>setScreenerHover(false)}
+            style={{ fontFamily:VM.serif, fontSize:14, color:VM.teal, cursor:'pointer', whiteSpace:'nowrap',
+              border:`1px solid ${screenerHover ? VM.ink3 : VM.border}`, borderRadius:999, padding:'6px 16px',
+              background: screenerHover ? VM.paperDeep : VM.paper,
+              transition:'background .15s ease, border-color .15s ease' }}>Open full screener →</span>
         </div>
         {/* Search box — filters the preview list by ticker or company name. */}
         <div style={{ display:'flex', alignItems:'center', gap:9, background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
@@ -105,19 +103,18 @@ function FrontPage({ go }) {
           {companyQuery && <i onClick={()=>setCompanyQuery('')} className="ti ti-x" style={{ fontSize:14, color:VM.ink3, cursor:'pointer' }} title="Clear"></i>}
         </div>
         <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'80px 1fr 90px', padding:'6px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px', padding: isMobile ? '6px 14px' : '6px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
             <Label>Ticker</Label><Label>Sector · Market cap</Label><Label style={{textAlign:'right'}}>Price</Label>
           </div>
           {companyRows.length === 0 && (
             <div style={{ padding:'18px 16px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No companies match “{companyQuery}”.</div>
           )}
           {companyRows.map((c,i)=>(
-            <CompanyRow key={c.ticker} c={c} last={i===companyRows.length-1} go={go} />
+            <CompanyRow key={c.ticker} c={c} last={i===companyRows.length-1} go={go} isMobile={isMobile} />
           ))}
         </div>
       </div>
       </div>
-    </React.Fragment>
   );
 }
 
@@ -155,11 +152,11 @@ function CollapsibleCard({ letter, title, open, onToggle, children }) {
   );
 }
 
-// One page of 9 story tiles.
-function PageGrid({ page, tileTitles }) {
-  const nums = Array.from({ length: 9 }, (_, i) => page * 9 + i + 1);
+// One page of tiles (9 on desktop / 3 on mobile).
+function PageGrid({ page, tileTitles, cols, perPage }) {
+  const nums = Array.from({ length: perPage }, (_, i) => page * perPage + i + 1);
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gridAutoRows:'128px', gap:14 }}>
+    <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols}, 1fr)`, gridAutoRows:'128px', gap:14 }}>
       {nums.map(n => (
         <StoryTile key={n} n={n} title={tileTitles[(n - 1) % tileTitles.length]} dir={n % 3 === 0 ? 'down' : 'up'} mins={3 + ((n * 2) % 7)} />
       ))}
@@ -170,7 +167,7 @@ function PageGrid({ page, tileTitles }) {
 // Scrolls between pages: idle = a single page in an overflow-visible box (so hover pop-outs aren't
 // clipped); during a page change it stacks both pages and slides the track up/down so you see the
 // tiles move. Same easing/speed as the accordion (.38s) for a consistent feel.
-function StoryScroller({ page, tileTitles }) {
+function StoryScroller({ page, tileTitles, cols, perPage }) {
   const ROW = 128, GAP = 14;
   const VIEW_H = 3 * ROW + 2 * GAP;   // 412 — three rows tall
   const STEP = 3 * (ROW + GAP);       // 426 — one page of travel
@@ -187,7 +184,7 @@ function StoryScroller({ page, tileTitles }) {
   }, [page]);
 
   if (!armed) {
-    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} /></div>;
+    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} cols={cols} perPage={perPage} /></div>;
   }
 
   const forward = page > display;                       // next page → scroll up
@@ -202,9 +199,9 @@ function StoryScroller({ page, tileTitles }) {
   return (
     <div style={{ height: VIEW_H, overflow:'hidden' }}>
       <div onTransitionEnd={onEnd} style={{ transform:`translateY(${offset}px)`, transition: run ? EASE : 'none' }}>
-        <PageGrid page={topPage} tileTitles={tileTitles} />
+        <PageGrid page={topPage} tileTitles={tileTitles} cols={cols} perPage={perPage} />
         <div style={{ height: GAP }}></div>
-        <PageGrid page={bottomPage} tileTitles={tileTitles} />
+        <PageGrid page={bottomPage} tileTitles={tileTitles} cols={cols} perPage={perPage} />
       </div>
     </div>
   );
@@ -232,28 +229,38 @@ function StoryTile({ n, title, dir, mins }) {
 }
 
 // A 'Find a company' row — reveals action icons and pops out slightly on hover (matches the screener feel).
-function CompanyRow({ c, last, go }) {
+function CompanyRow({ c, last, go, isMobile }) {
   const [hover, setHover] = React.useState(false);
+  const pop = hover && !isMobile;   // no hover pop-out / icons on touch
   return (
     <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={()=>go('dashboard', c)}
-      style={{ display:'grid', gridTemplateColumns:'80px 1fr 90px 70px 110px', alignItems:'center', gap:10, padding:'12px 16px', cursor:'pointer',
+      style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px 70px 110px', alignItems:'center', gap:10, padding: isMobile ? '11px 14px' : '12px 16px', cursor:'pointer',
         borderBottom: last ? 'none' : `1px solid ${VM.borderSoft}`,
-        background: hover ? VM.paperWarm : 'transparent',
-        transform: hover ? 'scale(1.015)' : 'scale(1)',
-        boxShadow: hover ? '0 6px 18px rgba(31,29,26,0.10)' : 'none',
-        borderRadius: hover ? 10 : 0, position:'relative', zIndex: hover ? 2 : 1,
+        background: (hover && !isMobile) ? VM.paperWarm : 'transparent',
+        transform: pop ? 'scale(1.015)' : 'scale(1)',
+        boxShadow: pop ? '0 6px 18px rgba(31,29,26,0.10)' : 'none',
+        borderRadius: pop ? 10 : 0, position:'relative', zIndex: pop ? 2 : 1,
         transition:'transform .16s ease, box-shadow .16s ease, background .16s ease' }}>
-      <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:20 }}>{c.ticker}</span>
+      <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 17 : 20 }}>{c.ticker}</span>
       <div><Mono size={11} color={VM.ink2}>{c.name}</Mono><div><Label>{c.sector} · {c.cap}</Label></div></div>
-      <Mono size={13} weight={700} style={{textAlign:'right'}}>${c.price}</Mono>
-      <span style={{textAlign:'right'}}><Chg dir={c.dir}>{c.chg}</Chg></span>
-      {/* action icons — revealed on hover; the column is always reserved so nothing shifts. */}
-      <div style={{ display:'flex', gap:6, justifyContent:'flex-end',
-        opacity: hover ? 1 : 0, pointerEvents: hover ? 'auto' : 'none', transition:'opacity .16s ease' }}>
-        <IconBtn icon="eye" round size={28} onClick={(e)=>{ e.stopPropagation(); go('dashboard', c); }} title="Preview" />
-        <IconBtn icon="affiliate" round size={28} onClick={(e)=>{ e.stopPropagation(); go('supply', c); }} title="Supply chain" />
-        <IconBtn icon="arrow-right" round size={28} onClick={(e)=>{ e.stopPropagation(); go('dashboard', c); }} title="Open dashboard" />
-      </div>
+      {isMobile ? (
+        <div style={{ textAlign:'right' }}>
+          <Mono size={12} weight={700}>${c.price}</Mono>
+          <div><Chg dir={c.dir}>{c.chg}</Chg></div>
+        </div>
+      ) : (
+        <React.Fragment>
+          <Mono size={13} weight={700} style={{textAlign:'right'}}>${c.price}</Mono>
+          <span style={{textAlign:'right'}}><Chg dir={c.dir}>{c.chg}</Chg></span>
+          {/* action icons — revealed on hover; the column is always reserved so nothing shifts. */}
+          <div style={{ display:'flex', gap:6, justifyContent:'flex-end',
+            opacity: hover ? 1 : 0, pointerEvents: hover ? 'auto' : 'none', transition:'opacity .16s ease' }}>
+            <IconBtn icon="eye" round size={28} onClick={(e)=>{ e.stopPropagation(); go('dashboard', c); }} title="Preview" />
+            <IconBtn icon="affiliate" round size={28} onClick={(e)=>{ e.stopPropagation(); go('supply', c); }} title="Supply chain" />
+            <IconBtn icon="arrow-right" round size={28} onClick={(e)=>{ e.stopPropagation(); go('dashboard', c); }} title="Open dashboard" />
+          </div>
+        </React.Fragment>
+      )}
     </div>
   );
 }
