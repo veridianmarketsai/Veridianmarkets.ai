@@ -56,6 +56,13 @@ placeholders until their page exists.
 
 ### 2026-05-30
 
+- **12:10 — Removed the Toolbar Menu search field.** Deleted the dashed
+  "search tickers, eras" input at the top of the rail; nav now starts at the
+  *You* group. (`update-global-header-1.2`)
+- **12:05 — Added the global header + mobile support.** New full-width green top
+  bar (`GlobalHeader`) with the wordmark as the Home button on every screen size;
+  below ~768px the Toolbar Menu collapses into a hamburger / slide-in drawer, and
+  the rail's duplicate wordmark was removed. (`update-global-header-1.2`)
 - **11:58 — Started the branch scheme: `update-toolbar-and-setup-1.1` (1.1).** First
   branch under the new convention; bundles the Toolbar Menu overhaul, the blank
   Learn page, the brand rename, and the docs/setup (this file, `Businessplan.md`,
@@ -135,10 +142,8 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `update-toolbar-and-setup-1.1` (next: `update-global-header-1.2`).
+**Latest branch (this scheme):** `update-global-header-1.2` (next: `create-sign-in-page-1.3`).
 
-> ⚠️ Interpretation to confirm: I've treated *iteration* as a **running counter
-> for the whole foundation** (1.1, 1.2, 1.3 across all changes, regardless of
-> code name). If you instead meant it **per Code Name** (so "Update Global
-> Header" keeps its own 1.1 → 1.2 → 1.3 while a different feature also starts at
-> 1.1), tell me and I'll switch the auto-increment rule.
+> ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
+> foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
+> Foundation 1, regardless of which feature the branch is for.
