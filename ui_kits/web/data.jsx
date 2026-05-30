@@ -1,4 +1,4 @@
-// Veridian Memoir — mock dataset for the UI kit.
+// Veridian Markets — mock dataset for the UI kit.
 // Fictional/illustrative numbers; not market data.
 
 const VM_INDEX = [

@@ -1,4 +1,4 @@
-// Veridian Memoir — shared visual primitives.
+// Veridian Markets — shared visual primitives.
 // Editorial serif + machine mono. Line-art charts.
 const { useMemo } = React;
 

@@ -1,4 +1,4 @@
-// Veridian Memoir — Company dashboard · Overview tab.
+// Veridian Markets — Company dashboard · Overview tab.
 function Dashboard({ company, go }) {
   const c = company || VM_COMPANIES[0];
   const quick = [

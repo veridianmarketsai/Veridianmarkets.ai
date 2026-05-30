@@ -1,9 +1,9 @@
-// Veridian Memoir — app chrome: masthead, left rail, index strip.
+// Veridian Markets — app chrome: masthead, left rail, index strip.
 const { useState } = React;
 
-function Masthead() {
+function Masthead({ go }) {
   return (
-    <div style={{ padding:'18px 16px 14px' }}>
+    <div onClick={()=>go&&go('front')} title="Home page" style={{ padding:'18px 16px 14px', cursor:'pointer' }}>
       <div style={{ fontFamily:VM.serif, lineHeight:1, display:'flex', alignItems:'baseline', gap:6, whiteSpace:'nowrap' }}>
         <span style={{ fontStyle:'italic', fontWeight:700, fontSize:20, color:VM.teal, letterSpacing:'-0.01em' }}>Veridian</span>
         <span style={{ fontWeight:500, fontSize:20, color:VM.ink }}>Markets</span>
@@ -14,16 +14,16 @@ function Masthead() {
 }
 
 const RAIL_GROUPS = [
-  { head:null, items:[ {id:'search', label:'Company search', icon:'search', isSearch:true } ] },
-  { head:'You', items:[ {label:'Sign in'}, {label:'Watchlist'}, {label:'Saved stories'} ] },
-  { head:'Explore', items:[ {id:'front', label:'Front page'}, {id:'screener', label:'Company search'}, {id:'supply', label:'Supply chain network'}, {id:'history', label:'History'} ] },
-  { head:null, items:[ {label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
+  { head:null, items:[ {id:'search', label:'Search', icon:'search', isSearch:true } ] },
+  { head:'You', items:[ {label:'Sign in'}, {label:'My portfolio'} ] },
+  { head:'Explore', items:[ {id:'supply', label:'Supply chain network', badge:'Live Demo'}, {id:'screener', label:'Search'}, {id:'history', label:'History'} ] },
+  { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
 function Rail({ route, go }) {
   return (
     <aside style={{ width:208, flexShrink:0, background:VM.rail, borderRight:`1px solid ${VM.borderSoft}`, height:'100%', overflowY:'auto', display:'flex', flexDirection:'column' }}>
-      <Masthead />
+      <Masthead go={go} />
       {/* search field */}
       <div style={{ margin:'2px 14px 14px', display:'flex', alignItems:'center', gap:7, border:`1.2px dashed ${VM.border}`, borderRadius:999, padding:'7px 12px', background:'rgba(251,249,243,0.5)' }}>
         <i className="ti ti-search" style={{ fontSize:13, color:VM.ink3 }}></i>
@@ -42,7 +42,18 @@ function Rail({ route, go }) {
                   background: active?VM.paper:'transparent',
                   border: active?`1px solid ${VM.border}`:'1px solid transparent',
                   color: it.tone==='teal'?VM.teal : active?VM.ink:VM.ink2, fontWeight: active?600:400,
-                }}>{it.label}</div>
+                  display:'flex', alignItems:'center', flexWrap:'wrap', gap:6,
+                }}>
+                  <span>{it.label}</span>
+                  {it.badge && (
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontFamily:VM.mono, fontSize:8.5,
+                      letterSpacing:'0.04em', lineHeight:1, color:VM.upInk, background:VM.tealTint,
+                      border:`1px solid ${VM.up}`, borderRadius:5, padding:'2px 6px', whiteSpace:'nowrap' }}>
+                      <span style={{ width:5, height:5, borderRadius:999, background:VM.up, display:'inline-block' }}></span>
+                      {it.badge}
+                    </span>
+                  )}
+                </div>
               );
             })}
           </div>

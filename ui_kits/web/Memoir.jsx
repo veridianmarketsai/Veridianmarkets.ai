@@ -1,4 +1,4 @@
-// Veridian Memoir — "Read memoir" page (the founding note).
+// Veridian Markets — "Read memoir" page (the founding note).
 // Centered editorial statement; lives inside <main> so the rail + index strip stay.
 function Memoir({ go }) {
   return (

@@ -1,4 +1,4 @@
-// Veridian Memoir — shared company header (breadcrumb, ticker lockup, tabs, quote).
+// Veridian Markets — shared company header (breadcrumb, ticker lockup, tabs, quote).
 function CompanyHead({ c, tab, go }) {
   const tabs = ['Overview','Supply chain','Financials','Patents','History'];
   const tabRoute = { 'Overview':'dashboard', 'Supply chain':'supply', 'History':'history' };
