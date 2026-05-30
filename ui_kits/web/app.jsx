@@ -13,7 +13,7 @@ function useIsMobile(bp) {
 }
 
 function App() {
-  const [route, setRoute] = useStateApp('front');     // front | screener | supply | dashboard | history | memoir | learn | signin | myportfolio
+  const [route, setRoute] = useStateApp('front');     // front | screener | supply (= dependency map) | dashboard | history | memoir | learn | signin | myportfolio
   const [company, setCompany] = useStateApp(VM_COMPANIES[0]);
   const [menuOpen, setMenuOpen] = useStateApp(false);
   const isMobile = useIsMobile(768);
@@ -31,7 +31,7 @@ function App() {
   let screen;
   if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} />;
   else if(effRoute==='screener') screen = <Screener go={go} />;
-  else if(effRoute==='supply') screen = <SupplyChain company={company} go={go} />;
+  else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
   else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} />;
   else if(effRoute==='history') screen = <History company={company} go={go} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} />;
