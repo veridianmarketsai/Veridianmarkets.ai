@@ -53,7 +53,8 @@ function App() {
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
           <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-            <IndexStrip />
+            {/* Front page renders the ticker below its greeting (see FrontPage); other pages show it pinned here. */}
+            {effRoute!=='front' && <IndexStrip />}
             <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm }}>
               {screen}
               <Footer />
