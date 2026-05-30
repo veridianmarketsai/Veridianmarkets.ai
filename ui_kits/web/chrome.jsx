@@ -39,7 +39,7 @@ function Masthead({ go }) {
 
 const RAIL_GROUPS = [
   { head:null, items:[ {id:'search', label:'Search', icon:'search', isSearch:true } ] },
-  { head:'You', items:[ {label:'Sign in'}, {label:'My portfolio'} ] },
+  { head:'You', items:[ {id:'signin', label:'Sign in'}, {id:'myportfolio', label:'My portfolio'} ] },
   { head:'Explore', items:[ {id:'supply', label:'Supply chain network', badge:'Live Demo'}, {id:'screener', label:'Search'}, {id:'history', label:'History'} ] },
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];

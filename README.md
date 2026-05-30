@@ -317,6 +317,15 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-30
 
+- **12:23 — Gated *My Portfolio* behind sign-in.** New `myportfolio` route +
+  scaffold (`MyPortfolio.jsx`), wired the rail item, and added a placeholder
+  `signedIn` flag in `app.jsx`: logged-out visitors are **rerouted to Sign in**.
+  The gate is UX-only — see `Businessplan.md` for the AWS (Cognito + API Gateway)
+  work needed to make it real.
+- **12:17 — New chromeless *Sign in* page.** `signin` route + `SignIn.jsx`:
+  renders with **only the green header + footer** (no Toolbar Menu / ticker) and a
+  centered login box (email, password, sign-in button — visual scaffold, no auth
+  yet). The rail "Sign in" item is wired up.
 - **12:10 — Removed the rail's "search tickers, eras" field.** The dashed search
   input at the top of the Toolbar Menu is gone; the nav now starts at the *You*
   group. (The *Search* nav link is unaffected.)
