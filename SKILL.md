@@ -1,6 +1,6 @@
 ---
 name: veridian-memoir-design
-description: Use this skill to generate well-branded interfaces and assets for Veridian Memoir ("history-led finance"), either for production or throwaway prototypes/mocks/etc. Contains essential design guidelines, colors, type, fonts, assets, and UI kit components for prototyping.
+description: Use this skill to generate well-branded interfaces and assets for Veridian Markets ("history-led finance"), either for production or throwaway prototypes/mocks/etc. Contains essential design guidelines, colors, type, fonts, assets, and UI kit components for prototyping.
 user-invocable: true
 ---
 

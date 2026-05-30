@@ -1,4 +1,4 @@
-// Veridian Memoir — Company search / screener with eye-preview.
+// Veridian Markets — Company search / screener with eye-preview.
 const { useState: useStateScr } = React;
 
 function Screener({ go }) {

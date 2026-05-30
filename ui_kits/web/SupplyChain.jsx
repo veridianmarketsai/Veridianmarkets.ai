@@ -1,4 +1,4 @@
-// Veridian Memoir — Supply chain network ("the principle").
+// Veridian Markets — Supply chain network ("the principle").
 function SupplyChain({ company, go }) {
   const c = company || VM_COMPANIES[0];
   const inputs = c.inputs || VM_COMPANIES[0].inputs;

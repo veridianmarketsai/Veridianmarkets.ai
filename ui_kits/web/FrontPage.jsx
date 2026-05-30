@@ -1,4 +1,4 @@
-// Veridian Memoir — Front page (editorial home).
+// Veridian Markets — Front page (editorial home).
 function FrontPage({ go }) {
   const recap = [
     { k:'Forex', chg:'+0.12%', dir:'up' }, { k:'Bonds', chg:'-0.08%', dir:'down' },

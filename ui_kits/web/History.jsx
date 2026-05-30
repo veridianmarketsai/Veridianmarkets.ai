@@ -1,4 +1,4 @@
-// Veridian Memoir — History / the Memoir (analogue engine).
+// Veridian Markets — History / the Memoir (analogue engine).
 function History({ company, go }) {
   const c = company || VM_COMPANIES[0];
   const outColor = (o)=> o==='CLOSEST'?VM.teal : o==='ECHO'?VM.tealInk : o==='MIXED'?VM.ink2 : VM.rustDeep;

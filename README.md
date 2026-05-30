@@ -1,6 +1,6 @@
 # Veridian Markets — Design System
 
-> **"history-led finance."** Veridian Memoir is a markets-research web product
+> **"history-led finance."** Veridian Markets is a markets-research web product
 > with an editorial, almanac-like voice. Its signature idea: for any company,
 > find the *closest historical analogue* — "AAPL today reads like MSFT in 2014"
 > — and show what happened next as a **base rate, not a forecast**. The whole
@@ -9,14 +9,14 @@
 
 This folder is a self-contained design system: brand voice, color + type
 tokens, the iconography approach, and a high-fidelity UI kit that recreates the
-product's core screens. Use it to build new Veridian Memoir screens, marketing,
+product's core screens. Use it to build new Veridian Markets screens, marketing,
 prototypes, or branded artifacts.
 
 ---
 
 ## The product, in one paragraph
 
-Veridian Memoir is organized as a left **rail** (You: Sign in / Watchlist /
+Veridian Markets is organized as a left **rail** (You: Sign in / Watchlist /
 Saved stories · Explore: Front page / Company search / Supply chain network /
 History · Learn / Read memoir) sitting on a cool blue-grey field, with the warm
 "paper" content area to its right. A persistent **index strip** ticks across the
@@ -228,6 +228,33 @@ licensed `woff2` files in `fonts/` and swap the `@import` for `@font-face` rules
 
 ---
 
+## DATA & ARCHITECTURE — forward plan
+
+veridianmarkets.ai is the **real product**, not a throwaway demo. Two things follow
+from that and should shape how new code is written:
+
+**Real data, via external APIs.** Every number in the kit today is mock /
+illustrative (`ui_kits/web/data.jsx`, *"not market data"*). Live quotes,
+fundamentals, supply-chain links, and the historical-analogue series will come from
+**external APIs**. Therefore:
+- Keep all data access behind a **clean seam** — components read from the `VM_*`
+  data module, never from hard-coded literals inline. That lets mock data be
+  swapped for live API calls (and later, server responses) without touching views.
+- Assume data is **async and can fail** — design for loading and empty/error states
+  even while we're still on mock data.
+
+**Backend on AWS.** Auth (Sign in → gated My Portfolio), API keys / request
+proxying, and caching will live on **AWS**. **No secrets or API keys in the
+client** — they belong behind an AWS endpoint. Treat the current CDN-React +
+in-browser-Babel setup as a prototype shell that will graduate to a real build
+(e.g. Vite) and a proper backend as the foundations progress.
+
+> Day-to-day working conventions, the section / **Toolbar Menu** registry, and the
+> branch-naming scheme live in [`CLAUDEMemory.md`](CLAUDEMemory.md). Product and
+> business context lives in [`Businessplan.md`](Businessplan.md).
+
+---
+
 ## RUNNING & PREVIEWING LOCALLY
 
 The product surface (`ui_kits/web/index.html`) is a **CDN React + in-browser
@@ -275,7 +302,7 @@ the prototype outgrows the CDN/Babel approach.)
 | `fonts/times.ttf` | The brand serif (Times New Roman), wired as `VM Serif` via `@font-face` |
 | `SKILL.md` | Agent-Skills manifest so this system can be used as a downloadable skill |
 | `preview/` | Small HTML specimen cards that populate the Design System tab (color, type, components, etc.) |
-| `ui_kits/web/` | High-fidelity, click-through recreation of the Veridian Memoir web product — `index.html` plus modular JSX components |
+| `ui_kits/web/` | High-fidelity, click-through recreation of the Veridian Markets web product — `index.html` plus modular JSX components |
 | `scraps/` | Raw extraction working files (PDF page renders, decoded wireframe JSX). Reference only — not part of the system |
 
 ### UI kits
@@ -287,6 +314,16 @@ the prototype outgrows the CDN/Babel approach.)
 ---
 
 ## Changelog
+
+### 2026-05-30
+
+- **11:47 — Brand rename "Veridian Memoir" → "Veridian Markets" (live files).**
+  Swept the product name across `ui_kits/web/`, both `index.html`s, this README,
+  and `SKILL.md`. The *Read memoir / Memoir Page* feature keeps its name; archive
+  HTMLs were left untouched.
+- **11:47 — Added the *DATA & ARCHITECTURE — forward plan* section.** Records that
+  the site is the real product, data comes from external APIs behind a clean seam,
+  and the backend (incl. auth) runs on AWS — no secrets in the client.
 
 ### 2026-05-28
 
@@ -307,7 +344,7 @@ the prototype outgrows the CDN/Babel approach.)
   Source: [`ui_kits/web/chrome.jsx`](ui_kits/web/chrome.jsx) (`Footer`),
   [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx) (footer mount).
 
-- **20:33 — Masthead wordmark: "Veridian Memoir" → "Veridian Markets."** Updated
+- **20:33 — Masthead wordmark: "Veridian Markets" → "Veridian Markets."** Updated
   the `Masthead` component so the sidebar logo reads *Veridian* (italic teal) +
   **Markets** (roman ink), keeping the same Spectral serif and brand colors.
   Reduced the type from 26px to 20px and tightened the gap/padding so the longer
