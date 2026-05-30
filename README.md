@@ -317,6 +317,15 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-30
 
+- **12:10 — Removed the rail's "search tickers, eras" field.** The dashed search
+  input at the top of the Toolbar Menu is gone; the nav now starts at the *You*
+  group. (The *Search* nav link is unaffected.)
+- **12:05 — Added a global header + mobile support.** New full-width **green top
+  bar** (`GlobalHeader`) with the Veridian Markets wordmark (= home button) on all
+  screen sizes. Below ~768px the **Toolbar Menu collapses into a hamburger** that
+  opens it as a slide-in drawer; the duplicate wordmark was removed from the rail.
+  The live ticker now sits just under the green bar. (Source: `chrome.jsx`,
+  `app.jsx`.)
 - **11:47 — Brand rename "Veridian Memoir" → "Veridian Markets" (live files).**
   Swept the product name across `ui_kits/web/`, both `index.html`s, this README,
   and `SKILL.md`. The *Read memoir / Memoir Page* feature keeps its name; archive

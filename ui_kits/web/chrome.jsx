@@ -1,6 +1,30 @@
 // Veridian Markets — app chrome: masthead, left rail, index strip.
 const { useState } = React;
 
+const VM_HEADER_H = 52; // height of the green global top bar
+
+// Full-width green top bar: branding (= home button) + hamburger on mobile.
+function GlobalHeader({ go, isMobile, menuOpen, onToggleMenu, hideMenuButton }) {
+  return (
+    <header style={{ height:VM_HEADER_H, flexShrink:0, background:VM.forest, display:'flex', alignItems:'center',
+      gap:12, padding:'0 14px', borderBottom:'1px solid rgba(0,0,0,0.20)', zIndex:50 }}>
+      {isMobile && !hideMenuButton && (
+        <button onClick={onToggleMenu} aria-label="Toggle menu" title="Menu" style={{ width:34, height:34, borderRadius:8,
+          border:'1px solid rgba(255,255,255,0.25)', background:'rgba(255,255,255,0.08)', color:VM.paper,
+          display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', padding:0, flexShrink:0 }}>
+          <i className={'ti ti-'+(menuOpen?'x':'menu-2')} style={{ fontSize:18 }}></i>
+        </button>
+      )}
+      <div onClick={()=>go&&go('front')} title="Home page" style={{ display:'flex', alignItems:'baseline', gap:6,
+        cursor:'pointer', whiteSpace:'nowrap', lineHeight:1 }}>
+        <span style={{ fontFamily:VM.serif, fontStyle:'italic', fontWeight:700, fontSize:20, color:VM.tealTint2, letterSpacing:'-0.01em' }}>Veridian</span>
+        <span style={{ fontFamily:VM.serif, fontWeight:500, fontSize:20, color:VM.paper }}>Markets</span>
+      </div>
+      <span style={{ marginLeft:'auto', fontFamily:VM.mono, fontSize:9.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(225,241,236,0.78)' }}>history-led finance</span>
+    </header>
+  );
+}
+
 function Masthead({ go }) {
   return (
     <div onClick={()=>go&&go('front')} title="Home page" style={{ padding:'18px 16px 14px', cursor:'pointer' }}>
@@ -20,16 +44,20 @@ const RAIL_GROUPS = [
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
-function Rail({ route, go }) {
+function Rail({ route, go, mobile, open, onClose }) {
+  const base = { width:208, flexShrink:0, background:VM.rail, borderRight:`1px solid ${VM.borderSoft}`, overflowY:'auto', display:'flex', flexDirection:'column' };
+  const style = mobile
+    ? { ...base, width:248, position:'fixed', top:VM_HEADER_H, left:0, bottom:0, zIndex:40,
+        transform: open?'translateX(0)':'translateX(-110%)', transition:'transform .22s ease',
+        boxShadow: open?'2px 0 18px rgba(31,29,26,0.18)':'none' }
+    : { ...base, height:'100%' };
   return (
-    <aside style={{ width:208, flexShrink:0, background:VM.rail, borderRight:`1px solid ${VM.borderSoft}`, height:'100%', overflowY:'auto', display:'flex', flexDirection:'column' }}>
-      <Masthead go={go} />
-      {/* search field */}
-      <div style={{ margin:'2px 14px 14px', display:'flex', alignItems:'center', gap:7, border:`1.2px dashed ${VM.border}`, borderRadius:999, padding:'7px 12px', background:'rgba(251,249,243,0.5)' }}>
-        <i className="ti ti-search" style={{ fontSize:13, color:VM.ink3 }}></i>
-        <span style={{ fontFamily:VM.mono, fontSize:10.5, color:VM.ink3 }}>search tickers, eras</span>
-      </div>
-      <nav style={{ padding:'0 8px', display:'flex', flexDirection:'column', gap:2 }}>
+    <React.Fragment>
+      {mobile && open && (
+        <div onClick={onClose} style={{ position:'fixed', top:VM_HEADER_H, left:0, right:0, bottom:0, background:'rgba(31,29,26,0.34)', zIndex:39 }}></div>
+      )}
+      <aside style={style}>
+      <nav style={{ padding:'14px 8px 0', display:'flex', flexDirection:'column', gap:2 }}>
         {RAIL_GROUPS.slice(1).map((g,gi)=>(
           <div key={gi} style={{ marginBottom:10 }}>
             {g.head && <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.faint, padding:'8px 10px 5px' }}>{g.head}</div>}
@@ -59,7 +87,8 @@ function Rail({ route, go }) {
           </div>
         ))}
       </nav>
-    </aside>
+      </aside>
+    </React.Fragment>
   );
 }
 
@@ -101,4 +130,4 @@ function Footer() {
   );
 }
 
-Object.assign(window, { Masthead, Rail, IndexStrip, Footer });
+Object.assign(window, { Masthead, Rail, IndexStrip, Footer, GlobalHeader });
