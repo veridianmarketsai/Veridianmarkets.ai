@@ -56,6 +56,10 @@ placeholders until their page exists.
 
 ### 2026-05-30
 
+- **12:48 — Merged 1.2 + 1.3 to main; started `update-front-page-1.4`.** Both
+  feature branches published to `main` (→ veridianmarkets.ai). New branch is
+  `update-front-page-1.4` — iteration keeps the global per-foundation counter
+  (1.1 → 1.2 → 1.3 → 1.4), confirmed auto-bump.
 - **12:23 — Gated the My Portfolio Page.** New `myportfolio` route + scaffold
   (`MyPortfolio.jsx`); a placeholder `signedIn=false` in `app.jsx` reroutes
   logged-out visitors to the Sign in page. AWS auth wiring captured in
@@ -149,7 +153,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `create-sign-in-page-1.3` (next: `<code-name>-1.4`).
+**Latest branch (this scheme):** `update-front-page-1.4` (next: `<code-name>-1.5`).
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
