@@ -321,20 +321,20 @@ the prototype outgrows the CDN/Babel approach.)
   scaffold (`MyPortfolio.jsx`), wired the rail item, and added a placeholder
   `signedIn` flag in `app.jsx`: logged-out visitors are **rerouted to Sign in**.
   The gate is UX-only — see `Businessplan.md` for the AWS (Cognito + API Gateway)
-  work needed to make it real.
+  work needed to make it real. _(branch: `create-sign-in-page-1.3`)_
 - **12:17 — New chromeless *Sign in* page.** `signin` route + `SignIn.jsx`:
   renders with **only the green header + footer** (no Toolbar Menu / ticker) and a
   centered login box (email, password, sign-in button — visual scaffold, no auth
-  yet). The rail "Sign in" item is wired up.
+  yet). The rail "Sign in" item is wired up. _(branch: `create-sign-in-page-1.3`)_
 - **12:10 — Removed the rail's "search tickers, eras" field.** The dashed search
   input at the top of the Toolbar Menu is gone; the nav now starts at the *You*
-  group. (The *Search* nav link is unaffected.)
+  group. (The *Search* nav link is unaffected.) _(branch: `update-global-header-1.2`)_
 - **12:05 — Added a global header + mobile support.** New full-width **green top
   bar** (`GlobalHeader`) with the Veridian Markets wordmark (= home button) on all
   screen sizes. Below ~768px the **Toolbar Menu collapses into a hamburger** that
   opens it as a slide-in drawer; the duplicate wordmark was removed from the rail.
   The live ticker now sits just under the green bar. (Source: `chrome.jsx`,
-  `app.jsx`.)
+  `app.jsx`.) _(branch: `update-global-header-1.2`)_
 - **11:47 — Brand rename "Veridian Memoir" → "Veridian Markets" (live files).**
   Swept the product name across `ui_kits/web/`, both `index.html`s, this README,
   and `SKILL.md`. The *Read memoir / Memoir Page* feature keeps its name; archive
