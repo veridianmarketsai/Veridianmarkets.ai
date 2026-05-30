@@ -29,7 +29,7 @@ function App() {
   const railRoute = effRoute==='dashboard' ? 'screener' : effRoute;
 
   let screen;
-  if(effRoute==='front') screen = <FrontPage go={go} />;
+  if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} />;
   else if(effRoute==='screener') screen = <Screener go={go} />;
   else if(effRoute==='supply') screen = <SupplyChain company={company} go={go} />;
   else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} />;
@@ -53,8 +53,8 @@ function App() {
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
           <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-            {/* Front page renders the ticker below its greeting (see FrontPage); other pages show it pinned here. */}
-            {effRoute!=='front' && <IndexStrip />}
+            {/* Ticker runs along the very top of every page, just under the green header. */}
+            <IndexStrip />
             <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm }}>
               {screen}
               <Footer />

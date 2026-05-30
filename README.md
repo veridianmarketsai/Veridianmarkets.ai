@@ -317,6 +317,21 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-30
 
+- **14:50 — Auto-scrolling, draggable ticker.** The market ticker is now a marquee
+  that **auto-scrolls right→left** at a steady pace and **loops seamlessly**; you
+  can **grab and drag it** with mouse or finger (pointer-capture, `touch-action`),
+  and auto-scroll resumes on release. Removed the `UTC · LIVE` chip.
+  _(branch: `update-front-page-1.5`)_
+- **14:40 — Mobile pass (front page + chrome).** Below 768px the two-column grid
+  **stacks**, padding tightens, story tiles go **single-column** (the pager
+  generalises to 9 pages and clamps on resize), and "Find a company" rows simplify
+  to ticker · name · price (hover-only icons are desktop-only). Toolbar Menu was
+  already a hamburger drawer. _(branch: `update-front-page-1.5`)_
+- **14:30 — Time-based greeting moved into the Toolbar Menu.** "Good morning /
+  afternoon / evening" (and "It's a bit late, isn't it?" between 11pm–6am) now sits
+  **above the "You" group** in the rail. Moved the ticker back to the very top,
+  removed the greeting subtitle, and boxed the "Open full screener" link (hover
+  shade). _(branch: `update-front-page-1.5`)_
 - **14:20 — Front page: "Find a company" preview reworked.** Now shows up to 10
   companies with a live **search box** (filters by ticker/name). Each row reveals
   `eye / supply-chain / open` action icons and **pops out on hover** (scale +

@@ -45,6 +45,12 @@ const RAIL_GROUPS = [
 ];
 
 function Rail({ route, go, mobile, open, onClose }) {
+  // Greeting changes with the time of day (11pm–6am gets a wry late-night line).
+  const hour = new Date().getHours();
+  const greeting = (hour >= 23 || hour < 6) ? "It's a bit late, isn't it?"
+    : hour < 12 ? 'Good morning.'
+    : hour < 17 ? 'Good afternoon.'
+    : 'Good evening.';
   const base = { width:208, flexShrink:0, background:VM.rail, borderRight:`1px solid ${VM.borderSoft}`, overflowY:'auto', display:'flex', flexDirection:'column' };
   const style = mobile
     ? { ...base, width:248, position:'fixed', top:VM_HEADER_H, left:0, bottom:0, zIndex:40,
@@ -57,7 +63,11 @@ function Rail({ route, go, mobile, open, onClose }) {
         <div onClick={onClose} style={{ position:'fixed', top:VM_HEADER_H, left:0, right:0, bottom:0, background:'rgba(31,29,26,0.34)', zIndex:39 }}></div>
       )}
       <aside style={style}>
-      <nav style={{ padding:'14px 8px 0', display:'flex', flexDirection:'column', gap:2 }}>
+      {/* Time-of-day greeting, pinned above the 'You' group. */}
+      <div style={{ padding:'16px 16px 4px' }}>
+        <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, lineHeight:1.18 }}>{greeting}</span>
+      </div>
+      <nav style={{ padding:'8px 8px 0', display:'flex', flexDirection:'column', gap:2 }}>
         {RAIL_GROUPS.slice(1).map((g,gi)=>(
           <div key={gi} style={{ marginBottom:10 }}>
             {g.head && <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.faint, padding:'8px 10px 5px' }}>{g.head}</div>}
@@ -92,19 +102,67 @@ function Rail({ route, go, mobile, open, onClose }) {
   );
 }
 
+// Auto-scrolling marquee (right → left, steady pace). Grab and drag with the mouse/finger to move
+// it manually; auto-scroll resumes on release. The item set is rendered twice for a seamless loop.
 function IndexStrip() {
-  return (
-    <div style={{ display:'flex', overflowX:'hidden', background:VM.tealTint, borderTop:`1px solid ${VM.borderSoft}`, borderBottom:`1px solid ${VM.borderSoft}` }}>
+  const wrapRef = React.useRef(null);
+  const trackRef = React.useRef(null);
+  const offsetRef = React.useRef(0);   // current translateX (negative = scrolled left)
+  const halfRef = React.useRef(0);     // width of one copy of the items
+  const dragRef = React.useRef(null);  // { x, off } while dragging; null = auto-scrolling
+
+  React.useEffect(() => {
+    const wrap = wrapRef.current, track = trackRef.current;
+    if (!wrap || !track) return;
+    halfRef.current = track.scrollWidth / 2;          // one copy = half the doubled track
+
+    let raf, last = performance.now();
+    const SPEED = 45;                                 // px/sec, right → left
+    const tick = (now) => {
+      const dt = Math.min((now - last) / 1000, 0.05); last = now;
+      if (!dragRef.current) offsetRef.current -= SPEED * dt;
+      const half = halfRef.current || 1;
+      while (offsetRef.current <= -half) offsetRef.current += half;   // seamless wrap
+      while (offsetRef.current > 0) offsetRef.current -= half;
+      track.style.transform = `translateX(${offsetRef.current}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    const onDown = (e) => { dragRef.current = { x: e.clientX, off: offsetRef.current }; wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId); wrap.style.cursor = 'grabbing'; };
+    const onMove = (e) => { if (dragRef.current) offsetRef.current = dragRef.current.off + (e.clientX - dragRef.current.x); };
+    const onUp = (e) => { if (dragRef.current) { dragRef.current = null; wrap.style.cursor = 'grab'; wrap.releasePointerCapture && wrap.releasePointerCapture(e.pointerId); } };
+    wrap.addEventListener('pointerdown', onDown);
+    wrap.addEventListener('pointermove', onMove);
+    wrap.addEventListener('pointerup', onUp);
+    wrap.addEventListener('pointercancel', onUp);
+    return () => {
+      cancelAnimationFrame(raf);
+      wrap.removeEventListener('pointerdown', onDown);
+      wrap.removeEventListener('pointermove', onMove);
+      wrap.removeEventListener('pointerup', onUp);
+      wrap.removeEventListener('pointercancel', onUp);
+    };
+  }, []);
+
+  const set = (p) => (
+    <React.Fragment>
       {VM_INDEX.map((t,i)=>(
-        <div key={i} style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderLeft: i?`1px dashed rgba(31,29,26,0.18)`:'none', whiteSpace:'nowrap' }}>
+        <div key={p+i} style={{ flexShrink:0, display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderLeft:`1px dashed rgba(31,29,26,0.18)`, whiteSpace:'nowrap' }}>
           <Mono size={11} weight={700}>{t.sym}</Mono>
           <Mono size={11} color={VM.ink3}>{t.val}</Mono>
           <Sparkline dir={t.dir} w={34} h={13} sw={1.2} />
           <Mono size={10} weight={600} color={t.dir==='up'?VM.upInk:VM.downInk}>{t.chg}</Mono>
         </div>
       ))}
-      <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6, padding:'8px 14px', fontFamily:VM.mono, fontSize:10, color:VM.ink3 }}>
-        <span style={{ width:6, height:6, borderRadius:999, background:VM.live, display:'inline-block' }}></span>14:32 UTC · LIVE
+    </React.Fragment>
+  );
+
+  return (
+    <div ref={wrapRef} style={{ overflow:'hidden', background:VM.tealTint, borderTop:`1px solid ${VM.borderSoft}`, borderBottom:`1px solid ${VM.borderSoft}`, cursor:'grab', userSelect:'none', touchAction:'pan-y' }}>
+      <div ref={trackRef} style={{ display:'flex', width:'max-content', willChange:'transform' }}>
+        {set('a')}
+        {set('b')}
       </div>
     </div>
   );
