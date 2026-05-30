@@ -38,8 +38,8 @@ belongs to the Toolbar Menu.
 | Visible label                  | Section (identifier) | Route      | Notes |
 |--------------------------------|----------------------|------------|-------|
 | *logo — "Veridian Markets"*    | **Home Page**        | `front`    | The top-left wordmark **is** the Home button. There is no "Front page" text item. |
-| Sign in                        | **Sign in Page**     | — (TBD)    | Placeholder; no route/page yet. |
-| My portfolio                   | **My Portfolio Page**| — (TBD)    | Renamed from "Watchlist". No route/page yet. |
+| Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Auth (AWS) wiring TBD. |
+| My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated scaffold (`MyPortfolio.jsx`): reroutes to Sign in when logged out (placeholder `signedIn=false` in `app.jsx`). |
 | Supply chain network           | **SCN Page**         | `supply`   | Sits **above** Search. Carries a green-bordered **"• Live Demo"** badge. |
 | Search                         | **Main Search Page** | `screener` | Renamed from "Company search". |
 | History                        | **History Page**     | `history`  | |
@@ -56,6 +56,13 @@ placeholders until their page exists.
 
 ### 2026-05-30
 
+- **12:23 — Gated the My Portfolio Page.** New `myportfolio` route + scaffold
+  (`MyPortfolio.jsx`); a placeholder `signedIn=false` in `app.jsx` reroutes
+  logged-out visitors to the Sign in page. AWS auth wiring captured in
+  `Businessplan.md`. (`create-sign-in-page-1.3`)
+- **12:17 — Created the Sign in Page.** New `signin` route + `SignIn.jsx`:
+  chromeless layout (green header + footer only, no rail/ticker) with a centered
+  login box — visual scaffold, no auth yet. (`create-sign-in-page-1.3`)
 - **12:10 — Removed the Toolbar Menu search field.** Deleted the dashed
   "search tickers, eras" input at the top of the rail; nav now starts at the
   *You* group. (`update-global-header-1.2`)
@@ -142,7 +149,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `update-global-header-1.2` (next: `create-sign-in-page-1.3`).
+**Latest branch (this scheme):** `create-sign-in-page-1.3` (next: `<code-name>-1.4`).
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within

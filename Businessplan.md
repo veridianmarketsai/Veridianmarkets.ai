@@ -43,6 +43,37 @@ _(Refine in your own words: _TBD_)_
 - **Frontend:** React (currently CDN+Babel prototype → real build as it matures).
 - See [`README.md`](README.md) → *Data & architecture* for engineering notes.
 
+### Auth & gated pages — what's needed on AWS (later)
+
+**Built now (front-end only):** a Sign in page (visual form, no submit yet) and a
+**My Portfolio** page gated by a placeholder `signedIn = false` in `app.jsx` —
+logged-out visitors are rerouted to Sign in. The gate is **UX only**; it doesn't
+protect any data. To make it real, on AWS:
+
+1. **Amazon Cognito User Pool** — create a User Pool (email/password; optionally
+   Google/Apple sign-in). Add an **App Client** (no client secret for a browser
+   app). Save the User Pool ID, App Client ID, and region.
+2. **Auth flows** — use **AWS Amplify (Auth)** in the React app *or* Cognito's
+   **Hosted UI**, for sign-up / sign-in / forgot-password. Set the allowed
+   callback + sign-out URLs (localhost for dev, `veridianmarkets.ai` for prod).
+3. **Wire the front-end** — replace the `signedIn = false` placeholder in
+   `app.jsx` with a real session check (e.g. Amplify `getCurrentUser()`), connect
+   the Sign in form's submit to Cognito, and route to My Portfolio on success.
+4. **Protect the data, not just the page** — portfolio data must come from an
+   authenticated API: **API Gateway + Lambda** (or AppSync) with a **Cognito
+   authorizer** that validates the JWT on every request (browser sends it in the
+   `Authorization` header).
+5. **Per-user storage** — a **DynamoDB** table keyed by the Cognito user id (`sub`)
+   for holdings / watchlist.
+6. **Keep secrets server-side** — third-party market-data API keys live in Lambda
+   env vars / **Secrets Manager** / SSM, never in the browser. The client calls
+   your Lambda; the Lambda calls the data provider.
+7. **Hosting** — static GitHub Pages can stay as the front-end and call AWS APIs
+   (configure CORS on API Gateway), or move hosting to **Amplify Hosting** /
+   **S3 + CloudFront** when convenient.
+8. **Sign-out & token expiry** — wire sign-out (clear session) and rely on Amplify
+   for token refresh; send expired/logged-out users back to Sign in.
+
 ## 7. Business model
 - How it makes money: _TBD (subscription tiers? freemium? data add-ons?)_
 - Pricing sketch: _TBD_
