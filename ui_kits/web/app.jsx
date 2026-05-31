@@ -137,7 +137,7 @@ function App() {
   else if(effRoute==='screener') screen = <Screener go={go} />;
   else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
   else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} />;
-  else if(effRoute==='history') screen = <History company={company} go={go} />;
+  else if(effRoute==='history') screen = <History go={go} isMobile={isMobile} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} />;

@@ -331,6 +331,12 @@ the prototype outgrows the CDN/Babel approach.)
   and `/portfolio` unlocks once signed in. **This is not real security** — the
   account ships in public client code (password stored only as a SHA-256 hash);
   it is a stopgap until AWS Cognito. _(branch: `backend-update-1.10`)_
+- **History page — prompts restyled to a plain bullet list.** The History
+  search/"ask" hub now shows its example prompts as a simple bullet list (was
+  boxed cards), with a written-out "Prompts" heading, to match the agreed design.
+  Bullets underline + turn teal on hover and drop into the search box on click;
+  the four prompts (oil↔Apple, Apple share-price, Apple supply-chain history,
+  residential construction costs) are unchanged. _(branch: `history-page-1.11`)_
 - **Built the Learn page.** Filled the blank Learn scaffold with a course/guide
   catalogue: learn finance, markets and business management — plus how to use
   Veridian itself. A "New here?" guided-path banner links into the app; a live
@@ -345,6 +351,11 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-30
 
+- **21:38 — Reworked the History page into a search/"ask" hub.** Replaced the
+  analogue-engine layout with a centred **Search** page: a "you can search at any
+  time" hint pill, a rounded search bar (submit is a scaffold — no backend yet),
+  and a **Prompts** list of clickable example questions that fill the box. The
+  analogue data stays in `data.jsx`. _(branch: `history-page-1.8`, not yet on main)_
 - **18:59 — Shipped the SCN dependency map to main** (live on veridianmarkets.ai;
   still a work-in-progress — breadcrumbs + company-page entry points to follow).
   _(branch: `scn-live-demo-1.6`)_
