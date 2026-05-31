@@ -317,6 +317,13 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-31
 
+- **Data export tool.** `tools/export-data.mjs` (no dependencies) turns the mock
+  database into flat tables in `data_exports/` — `users.csv` (100 users + profit
+  columns), `companies.csv`, `courses.csv`, plus a `users.md` Markdown table for
+  a quick column view in VS Code's preview. Recommended VS Code CSV extensions are
+  in `.vscode/extensions.json`. Run `node tools/export-data.mjs` to refresh.
+  _(branch: `database-infrastructure-1.16`)_
+
 - **Admin control panel (admin-only).** A role-gated `/admin` page with three
   tabs: **Overview** (user-metrics dashboard — KPIs, signups chart, plan donut,
   top countries), **Users** (a temporary 100-user database; searchable table where

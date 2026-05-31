@@ -57,6 +57,14 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Data export tool (`database-infrastructure-1.16`).** Added `tools/export-data.mjs`
+  (no-dep Node): loads the mock data files in a fake `window` and writes flat
+  tables to `data_exports/` — `users.csv` (100 users + personal-profit columns),
+  `companies.csv`, `courses.csv`, plus `users.md` (Markdown table for VS Code
+  preview) and a README. `.vscode/extensions.json` recommends Edit CSV + Rainbow
+  CSV for a grid/column view. Re-run `node tools/export-data.mjs` after data
+  changes. Snapshot/read-only — feeds the database work, not wired back to the app.
+  **Merged to main.**
 - **Started `database-infrastructure-1.16`.** New branch (from main) for the real
   data/database layer — replacing the mock seams (`data.jsx`, the `localStorage`
   course store, the in-memory `VM_USERS`, placeholder auth) with a proper backend

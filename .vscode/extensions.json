@@ -1,0 +1,8 @@
+{
+  // Recommended for viewing the data_exports/*.csv as columns/grids.
+  // VS Code will offer to install these when you open the workspace.
+  "recommendations": [
+    "janisdd.vscode-edit-csv",
+    "mechatroner.rainbow-csv"
+  ]
+}
