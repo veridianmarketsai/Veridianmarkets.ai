@@ -317,6 +317,14 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-31
 
+- **My Portfolio — customisable dashboard.** Built out the gated portfolio page:
+  a **Connect-accounts** bar (Trading 212 + Interactive Brokers, Robinhood,
+  Coinbase, Vanguard, Binance — mock connect), then widgets for **Summary** KPIs,
+  a **Performance** area chart with range toggles, an **Allocation** donut,
+  **Holdings**, **Watchlist**, and **Analogue alerts**. A **Customise** mode lets
+  you show/hide, reorder and resize widgets; the layout and connections persist
+  in `localStorage`. All figures are mock data. _(branch: `portfolio-1.12`)_
+
 - **Real per-page URLs + the app now lives at the site root.** The root
   `index.html` is the app (was a redirect to `/ui_kits/web/`); each Toolbar Menu
   page has its own clean URL via the History API — `/`, `/sign-in`, `/portfolio`,
