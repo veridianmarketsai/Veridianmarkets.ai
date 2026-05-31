@@ -317,6 +317,12 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-31
 
+- **Added `MOBILE.md` — the plan for taking the app to iOS/Android.** Captures the
+  recommended path (Expo / React Native), the design/Figma approach, the
+  one-repo-→-monorepo strategy (don't duplicate), how the GitHub workflow changes
+  for app releases, the Mac setup checklist, and the first running milestone.
+  Planning only — no app code yet. _(branch: `docs/mobile-plan`)_
+
 - **Data export tool.** `tools/export-data.mjs` (no dependencies) turns the mock
   database into flat tables in `data_exports/` — `users.csv` (100 users + profit
   columns), `companies.csv`, `courses.csv`, plus a `users.md` Markdown table for
