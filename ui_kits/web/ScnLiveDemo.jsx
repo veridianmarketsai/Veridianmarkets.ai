@@ -108,8 +108,8 @@ function scnGet(id) {
 
 const SCN = { blue:'#185FA5', blueLine:'#378ADD', coral:'#C0563B', tealLine:'#1D9E75', cust:'#0F6E56' };
 
-function ScnLiveDemo({ go, isMobile }) {
-  const [history, setHistory] = React.useState(['AAPL']);
+function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
+  const [history, setHistory] = React.useState([initialTicker || 'AAPL']);
   const current = history[history.length - 1];
   const [filter, setFilter] = React.useState('all');     // all | companies | external | lens
   const [hovered, setHovered] = React.useState(null);
@@ -209,13 +209,15 @@ function ScnLiveDemo({ go, isMobile }) {
   const colW = 196;
 
   return (
-    <div style={{ padding: isMobile ? '14px 16px 48px' : '26px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
-      <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Supply chain network</b></Mono>
-      <div style={{ marginTop:14 }}><Kicker>SUPPLY CHAIN NETWORK · DEPENDENCY MAP</Kicker></div>
-      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 38, margin:'8px 0 6px' }}>The dependency map.</h1>
-      <p style={{ fontFamily:VM.serif, fontSize:16, color:VM.ink3, margin:'0 0 18px', maxWidth:640 }}>
-        Every public company sits between who it <i>depends on</i> and who <i>depends on it</i>. Hover any node for detail; click to set it as the principle and trace the chain.
-      </p>
+    <div style={{ padding: compact ? '0' : (isMobile ? '14px 16px 48px' : '26px 32px 60px'), maxWidth:1180, margin:'0 auto' }}>
+      {!compact && <>
+        <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Supply chain network</b></Mono>
+        <div style={{ marginTop:14 }}><Kicker>SUPPLY CHAIN NETWORK · DEPENDENCY MAP</Kicker></div>
+        <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 38, margin:'8px 0 6px' }}>The dependency map.</h1>
+        <p style={{ fontFamily:VM.serif, fontSize:16, color:VM.ink3, margin:'0 0 18px', maxWidth:640 }}>
+          Every public company sits between who it <i>depends on</i> and who <i>depends on it</i>. Hover any node for detail; click to set it as the principle and trace the chain.
+        </p>
+      </>}
 
       {/* breadcrumb (drill trail) */}
       <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:14, minHeight:26 }}>
