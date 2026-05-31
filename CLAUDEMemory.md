@@ -57,6 +57,10 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Added `MOBILE.md` (`docs/mobile-plan`).** Planning doc for the native apps:
+  Expo/React Native recommended, Figma optional (build-on-simulator), one-repo →
+  monorepo (don't duplicate), GitHub workflow shifts for app releases, Mac setup,
+  first milestone. Phase order: polish pages → apps → APIs/AWS/Stripe. No app code.
 - **Data export tool (`database-infrastructure-1.16`).** Added `tools/export-data.mjs`
   (no-dep Node): loads the mock data files in a fake `window` and writes flat
   tables to `data_exports/` — `users.csv` (100 users + personal-profit columns),
