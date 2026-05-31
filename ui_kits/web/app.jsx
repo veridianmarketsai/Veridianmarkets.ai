@@ -140,7 +140,7 @@ function App() {
   else if(effRoute==='history') screen = <History go={go} isMobile={isMobile} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
-  else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} />;
+  else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo="myportfolio" />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
