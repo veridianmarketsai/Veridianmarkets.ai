@@ -56,6 +56,10 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Published `backend-update-1.10` → main + live; started `portfolio-1.12`.** The
+  full app (clean per-page URLs, root-served app, placeholder admin login) is now
+  on veridianmarkets.ai. New branch `portfolio-1.12` to build out the **My
+  Portfolio Page** (currently a gated scaffold that unlocks on sign-in).
 - **URL router + app at the site root + placeholder auth (`backend-update-1.10`).**
   (1) **Routing:** root `index.html` is now the app itself (was a redirect to
   `/ui_kits/web/`); added a History-API router in `app.jsx` (`ROUTE_PATHS` /
@@ -217,7 +221,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `backend-update-1.10` (URL router + placeholder auth; now also carries the new History/Learn after merging main in — **still not merged to main**). Merged to main: `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (had no changes; re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.12`.**
+**Latest branch (this scheme):** `portfolio-1.12` (My Portfolio Page work; branched from main — in progress). **`backend-update-1.10` is now merged to main + live** (URL router + root app + placeholder admin login). Also merged to main: `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.13`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
