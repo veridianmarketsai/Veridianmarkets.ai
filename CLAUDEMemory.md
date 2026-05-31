@@ -56,6 +56,13 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **History prompts → plain bullet list (`history-page-1.11`).** Restyled the
+  History search hub's example prompts from boxed cards to a simple hand-sketch
+  bullet list (filled dot + serif text, underline/teal on hover), and made the
+  "Prompts" label a written-out serif heading. Page structure + the four prompts
+  unchanged. Branched from main (does **not** include `backend-update-1.10`'s URL
+  router / auth — reconcile when both merge). **Merged to main + live.**
+
 - **Built the Learn page (`learn-1.9`).** Replaced the blank `Learn.jsx` scaffold
   with a course/guide catalogue — learn finance/markets/business management and
   how to use Veridian. Coursera-style "Most popular" rail reimagined in the VM
@@ -196,7 +203,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `backend-update-1.10` (URLs + placeholder auth; **stored/pushed, not merged to main**). Merged to main: `history-page-1.8` (search hub) and `learn-1.9` (Learn page). `api-link-beta-1.7` **deleted** (had no changes vs main; re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.11`.**
+**Latest branch (this scheme):** `history-page-1.11` (History prompts → bullet list; merged to main). Stored but **not merged to main:** `backend-update-1.10` (URLs + placeholder auth). Also merged to main: `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (had no changes; re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.12`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within

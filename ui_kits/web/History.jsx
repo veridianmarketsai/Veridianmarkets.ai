@@ -42,10 +42,10 @@ function History({ go, isMobile }) {
         </button>
       </form>
 
-      {/* prompts */}
-      <div style={{ marginTop: isMobile ? 30 : 40 }}>
-        <Mono size={10} color={VM.ink3} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase' }}>Prompts</Mono>
-        <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:8 }}>
+      {/* prompts — a plain bullet list (matches the sketch). */}
+      <div style={{ marginTop: isMobile ? 32 : 44 }}>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, color:VM.ink, marginBottom:6 }}>Prompts</div>
+        <div style={{ display:'flex', flexDirection:'column' }}>
           {prompts.map((p, i) => <PromptRow key={i} text={p} onClick={()=>pick(p)} />)}
         </div>
       </div>
@@ -53,18 +53,17 @@ function History({ go, isMobile }) {
   );
 }
 
-// A clickable example prompt — fills the search box; pops slightly on hover.
+// A clickable example prompt — a plain bullet that fills the search box.
+// Underlines + turns teal on hover; no box, to match the hand sketch.
 function PromptRow({ text, onClick }) {
   const [hover, setHover] = React.useState(false);
   return (
     <div onClick={onClick} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
-      style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 16px', cursor:'pointer',
-        background: hover ? VM.paperWarm : VM.paper, border:`1px solid ${hover ? VM.border : VM.borderSoft}`, borderRadius:10,
-        transform: hover ? 'translateX(3px)' : 'none',
-        transition:'transform .15s ease, background .15s ease, border-color .15s ease' }}>
-      <span style={{ width:6, height:6, borderRadius:999, background:VM.terra, flexShrink:0 }}></span>
-      <span style={{ flex:1, fontFamily:VM.serif, fontSize:16, color:VM.ink }}>{text}</span>
-      <i className="ti ti-arrow-up-right" style={{ fontSize:15, color: hover ? VM.teal : VM.faint, transition:'color .15s ease' }}></i>
+      style={{ display:'flex', alignItems:'baseline', gap:14, padding:'10px 4px', cursor:'pointer' }}>
+      <span style={{ width:7, height:7, borderRadius:999, background:VM.terra, flexShrink:0, transform:'translateY(-3px)' }}></span>
+      <span style={{ flex:1, fontFamily:VM.serif, fontSize:18, lineHeight:1.3,
+        color: hover ? VM.teal : VM.ink, textDecoration: hover ? 'underline' : 'none', textUnderlineOffset:'3px',
+        transition:'color .14s ease' }}>{text}</span>
     </div>
   );
 }
