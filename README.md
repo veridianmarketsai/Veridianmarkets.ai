@@ -317,6 +317,12 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-31
 
+- **History page — prompts restyled to a plain bullet list.** The History
+  search/"ask" hub now shows its example prompts as a simple bullet list (was
+  boxed cards), with a written-out "Prompts" heading, to match the agreed design.
+  Bullets underline + turn teal on hover and drop into the search box on click;
+  the four prompts (oil↔Apple, Apple share-price, Apple supply-chain history,
+  residential construction costs) are unchanged. _(branch: `history-page-1.11`)_
 - **Built the Learn page.** Filled the blank Learn scaffold with a course/guide
   catalogue: learn finance, markets and business management — plus how to use
   Veridian itself. A "New here?" guided-path banner links into the app; a live
