@@ -57,6 +57,10 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Started `database-infrastructure-1.16`.** New branch (from main) for the real
+  data/database layer — replacing the mock seams (`data.jsx`, the `localStorage`
+  course store, the in-memory `VM_USERS`, placeholder auth) with a proper backend
+  (AWS direction). No code yet.
 - **Merged laptop's parallel work into main** (`company-profiles-1.13`,
   `learn-1.14`, `learn-1.15`): full Dashboard tabs + Screener preview tabs,
   MyPortfolio redesign, an interactive **course viewer with lesson content** on
@@ -256,13 +260,15 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `admin-backend-access-1.13` (admin control panel — Overview/Users/Courses; merged to main + live; next step = real AWS backend).
+**Latest branch (this scheme):** `database-infrastructure-1.16` (real data/database layer — backend store behind the `data.jsx`/admin/course/user seams; branched from main — in progress). Previously merged to main: `admin-backend-access-1.13` (admin panel), plus the laptop's `company-profiles-1.13`, `learn-1.14`, `learn-1.15`.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
-> reused the counter — `company-profiles-1.13` (alongside this `admin-backend-access-1.13`),
+> reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
 > then `learn-1.14`, `learn-1.15`. All merged to main and reconciled here.
-> **Next free iteration: `<code-name>-1.16`.** When working on two machines, pull
-> main first to pick the next number, or namespace by machine. Merged to main + live: `portfolio-1.12`, `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.14`.**
+> When working on two machines, pull main first to pick the next number, or
+> namespace by machine.
+
+**Next free iteration: `<code-name>-1.17`.** Merged to main + live: `portfolio-1.12`, `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.14`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
