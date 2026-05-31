@@ -126,7 +126,7 @@ function App() {
 
   // Protected route — My Portfolio requires sign-in; otherwise reroute to the
   // Sign in page (remembering that portfolio was the intended destination).
-  const gatedFromPortfolio = route==='myportfolio' && !signedIn;
+  const gatedFromPortfolio = false; // temporarily disabled — restore: route==='myportfolio' && !signedIn
   const effRoute = gatedFromPortfolio ? 'signin' : route;
 
   // map rail ids to routes (rail uses 'screener' & 'supply' & 'history' & 'front')
