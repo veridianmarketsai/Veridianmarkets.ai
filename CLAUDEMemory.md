@@ -43,7 +43,7 @@ belongs to the Toolbar Menu.
 | Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
 | Search                         | **Main Search Page** | `screener` | Renamed from "Company search". |
 | History                        | **History Page**     | `history`  | |
-| Learn                          | **Learn VM**         | `learn`    | Blank scaffold page (`Learn.jsx`); content TBD. |
+| Learn                          | **Learn VM**         | `learn`    | Course/guide catalogue (`Learn.jsx`): guided-path banner, search, category pills + Level/Format filters, responsive card grid with Show-more. "App tutorial" cards `go()` into screens. Content is mock scaffold data (inline). |
 | Read memoir                    | **Memoir Page**      | `memoir`   | |
 
 Routes map to screens in [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx); labels live
@@ -53,6 +53,19 @@ placeholders until their page exists.
 ---
 
 ## Change log
+
+### 2026-05-31
+
+- **Built the Learn page (`learn-1.9`).** Replaced the blank `Learn.jsx` scaffold
+  with a course/guide catalogue — learn finance/markets/business management and
+  how to use Veridian. Coursera-style "Most popular" rail reimagined in the VM
+  editorial style: a "New here?" guided-path banner (links into the app), live
+  search, a broad set of **category pills**, **Level/Format** filter groups, a
+  responsive card grid (colour-coded topic visuals + badges + level/length) and a
+  **Show more** pager. "App tutorial" cards carry a `route` and `go()` into the
+  relevant screen. All 18 courses/categories are **mock scaffold data** kept
+  inline (promote to `data.jsx` later); categories deliberately broad to cull.
+  Also passed `isMobile` into `<Learn>` in `app.jsx`. **Merged to main + live.**
 
 ### 2026-05-30
 
@@ -179,7 +192,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `scn-live-demo-1.6` (merged to main 18:59). Also open: `api-link-beta-1.7` (empty, paused — Finnhub/data-provider side project). **Next free iteration: `<code-name>-1.8`** (1.7 is taken by api-link-beta).
+**Latest branch (this scheme):** `learn-1.9` (Learn page; merged to main). Also open: `api-link-beta-1.7` (empty, paused — Finnhub/data-provider side project). **Next free iteration: `<code-name>-1.10`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within

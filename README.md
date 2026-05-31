@@ -315,6 +315,20 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-05-31
+
+- **Built the Learn page.** Filled the blank Learn scaffold with a course/guide
+  catalogue: learn finance, markets and business management — plus how to use
+  Veridian itself. A "New here?" guided-path banner links into the app; a live
+  **search**, **category pills** (All · Using Veridian · Markets 101 · Finance ·
+  Investing · Business management · Economics · Trading · Personal finance ·
+  Supply chains · Risk & strategy · Data & charts) and **Level / Format** filters
+  drive a responsive **card grid** (colour-coded topic visuals, provider, badge,
+  level + length) with **Show more** paging. "App tutorial" cards navigate into
+  the relevant screen via `go()`. All 18 courses are mock scaffold data (inline in
+  `Learn.jsx`); categories are intentionally broad to cull later. Wired `isMobile`
+  into Learn. _(branch: `learn-1.9`)_
+
 ### 2026-05-30
 
 - **18:59 — Shipped the SCN dependency map to main** (live on veridianmarkets.ai;
