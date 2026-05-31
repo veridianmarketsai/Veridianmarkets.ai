@@ -56,6 +56,10 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Started `admin-backend-access-1.13`.** New branch (from main) for real
+  admin/backend access — the move off the client-side placeholder login toward a
+  proper backend (AWS Cognito auth, etc.). User initially said "1.1"; kept the
+  running counter (1.1 was taken) → `…-1.13`. No code yet.
 - **Built the My Portfolio dashboard (`portfolio-1.12`).** Replaced the blank
   portfolio scaffold with a **customisable widget dashboard**: a Connect-accounts
   bar (Trading 212 featured + IBKR/Robinhood/Coinbase/Vanguard/Binance, mock
@@ -229,7 +233,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `portfolio-1.12` (My Portfolio dashboard; merged to main + live). Also merged to main: `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.13`.**
+**Latest branch (this scheme):** `admin-backend-access-1.13` (real admin/backend access — AWS auth/Cognito etc.; branched from main — in progress). Merged to main + live: `portfolio-1.12`, `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.14`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
