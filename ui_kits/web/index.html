@@ -3,51 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Veridian Markets · UI Kit</title>
-  <link rel="stylesheet" href="../../colors_and_type.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-  <style>
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; }
-    body { background: var(--vm-paper-warm); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-    #root { height: 100%; }
-    ::selection { background: #CFE5DD; }
-    main::-webkit-scrollbar { width: 11px; }
-    main::-webkit-scrollbar-thumb { background: rgba(31,29,26,0.18); border-radius: 6px; border: 3px solid var(--vm-paper-warm); }
-    button { font-family: inherit; }
-  </style>
+  <title>Veridian Markets</title>
+  <!-- The app now lives at the site root. This old path just forwards there so
+       links/bookmarks to /ui_kits/web/ don't break. Edit the app via the root
+       index.html + the .jsx files in this folder. -->
+  <meta http-equiv="refresh" content="0; url=/">
+  <link rel="canonical" href="/">
+  <script>location.replace("/");</script>
 </head>
-<body>
-  <div id="root"></div>
-
-  <template id="__bundler_thumbnail">
-    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="1200" height="800" fill="#F4F1E8"></rect>
-      <rect x="360" y="240" width="480" height="320" rx="28" fill="#1D4E3A"></rect>
-      <text x="600" y="430" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-weight="700" font-size="150" fill="#E1F1EC">VM</text>
-      <polyline points="430,610 500,580 570,595 640,545 710,560 770,520" fill="none" stroke="#C46A3B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline>
-      <text x="600" y="700" text-anchor="middle" font-family="Georgia, serif" font-size="40" fill="#1F1D1A">Veridian Markets</text>
-    </svg>
-  </template>
-
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-
-  <script type="text/babel" src="data.jsx"></script>
-  <script type="text/babel" src="primitives.jsx"></script>
-  <script type="text/babel" src="CompanyHead.jsx"></script>
-  <script type="text/babel" src="chrome.jsx"></script>
-  <script type="text/babel" src="FrontPage.jsx"></script>
-  <script type="text/babel" src="Screener.jsx"></script>
-  <script type="text/babel" src="SupplyChain.jsx"></script>
-  <script type="text/babel" src="ScnLiveDemo.jsx"></script>
-  <script type="text/babel" src="Dashboard.jsx"></script>
-  <script type="text/babel" src="History.jsx"></script>
-  <script type="text/babel" src="Memoir.jsx"></script>
-  <script type="text/babel" src="Learn.jsx"></script>
-  <script type="text/babel" src="SignIn.jsx"></script>
-  <script type="text/babel" src="MyPortfolio.jsx"></script>
-  <script type="text/babel" src="app.jsx"></script>
+<body style="font-family: Georgia, 'Times New Roman', serif; background:#F4F1E8; color:#1F1D1A; margin:0; height:100vh; display:flex; align-items:center; justify-content:center;">
+  <p>Opening <a href="/" style="color:#2D5E5A;">Veridian Markets</a>…</p>
 </body>
 </html>

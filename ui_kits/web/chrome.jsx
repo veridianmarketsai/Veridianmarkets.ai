@@ -44,7 +44,7 @@ const RAIL_GROUPS = [
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
-function Rail({ route, go, mobile, open, onClose }) {
+function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut }) {
   // Greeting changes with the time of day (11pm–6am gets a wry late-night line).
   const hour = new Date().getHours();
   const greeting = (hour >= 23 || hour < 6) ? "It's a bit late, isn't it?"
@@ -66,23 +66,35 @@ function Rail({ route, go, mobile, open, onClose }) {
       {/* Time-of-day greeting, pinned above the 'You' group. */}
       <div style={{ padding:'16px 16px 4px' }}>
         <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, lineHeight:1.18 }}>{greeting}</span>
+        {signedIn && user && (
+          <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:4 }}>
+            <i className="ti ti-circle-check-filled" style={{ fontSize:12, color:VM.upInk }}></i>
+            <span style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.email}</span>
+          </div>
+        )}
       </div>
       <nav style={{ padding:'8px 8px 0', display:'flex', flexDirection:'column', gap:2 }}>
         {RAIL_GROUPS.slice(1).map((g,gi)=>(
           <div key={gi} style={{ marginBottom:10 }}>
             {g.head && <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.faint, padding:'8px 10px 5px' }}>{g.head}</div>}
             {g.items.map((it,ii)=>{
-              const active = it.id && it.id===route;
+              // The Sign-in item flips to "Sign out" once authenticated.
+              const isAuth = it.id==='signin';
+              const showSignOut = isAuth && signedIn;
+              const active = it.id && it.id===route && !showSignOut;
               const clickable = !!it.id;
+              const label = showSignOut ? 'Sign out' : it.label;
+              const onItemClick = showSignOut ? onSignOut : (clickable ? ()=>go(it.id) : undefined);
               return (
-                <div key={ii} onClick={()=>clickable&&go(it.id)} style={{
+                <div key={ii} onClick={onItemClick} style={{
                   fontFamily:VM.serif, fontSize:15, padding:'6px 10px', borderRadius:7, cursor: clickable?'pointer':'default',
                   background: active?VM.paper:'transparent',
                   border: active?`1px solid ${VM.border}`:'1px solid transparent',
                   color: it.tone==='teal'?VM.teal : active?VM.ink:VM.ink2, fontWeight: active?600:400,
                   display:'flex', alignItems:'center', flexWrap:'wrap', gap:6,
                 }}>
-                  <span>{it.label}</span>
+                  <span>{label}</span>
+                  {showSignOut && <i className="ti ti-logout" style={{ fontSize:13, color:VM.ink3 }}></i>}
                   {it.badge && (
                     <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontFamily:VM.mono, fontSize:8.5,
                       letterSpacing:'0.04em', lineHeight:1, color:VM.upInk, background:VM.tealTint,

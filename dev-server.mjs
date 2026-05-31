@@ -48,13 +48,26 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-cache" });
     res.end(body);
   } catch {
+    // SPA fallback: a clean route like /sign-in (no file extension) has no file
+    // on disk — serve the app shell so the client router can take over. Real
+    // missing assets (with an extension) still 404. Mirrors the 404.html trick
+    // GitHub Pages uses in production.
+    try {
+      const urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname);
+      if (!extname(urlPath)) {
+        const body = await readFile(join(root, "index.html"));
+        res.writeHead(200, { "Content-Type": types[".html"], "Cache-Control": "no-cache" });
+        res.end(body);
+        return;
+      }
+    } catch { /* fall through to 404 */ }
     res.writeHead(404, { "Content-Type": "text/plain" }).end("404 Not Found");
   }
 });
 
 server.listen(port, () => {
   console.log(`Veridian dev server running:`);
-  console.log(`  App:     http://localhost:${port}/ui_kits/web/index.html`);
+  console.log(`  App:     http://localhost:${port}/`);
   console.log(`  Previews: http://localhost:${port}/preview/`);
   console.log(`Serving ${root}`);
   console.log(`Press Ctrl+C to stop.`);
