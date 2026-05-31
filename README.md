@@ -317,6 +317,15 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-31
 
+- **Admin control panel (admin-only).** A role-gated `/admin` page with three
+  tabs: **Overview** (user-metrics dashboard — KPIs, signups chart, plan donut,
+  top countries), **Users** (a temporary 100-user database; searchable table where
+  each row's ⋮ menu opens a full account-details modal with **personal profits**,
+  a simulated **Access account** impersonation banner, and mock admin actions),
+  and **Courses** (add/remove courses that appear live on the Learn page via a new
+  localStorage course store). All data is mock — a stand-in for the real AWS
+  backend. _(branch: `admin-backend-access-1.13`)_
+
 - **My Portfolio — customisable dashboard.** Built out the gated portfolio page:
   a **Connect-accounts** bar (Trading 212 + Interactive Brokers, Robinhood,
   Coinbase, Vanguard, Binance — mock connect), then widgets for **Summary** KPIs,

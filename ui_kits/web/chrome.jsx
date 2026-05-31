@@ -44,7 +44,11 @@ const RAIL_GROUPS = [
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
-function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut }) {
+function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isAdmin }) {
+  // Admins get an extra "Admin" item appended to the You group.
+  const groups = RAIL_GROUPS.slice(1).map(g =>
+    (g.head === 'You' && isAdmin) ? { ...g, items: [...g.items, { id:'admin', label:'Admin', tone:'teal', icon:'shield-half' }] } : g
+  );
   // Greeting changes with the time of day (11pm–6am gets a wry late-night line).
   const hour = new Date().getHours();
   const greeting = (hour >= 23 || hour < 6) ? "It's a bit late, isn't it?"
@@ -74,7 +78,7 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut }) {
         )}
       </div>
       <nav style={{ padding:'8px 8px 0', display:'flex', flexDirection:'column', gap:2 }}>
-        {RAIL_GROUPS.slice(1).map((g,gi)=>(
+        {groups.map((g,gi)=>(
           <div key={gi} style={{ marginBottom:10 }}>
             {g.head && <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.faint, padding:'8px 10px 5px' }}>{g.head}</div>}
             {g.items.map((it,ii)=>{
@@ -93,6 +97,7 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut }) {
                   color: it.tone==='teal'?VM.teal : active?VM.ink:VM.ink2, fontWeight: active?600:400,
                   display:'flex', alignItems:'center', flexWrap:'wrap', gap:6,
                 }}>
+                  {it.icon && <i className={'ti ti-'+it.icon} style={{ fontSize:14 }}></i>}
                   <span>{label}</span>
                   {showSignOut && <i className="ti ti-logout" style={{ fontSize:13, color:VM.ink3 }}></i>}
                   {it.badge && (

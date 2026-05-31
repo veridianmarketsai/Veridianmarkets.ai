@@ -45,7 +45,7 @@ const LEARN_FORMATS = ['Course', 'Path', 'Guide', 'Interactive'];
 
 // ── The catalogue (mock). `tag` drives the coloured badge; `route` (optional)
 //    lets an "App tutorial" card jump straight into the relevant screen. ─────
-const LEARN_COURSES = [
+const LEARN_SEED_COURSES = [
   { id:1,  title:'The Anatomy of a Market',           cat:'markets',   provider:'Veridian Academy', level:'Beginner',     format:'Course',      length:'6 lessons',   tag:'Start here' },
   { id:2,  title:'Veridian in 10 Minutes',            cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'10 min',      tag:'App tutorial', route:'front' },
   { id:3,  title:'Reading a Company’s Financials',    cat:'finance',   provider:'Veridian Academy', level:'Intermediate', format:'Course',      length:'8 lessons',   tag:'Most read' },
@@ -75,6 +75,28 @@ const TAG_TONE = {
   'Advanced':     { bg:VM.paperDeep,         fg:VM.ink2,      bd:VM.border },
 };
 
+// ── Course store ──────────────────────────────────────────────────────────
+// The catalogue = built-in seed courses + any courses the admin adds (kept in
+// localStorage so they persist and show up here on the Learn page). This is the
+// temporary stand-in for a real courses table until the backend exists.
+const VM_COURSES_KEY = 'vm_admin_courses';
+function vmLoadAddedCourses() {
+  try { return JSON.parse(localStorage.getItem(VM_COURSES_KEY)) || []; } catch { return []; }
+}
+function vmGetCourses() { return LEARN_SEED_COURSES.concat(vmLoadAddedCourses()); }
+function vmAddCourse(c) {
+  const list = vmLoadAddedCourses();
+  const next = { ...c, id: 'u' + Date.now(), added: true };
+  list.push(next);
+  try { localStorage.setItem(VM_COURSES_KEY, JSON.stringify(list)); } catch {}
+  return next;
+}
+function vmDeleteCourse(id) {
+  const list = vmLoadAddedCourses().filter(c => c.id !== id);
+  try { localStorage.setItem(VM_COURSES_KEY, JSON.stringify(list)); } catch {}
+}
+Object.assign(window, { vmGetCourses, vmAddCourse, vmDeleteCourse, vmLoadAddedCourses, LEARN_CATS, LEARN_LEVELS, LEARN_FORMATS, catTint, TAG_TONE });
+
 const PAGE_SIZE = 8;   // cards shown before "Show more"
 
 function Learn({ go, isMobile }) {
@@ -85,7 +107,7 @@ function Learn({ go, isMobile }) {
   const [shown, setShown]   = useStateLearn(PAGE_SIZE);
 
   const q = query.trim().toLowerCase();
-  const filtered = LEARN_COURSES.filter(c => {
+  const filtered = vmGetCourses().filter(c => {
     if (cat !== 'all' && c.cat !== cat) return false;
     if (level !== 'all' && c.level !== level) return false;
     if (format !== 'all' && c.format !== format) return false;
