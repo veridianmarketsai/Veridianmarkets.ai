@@ -125,9 +125,10 @@ function App() {
     go('front');
   };
 
-  // Protected routes. My Portfolio needs sign-in; Admin needs the admin role.
+  // Protected routes. Portfolio sign-in guard is temporarily disabled (laptop:
+  // learn-1.14 "sign-in guard bypass"); Admin still needs the admin role.
   const isAdmin = !!(user && user.role === 'admin');
-  const gatedFromPortfolio = route==='myportfolio' && !signedIn;
+  const gatedFromPortfolio = false; // temporarily disabled — restore: route==='myportfolio' && !signedIn
   const gatedFromAdmin = route==='admin' && !isAdmin;            // signed-out → sign in; signed-in non-admin → home
   const effRoute = gatedFromPortfolio ? 'signin'
     : gatedFromAdmin ? (signedIn ? 'front' : 'signin')
