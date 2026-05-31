@@ -42,7 +42,7 @@ belongs to the Toolbar Menu.
 | My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated scaffold (`MyPortfolio.jsx`): reroutes to Sign in when logged out (placeholder `signedIn=false` in `app.jsx`). |
 | Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
 | Search                         | **Main Search Page** | `screener` | Renamed from "Company search". |
-| History                        | **History Page**     | `history`  | |
+| History                        | **History Page**     | `history`  | Now a **search / "ask" hub** (`History.jsx`): hint pill, big "Search." title, search bar (submit is a scaffold — no backend), and clickable example **Prompts**. Replaced the old analogue-engine layout (analogue data still in `data.jsx`). |
 | Learn                          | **Learn VM**         | `learn`    | Course/guide catalogue (`Learn.jsx`): guided-path banner, search, category pills + Level/Format filters, responsive card grid with Show-more. "App tutorial" cards `go()` into screens. Content is mock scaffold data (inline). |
 | Read memoir                    | **Memoir Page**      | `memoir`   | |
 
@@ -69,6 +69,10 @@ placeholders until their page exists.
 
 ### 2026-05-30
 
+- **21:38 — History page → search/"ask" hub (`history-page-1.8`, not merged).**
+  Replaced the analogue engine with a Search page: hint pill, "Search." title,
+  search bar (scaffold, no backend), clickable example Prompts. History route no
+  longer takes a company. Then started `learn-1.9` (Learn page work).
 - **18:59 — Merged `scn-live-demo-1.6` → main; SCN dependency map is live.** Shipped
   to veridianmarkets.ai despite being WIP (user chose to publish now, refine later:
   breadcrumbs + company-page entry points). Also note `api-link-beta-1.7` is open
@@ -192,7 +196,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `learn-1.9` (Learn page; merged to main). Also open: `api-link-beta-1.7` (empty, paused — Finnhub/data-provider side project). **Next free iteration: `<code-name>-1.10`.**
+**Latest branch (this scheme):** `backend-update-1.10` (URLs + placeholder auth; **stored/pushed, not merged to main**). Merged to main: `history-page-1.8` (search hub) and `learn-1.9` (Learn page). `api-link-beta-1.7` **deleted** (had no changes vs main; re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.11`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
