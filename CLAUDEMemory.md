@@ -45,6 +45,7 @@ belongs to the Toolbar Menu.
 | History                        | **History Page**     | `history`  | Now a **search / "ask" hub** (`History.jsx`): hint pill, big "Search." title, search bar (submit is a scaffold — no backend), and clickable example **Prompts**. Replaced the old analogue-engine layout (analogue data still in `data.jsx`). |
 | Learn                          | **Learn VM**         | `learn`    | Course/guide catalogue (`Learn.jsx`): guided-path banner, search, category pills + Level/Format filters, responsive card grid with Show-more. "App tutorial" cards `go()` into screens. Content is mock scaffold data (inline). |
 | Read memoir                    | **Memoir Page**      | `memoir`   | |
+| Admin *(admins only)*          | **Admin Page**       | `admin`    | Role-gated control panel (`AdminPanel.jsx`); rail item shows only for `role:'admin'`. Tabs: **Overview** (user-metrics dashboard), **Users** (100-user temp DB w/ ⋮ row menu → details modal, personal profits, simulated "access account" banner, mock actions), **Courses** (add/remove Learn courses via the course store). Temp data: `admin_data.jsx` (users) + `vm*Course` store in `Learn.jsx`. All mock until the real backend. |
 
 Routes map to screens in [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx); labels live
 in `RAIL_GROUPS` in `chrome.jsx`. Items with no route are non-clickable
@@ -56,6 +57,22 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Admin control panel (`admin-backend-access-1.13`).** Built an admin-only
+  control panel: new `admin` route (gated to `role:'admin'`), rail item shown
+  only to admins, and `AdminPanel.jsx` with three tabs — **Overview** (user-metrics
+  dashboard: KPIs, signups bar chart, plan donut, top countries), **Users** (a
+  temporary 100-user DB from new `admin_data.jsx`; searchable/filterable table;
+  each row has a ⋮ menu → details modal with all account info + **personal
+  profits** (per-user seeded mock), **Access account** = simulated impersonation
+  banner, plus mock reset/suspend/delete/email/change-plan), and **Courses**
+  (add/remove Learn courses). Refactored `Learn.jsx` to a localStorage **course
+  store** (`vmGetCourses`/`vmAddCourse`/`vmDeleteCourse`) so admin-added courses
+  show up live on the Learn page. All data is mock — stand-in for the real AWS
+  backend this branch targets. **Merged to main + live.**
+- **Started `admin-backend-access-1.13`.** New branch (from main) for real
+  admin/backend access — the move off the client-side placeholder login toward a
+  proper backend (AWS Cognito auth, etc.). User initially said "1.1"; kept the
+  running counter (1.1 was taken) → `…-1.13`.
 - **Built the My Portfolio dashboard (`portfolio-1.12`).** Replaced the blank
   portfolio scaffold with a **customisable widget dashboard**: a Connect-accounts
   bar (Trading 212 featured + IBKR/Robinhood/Coinbase/Vanguard/Binance, mock
@@ -229,7 +246,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `portfolio-1.12` (My Portfolio dashboard; merged to main + live). Also merged to main: `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.13`.**
+**Latest branch (this scheme):** `admin-backend-access-1.13` (admin control panel — Overview/Users/Courses; merged to main + live; next step = real AWS backend). Merged to main + live: `portfolio-1.12`, `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.14`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within

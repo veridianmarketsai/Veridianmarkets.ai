@@ -14,6 +14,7 @@ const ROUTE_PATHS = {
   history:     '/history',
   learn:       '/learn',
   memoir:      '/memoir',
+  admin:       '/admin',
 };
 const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
 const ROUTE_TITLES = {
@@ -21,7 +22,7 @@ const ROUTE_TITLES = {
   myportfolio:'My portfolio · Veridian Markets', supply:'Supply chain network · Veridian Markets',
   screener:'Search · Veridian Markets', history:'History · Veridian Markets',
   learn:'Learn · Veridian Markets', memoir:'Read memoir · Veridian Markets',
-  dashboard:'Veridian Markets',
+  admin:'Admin · Veridian Markets', dashboard:'Veridian Markets',
 };
 
 // Turn the current URL into { route, company }.
@@ -124,10 +125,13 @@ function App() {
     go('front');
   };
 
-  // Protected route — My Portfolio requires sign-in; otherwise reroute to the
-  // Sign in page (remembering that portfolio was the intended destination).
+  // Protected routes. My Portfolio needs sign-in; Admin needs the admin role.
+  const isAdmin = !!(user && user.role === 'admin');
   const gatedFromPortfolio = route==='myportfolio' && !signedIn;
-  const effRoute = gatedFromPortfolio ? 'signin' : route;
+  const gatedFromAdmin = route==='admin' && !isAdmin;            // signed-out → sign in; signed-in non-admin → home
+  const effRoute = gatedFromPortfolio ? 'signin'
+    : gatedFromAdmin ? (signedIn ? 'front' : 'signin')
+    : route;
 
   // map rail ids to routes (rail uses 'screener' & 'supply' & 'history' & 'front')
   const railRoute = effRoute==='dashboard' ? 'screener' : effRoute;
@@ -141,7 +145,8 @@ function App() {
   else if(effRoute==='memoir') screen = <Memoir go={go} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo="myportfolio" />;
+  else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} />;
+  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : 'myportfolio'} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
 
@@ -155,7 +160,7 @@ function App() {
         </main>
       ) : (
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
-          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} />
+          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} isAdmin={isAdmin} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
             {/* Ticker runs along the very top of every page, just under the green header. */}
             <IndexStrip />
