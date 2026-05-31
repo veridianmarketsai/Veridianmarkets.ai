@@ -192,7 +192,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `learn-1.9` (Learn page; merged to main). Also open: `api-link-beta-1.7` (empty, paused — Finnhub/data-provider side project). **Next free iteration: `<code-name>-1.10`.**
+**Latest branch (this scheme):** `backend-update-1.10` (backend work; branched from main — in progress). Previous: `learn-1.9` (Learn page; merged to main). Also open: `api-link-beta-1.7` (empty, paused — Finnhub/data-provider side project). **Next free iteration: `<code-name>-1.11`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
