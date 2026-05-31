@@ -1,0 +1,12 @@
+ticker,name,sector,cap,price,chg,dir,sub,analogue,analogueYear,match
+AAPL,Apple Inc.,Tech · Consumer,$4.54T,308.82,+1.26%,up,Consumer electronics,MSFT,2014,87
+NVDA,NVIDIA Corp.,Tech · Semiconductors,$2.32T,945.10,+3.40%,up,Accelerated computing,CSCO,1999,64
+MSFT,Microsoft Corp.,Tech · Software,$3.17T,427.15,+0.84%,up,Cloud + software,IBM,2004,71
+GOOGL,Alphabet Inc.,Tech · Advertising,$2.13T,172.04,-0.42%,down,Search + ads,AAPL,2013,59
+AMZN,Amazon.com Inc.,Retail · Cloud,$1.93T,185.30,+0.91%,up,Marketplace + AWS,WMT,2001,55
+META,Meta Platforms,Tech · Social,$1.27T,498.22,+1.87%,up,Social + ads,GOOGL,2015,62
+TSLA,"Tesla, Inc.",Auto · EVs,$580B,182.04,-2.14%,down,EVs + energy,AMZN,2014,48
+BRK.B,Berkshire Hathaway,Conglomerate,$903B,418.92,+0.31%,up,Insurance + holdings,GE,1998,51
+AVGO,Broadcom Inc.,Tech · Semiconductors,$623B,1342.0,+2.10%,up,Semis + software,TXN,2010,57
+JPM,JPMorgan Chase,Finance · Banking,$615B,215.40,+0.18%,up,Universal bank,WFC,2006,44
+V,Visa Inc.,Finance · Payments,$560B,275.18,+0.55%,up,Payment rails,MA,2012,66

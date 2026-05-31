@@ -1,0 +1,19 @@
+id,title,cat,provider,level,format,length,tag
+1,The Anatomy of a Market,markets,Veridian Academy,Beginner,Course,6 lessons,Start here
+2,Veridian in 10 Minutes,using-vm,Veridian Markets,Beginner,Interactive,10 min,App tutorial
+3,Reading a Company’s Financials,finance,Veridian Academy,Intermediate,Course,8 lessons,Most read
+4,Building Your First Portfolio,investing,Veridian Academy,Beginner,Path,5 modules,Popular
+5,How Supply Chains Move Prices,supply,Veridian Academy,Intermediate,Course,7 lessons,New
+6,Mapping a Company’s Network,using-vm,Veridian Markets,Intermediate,Interactive,12 min,App tutorial
+7,Cash Flow for Managers,business,Bretton House,Intermediate,Guide,30 min read,
+8,Reading Charts Without Fooling Yourself,data,The Ledger,Beginner,Guide,20 min read,Most read
+9,"The Screener, End to End",using-vm,Veridian Markets,Intermediate,Interactive,15 min,App tutorial
+10,Macro for Investors,economics,Bretton House,Intermediate,Course,9 lessons,
+11,"Risk, Position Sizing & Drawdowns",risk,Veridian Academy,Advanced,Course,6 lessons,Advanced
+12,Personal Finance Foundations,personal,Veridian Academy,Beginner,Path,5 modules,
+13,How Interest Rates Work,economics,Veridian Academy,Beginner,Course,4 lessons,
+14,Valuation: From Multiples to DCF,investing,The Ledger,Advanced,Course,10 lessons,Advanced
+15,Trading Psychology,trading,Veridian Academy,Intermediate,Guide,25 min read,
+16,"Bonds & Yield, Demystified",finance,Bretton House,Intermediate,Course,7 lessons,
+17,From Idea to Business Plan,business,Veridian Academy,Beginner,Path,6 modules,New
+18,Building Watchlists That Work,using-vm,Veridian Markets,Beginner,Interactive,8 min,App tutorial
