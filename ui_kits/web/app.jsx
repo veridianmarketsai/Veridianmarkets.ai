@@ -35,7 +35,7 @@ function App() {
   else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} />;
   else if(effRoute==='history') screen = <History company={company} go={go} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} />;
-  else if(effRoute==='learn') screen = <Learn go={go} />;
+  else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} />;
   else if(effRoute==='signin') screen = <SignIn go={go} />;
 
