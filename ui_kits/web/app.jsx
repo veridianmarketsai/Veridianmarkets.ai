@@ -1,5 +1,71 @@
-// Veridian Markets — app shell + simple router.
+// Veridian Markets — app shell + URL router (History API).
 const { useState: useStateApp, useEffect: useEffectApp } = React;
+
+// ── Routing ────────────────────────────────────────────────────────────────
+// Each Toolbar Menu page gets its own clean URL. The company dashboard is
+// /company/<ticker>. Everything is served from the site root (see index.html +
+// 404.html for the GitHub Pages SPA deep-link handling).
+const ROUTE_PATHS = {
+  front:       '/',
+  signin:      '/sign-in',
+  myportfolio: '/portfolio',
+  supply:      '/supply-chain',
+  screener:    '/search',
+  history:     '/history',
+  learn:       '/learn',
+  memoir:      '/memoir',
+};
+const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
+const ROUTE_TITLES = {
+  front:'Veridian Markets · history-led finance', signin:'Sign in · Veridian Markets',
+  myportfolio:'My portfolio · Veridian Markets', supply:'Supply chain network · Veridian Markets',
+  screener:'Search · Veridian Markets', history:'History · Veridian Markets',
+  learn:'Learn · Veridian Markets', memoir:'Read memoir · Veridian Markets',
+  dashboard:'Veridian Markets',
+};
+
+// Turn the current URL into { route, company }.
+function pathToState(pathname) {
+  let p = pathname.replace(/\/+$/, '') || '/';   // trim trailing slash(es)
+  const m = p.match(/^\/company\/([^/]+)/i);
+  if (m) {
+    const ticker = decodeURIComponent(m[1]).toUpperCase();
+    const company = VM_COMPANIES.find(c => c.ticker.toUpperCase() === ticker);
+    return { route:'dashboard', company: company || null };
+  }
+  return { route: PATH_ROUTES[p] || 'front', company: null };
+}
+// Turn a route (+ company for the dashboard) into a URL.
+function stateToPath(route, company) {
+  if (route === 'dashboard') return '/company/' + encodeURIComponent((company && company.ticker) || '').toLowerCase();
+  return ROUTE_PATHS[route] || '/';
+}
+
+// ── Auth (PLACEHOLDER — client-side only, NOT real security) ─────────────────
+// This static prototype has no backend yet, so this login is a convenience for
+// the owner, not a security boundary: the account list below ships in public
+// client code. The password is kept as a SHA-256 hash so the literal string
+// isn't in the repo, but anyone could still read this and sign in. Replace the
+// whole block with real AWS Cognito auth before this matters. See README.
+const VM_ACCOUNTS = [
+  { email:'veridianmarkets.ai@gmail.com', name:'Admin', role:'admin',
+    passHash:'0b63006babadddf7c11b2cb9ec1d614931b2ed266413717b7b7dc601d0bda2fa' }, // VDMAI123
+];
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+// Returns a user object on success, or null. Async because hashing is async.
+async function verifyCredentials(email, password) {
+  const acct = VM_ACCOUNTS.find(a => a.email.toLowerCase() === String(email).trim().toLowerCase());
+  if (!acct) return null;
+  if (await sha256Hex(password) !== acct.passHash) return null;
+  return { email:acct.email, name:acct.name, role:acct.role };
+}
+const VM_SESSION_KEY = 'vm_session';
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(VM_SESSION_KEY)) || null; } catch { return null; }
+}
 
 // Track viewport so the Toolbar Menu collapses into a hamburger below `bp`px.
 function useIsMobile(bp) {
@@ -13,17 +79,55 @@ function useIsMobile(bp) {
 }
 
 function App() {
-  const [route, setRoute] = useStateApp('front');     // front | screener | supply (= dependency map) | dashboard | history | memoir | learn | signin | myportfolio
-  const [company, setCompany] = useStateApp(VM_COMPANIES[0]);
+  // Seed route + company from the current URL so deep links / refreshes land on
+  // the right page (front | screener | supply | dashboard | history | memoir |
+  // learn | signin | myportfolio).
+  const initial = pathToState(window.location.pathname);
+  const [route, setRoute] = useStateApp(initial.route);
+  const [company, setCompany] = useStateApp(initial.company || VM_COMPANIES[0]);
   const [menuOpen, setMenuOpen] = useStateApp(false);
   const isMobile = useIsMobile(768);
   useEffectApp(()=>{ if(!isMobile) setMenuOpen(false); }, [isMobile]);
-  const go = (r, c) => { if(c) setCompany(c); setRoute(r); setMenuOpen(false); window.scrollTo&&window.scrollTo(0,0);
-    const main = document.getElementById('vm-main'); if(main) main.scrollTop=0; };
 
-  const signedIn = false;  // TODO(auth): replace with real session state (AWS Cognito). false = logged out.
-  // Protected route — My Portfolio requires sign-in; otherwise reroute to the Sign in page.
-  const effRoute = (route==='myportfolio' && !signedIn) ? 'signin' : route;
+  const scrollTop = () => { window.scrollTo&&window.scrollTo(0,0); const main=document.getElementById('vm-main'); if(main) main.scrollTop=0; };
+  // Navigate: update state AND push a real URL so every page is linkable.
+  const go = (r, c) => {
+    const nextCompany = c || company;
+    if (c) setCompany(c);
+    setRoute(r); setMenuOpen(false);
+    const path = stateToPath(r, nextCompany);
+    if (path !== window.location.pathname) window.history.pushState({}, '', path);
+    scrollTop();
+  };
+  // Back/forward buttons → sync state from the URL (no new history entry).
+  useEffectApp(() => {
+    const onPop = () => { const s = pathToState(window.location.pathname); setRoute(s.route); if (s.company) setCompany(s.company); scrollTop(); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  // Keep the document title in step with the route.
+  useEffectApp(() => { document.title = ROUTE_TITLES[route] || ROUTE_TITLES.front; }, [route]);
+
+  // Session — restored from localStorage so a refresh keeps you signed in.
+  const [user, setUser] = useStateApp(loadSession);
+  const signedIn = !!user;
+  const signIn = async (email, password) => {            // returns true on success
+    const u = await verifyCredentials(email, password);
+    if (!u) return false;
+    setUser(u);
+    try { localStorage.setItem(VM_SESSION_KEY, JSON.stringify(u)); } catch {}
+    return true;
+  };
+  const signOut = () => {
+    setUser(null);
+    try { localStorage.removeItem(VM_SESSION_KEY); } catch {}
+    go('front');
+  };
+
+  // Protected route — My Portfolio requires sign-in; otherwise reroute to the
+  // Sign in page (remembering that portfolio was the intended destination).
+  const gatedFromPortfolio = route==='myportfolio' && !signedIn;
+  const effRoute = gatedFromPortfolio ? 'signin' : route;
 
   // map rail ids to routes (rail uses 'screener' & 'supply' & 'history' & 'front')
   const railRoute = effRoute==='dashboard' ? 'screener' : effRoute;
@@ -36,8 +140,8 @@ function App() {
   else if(effRoute==='history') screen = <History go={go} isMobile={isMobile} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
-  else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} />;
-  else if(effRoute==='signin') screen = <SignIn go={go} />;
+  else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} />;
+  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo="myportfolio" />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
 
@@ -51,7 +155,7 @@ function App() {
         </main>
       ) : (
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
-          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} />
+          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
             {/* Ticker runs along the very top of every page, just under the green header. */}
             <IndexStrip />

@@ -317,6 +317,20 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-31
 
+- **Real per-page URLs + the app now lives at the site root.** The root
+  `index.html` is the app (was a redirect to `/ui_kits/web/`); each Toolbar Menu
+  page has its own clean URL via the History API — `/`, `/sign-in`, `/portfolio`,
+  `/supply-chain`, `/search`, `/history`, `/memoir`, `/learn`, and
+  `/company/<ticker>`. Back/forward and document titles track the route. Deep
+  links survive a hard refresh on GitHub Pages via the standard `404.html` SPA
+  redirect; the local `dev-server.mjs` got a matching fallback. The old
+  `/ui_kits/web/` path now redirects to `/`. _(branch: `backend-update-1.10`)_
+- **Placeholder sign-in (admin account).** The Sign-in form now authenticates
+  against a client-side account list and persists the session in `localStorage`
+  (survives refresh); the rail shows the signed-in email and a Sign-out action,
+  and `/portfolio` unlocks once signed in. **This is not real security** — the
+  account ships in public client code (password stored only as a SHA-256 hash);
+  it is a stopgap until AWS Cognito. _(branch: `backend-update-1.10`)_
 - **History page — prompts restyled to a plain bullet list.** The History
   search/"ask" hub now shows its example prompts as a simple bullet list (was
   boxed cards), with a written-out "Prompts" heading, to match the agreed design.

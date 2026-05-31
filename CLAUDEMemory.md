@@ -38,8 +38,8 @@ belongs to the Toolbar Menu.
 | Visible label                  | Section (identifier) | Route      | Notes |
 |--------------------------------|----------------------|------------|-------|
 | *logo — "Veridian Markets"*    | **Home Page**        | `front`    | The top-left wordmark **is** the Home button. There is no "Front page" text item. |
-| Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Auth (AWS) wiring TBD. |
-| My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated scaffold (`MyPortfolio.jsx`): reroutes to Sign in when logged out (placeholder `signedIn=false` in `app.jsx`). |
+| Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Now wired to a **placeholder client-side auth** (`VM_ACCOUNTS` in `app.jsx`; admin account; SHA-256 hash; session in `localStorage`). **Not real security** — to be replaced by AWS Cognito. |
+| My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated scaffold (`MyPortfolio.jsx`): reroutes to Sign in when logged out. Now driven by **real session state** (`signedIn` from `localStorage`), so it unlocks once signed in. |
 | Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
 | Search                         | **Main Search Page** | `screener` | Renamed from "Company search". |
 | History                        | **History Page**     | `history`  | Now a **search / "ask" hub** (`History.jsx`): hint pill, big "Search." title, search bar (submit is a scaffold — no backend), and clickable example **Prompts**. Replaced the old analogue-engine layout (analogue data still in `data.jsx`). |
@@ -56,12 +56,26 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **URL router + app at the site root + placeholder auth (`backend-update-1.10`).**
+  (1) **Routing:** root `index.html` is now the app itself (was a redirect to
+  `/ui_kits/web/`); added a History-API router in `app.jsx` (`ROUTE_PATHS` /
+  `pathToState` / `stateToPath`, `pushState` in `go()`, `popstate` sync, per-route
+  titles) so every Toolbar page has a clean URL (`/`, `/sign-in`, `/portfolio`,
+  `/supply-chain`, `/search`, `/history`, `/memoir`, `/learn`, `/company/<ticker>`).
+  Deep links survive refresh on GitHub Pages via a standard `404.html` SPA
+  redirect; `dev-server.mjs` got a matching SPA fallback. Old `/ui_kits/web/`
+  path → redirect to `/`. (2) **Auth:** `SignIn.jsx` now authenticates against
+  `VM_ACCOUNTS` (admin: `veridianmarkets.ai@gmail.com`, password stored as a
+  SHA-256 hash, **not** plaintext), session in `localStorage`; rail shows the
+  signed-in email + Sign-out. **Client-side only — not real security; replace
+  with AWS Cognito.** Later **merged `main` into this branch** so the router now
+  also carries the new search-hub History + Learn (the old branch copies were
+  pre-rebuild). Still **not merged to main** until the owner publishes.
 - **History prompts → plain bullet list (`history-page-1.11`).** Restyled the
   History search hub's example prompts from boxed cards to a simple hand-sketch
   bullet list (filled dot + serif text, underline/teal on hover), and made the
   "Prompts" label a written-out serif heading. Page structure + the four prompts
-  unchanged. Branched from main (does **not** include `backend-update-1.10`'s URL
-  router / auth — reconcile when both merge). **Merged to main + live.**
+  unchanged. **Merged to main + live.**
 
 - **Built the Learn page (`learn-1.9`).** Replaced the blank `Learn.jsx` scaffold
   with a course/guide catalogue — learn finance/markets/business management and
@@ -203,7 +217,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `history-page-1.11` (History prompts → bullet list; merged to main). Stored but **not merged to main:** `backend-update-1.10` (URLs + placeholder auth). Also merged to main: `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (had no changes; re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.12`.**
+**Latest branch (this scheme):** `backend-update-1.10` (URL router + placeholder auth; now also carries the new History/Learn after merging main in — **still not merged to main**). Merged to main: `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (had no changes; re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.12`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
