@@ -111,11 +111,9 @@ function App() {
   useEffectApp(() => { document.title = ROUTE_TITLES[route] || ROUTE_TITLES.front; }, [route]);
 
   // Session — restored from localStorage so a refresh keeps you signed in.
-  // TEMPORARY (testing): auto sign-in as the admin when nothing is stored, so
-  // logged-in features (settings, portfolio, admin) are reachable without the
-  // sign-in flow. To restore the real gate: const [user, setUser] = useStateApp(loadSession);
-  const DEV_ADMIN_USER = { name:'Admin', email:'veridianmarkets.ai@gmail.com', role:'admin', tier:'Business' };
-  const [user, setUser] = useStateApp(() => loadSession() || DEV_ADMIN_USER);
+  // (Auto-admin testing bypass removed for safety — visitors start signed out and
+  // must sign in to reach settings/portfolio/admin.)
+  const [user, setUser] = useStateApp(loadSession);
   const signedIn = !!user;
   const signIn = async (email, password) => {            // returns true on success
     const u = await verifyCredentials(email, password);

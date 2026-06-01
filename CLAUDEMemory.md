@@ -58,6 +58,11 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Turned OFF the auto-admin bypass (safety).** Removed `DEV_ADMIN_USER` auto
+  sign-in from `app.jsx`; the live site no longer auto-signs visitors in as admin
+  — everyone starts **signed out** and must sign in for settings/portfolio/admin.
+  (`/sign-in` still redirects home when already signed in, and the portfolio guard
+  stays disabled — both harmless.)
 - **Account settings page + TEMPORARY auth bypass (`account-settings-1.17`).** New
   `AccountSettings.jsx` (`settings` route): a grouped settings list (Instagram
   pattern, VM editorial style) — profile summary + Your account / How you use
