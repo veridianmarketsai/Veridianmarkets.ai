@@ -57,6 +57,10 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Started `account-settings-1.17`.** New branch (from main) for an account
+  settings page. (Reused iteration 1.17, freed when the abandoned `tier-levels-1.17`
+  was deleted.) Also tidied the stale/duplicated "Next free iteration" lines left
+  by the parallel-merge reconciliation → now cleanly `1.18`. No feature code yet.
 - **Added `MOBILE.md` (`docs/mobile-plan`).** Planning doc for the native apps:
   Expo/React Native recommended, Figma optional (build-on-simulator), one-repo →
   monorepo (don't duplicate), GitHub workflow shifts for app releases, Mac setup,
@@ -272,7 +276,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `database-infrastructure-1.16` (real data/database layer — backend store behind the `data.jsx`/admin/course/user seams; branched from main — in progress). Previously merged to main: `admin-backend-access-1.13` (admin panel), plus the laptop's `company-profiles-1.13`, `learn-1.14`, `learn-1.15`.
+**Latest branch (this scheme):** `account-settings-1.17` (account settings page; branched from main — in progress). Recently merged to main: `database-infrastructure-1.16` (data export tool) + `docs/mobile-plan` (MOBILE.md). `tier-levels-1.17` was created then **deleted** (abandoned, never merged) — which freed 1.17 for this branch.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -280,7 +284,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-1.17`.** Merged to main + live: `portfolio-1.12`, `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.14`.**
+**Next free iteration: `<code-name>-1.18`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
