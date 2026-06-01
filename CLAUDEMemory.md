@@ -45,6 +45,7 @@ belongs to the Toolbar Menu.
 | History                        | **History Page**     | `history`  | Now a **search / "ask" hub** (`History.jsx`): hint pill, big "Search." title, search bar (submit is a scaffold — no backend), and clickable example **Prompts**. Replaced the old analogue-engine layout (analogue data still in `data.jsx`). |
 | Learn                          | **Learn VM**         | `learn`    | Course/guide catalogue (`Learn.jsx`): guided-path banner, search, category pills + Level/Format filters, responsive card grid with Show-more. "App tutorial" cards `go()` into screens. Content is mock scaffold data (inline). |
 | Read memoir                    | **Memoir Page**      | `memoir`   | |
+| Settings *(signed-in only)*    | **Account Settings** | `settings` | Grouped settings list (Instagram "Settings and activity" pattern, VM editorial style) in `AccountSettings.jsx`: profile summary + sections (Your account / How you use Veridian / Privacy & data / Support / danger), each row drilling into its own sub-page (internal state, back arrow). Rail item shows only when `signedIn`. Mock/scaffold. |
 | Admin *(admins only)*          | **Admin Page**       | `admin`    | Role-gated control panel (`AdminPanel.jsx`); rail item shows only for `role:'admin'`. Tabs: **Overview** (user-metrics dashboard), **Users** (100-user temp DB w/ ⋮ row menu → details modal, personal profits, simulated "access account" banner, mock actions), **Courses** (add/remove Learn courses via the course store). Temp data: `admin_data.jsx` (users) + `vm*Course` store in `Learn.jsx`. All mock until the real backend. |
 
 Routes map to screens in [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx); labels live
@@ -57,6 +58,19 @@ placeholders until their page exists.
 
 ### 2026-05-31
 
+- **Account settings page + TEMPORARY auth bypass (`account-settings-1.17`).** New
+  `AccountSettings.jsx` (`settings` route): a grouped settings list (Instagram
+  pattern, VM editorial style) — profile summary + Your account / How you use
+  Veridian / Privacy & data / Support / danger — each row drilling into its own
+  designed sub-page (internal state + back arrow; toggles, forms, plan cards).
+  Rail "Settings" item shows **only when signed in**. ⚠️ **Temporary testing
+  bypasses in `app.jsx`** (revert before real auth): (1) auto sign-in as the admin
+  when no session is stored (`DEV_ADMIN_USER`), (2) `/sign-in` redirects home when
+  already signed in, (3) portfolio sign-in guard still disabled. Mock/scaffold.
+- **Started `account-settings-1.17`.** New branch (from main) for an account
+  settings page. (Reused iteration 1.17, freed when the abandoned `tier-levels-1.17`
+  was deleted.) Also tidied the stale/duplicated "Next free iteration" lines left
+  by the parallel-merge reconciliation → now cleanly `1.18`. No feature code yet.
 - **Added `MOBILE.md` (`docs/mobile-plan`).** Planning doc for the native apps:
   Expo/React Native recommended, Figma optional (build-on-simulator), one-repo →
   monorepo (don't duplicate), GitHub workflow shifts for app releases, Mac setup,
@@ -272,7 +286,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 1
-**Latest branch (this scheme):** `database-infrastructure-1.16` (real data/database layer — backend store behind the `data.jsx`/admin/course/user seams; branched from main — in progress). Previously merged to main: `admin-backend-access-1.13` (admin panel), plus the laptop's `company-profiles-1.13`, `learn-1.14`, `learn-1.15`.
+**Latest branch (this scheme):** `account-settings-1.17` (account settings page; branched from main — in progress). Recently merged to main: `database-infrastructure-1.16` (data export tool) + `docs/mobile-plan` (MOBILE.md). `tier-levels-1.17` was created then **deleted** (abandoned, never merged) — which freed 1.17 for this branch.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -280,7 +294,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-1.17`.** Merged to main + live: `portfolio-1.12`, `backend-update-1.10` (URL router + root app + placeholder admin login), `history-page-1.11`, `history-page-1.8`, `learn-1.9`. `api-link-beta-1.7` **deleted** (re-cut the Finnhub/data-provider work when picked up). **Next free iteration: `<code-name>-1.14`.**
+**Next free iteration: `<code-name>-1.18`.**
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within

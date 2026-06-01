@@ -317,6 +317,15 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-05-31
 
+- **Account settings page.** A grouped settings list (Instagram "Settings and
+  activity" pattern, in our editorial style): profile summary + sections (Your
+  account, How you use Veridian, Privacy & data, Support, danger), each row opening
+  its own sub-page (profile, password & security, subscription/plans, connected
+  accounts, notifications, appearance, privacy, and more). The rail **Settings**
+  item shows only when signed in. **Temporary testing bypass:** the app
+  auto-signs-in as admin and skips the sign-in page (clearly marked in `app.jsx`,
+  to be reverted before real auth). _(branch: `account-settings-1.17`)_
+
 - **Added `MOBILE.md` — the plan for taking the app to iOS/Android.** Captures the
   recommended path (Expo / React Native), the design/Figma approach, the
   one-repo-→-monorepo strategy (don't duplicate), how the GitHub workflow changes
