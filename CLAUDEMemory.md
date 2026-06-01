@@ -56,6 +56,13 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-06-01
+
+- **Started the iOS kit (`ui_kits/iOS/`).** User is building the native app in
+  **Xcode (SwiftUI)** — web app is the visual reference, not ported. Added a
+  README (Xcode/SwiftUI setup, fonts, bottom-tab nav) + `VeridianTheme.swift`
+  (the VM palette + serif/mono font helpers ported to SwiftUI). No app yet.
+
 ### 2026-05-31
 
 - **Turned OFF the auto-admin bypass (safety).** Removed `DEV_ADMIN_USER` auto
