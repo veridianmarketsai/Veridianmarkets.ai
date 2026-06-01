@@ -39,16 +39,20 @@ function Masthead({ go }) {
 
 const RAIL_GROUPS = [
   { head:null, items:[ {id:'search', label:'Search', icon:'search', isSearch:true } ] },
-  { head:'You', items:[ {id:'signin', label:'Sign in'}, {id:'myportfolio', label:'My portfolio'} ] },
+  { head:'You', items:[ {id:'signin', label:'Sign in'}, {id:'myportfolio', label:'My portfolio'}, {id:'settings', label:'Settings', icon:'settings'} ] },
   { head:'Explore', items:[ {id:'front', label:'Home'}, {id:'supply', label:'Supply chain network', badge:'Live Demo'}, {id:'screener', label:'Search'}, {id:'history', label:'History'} ] },
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
 function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isAdmin }) {
-  // Admins get an extra "Admin" item appended to the You group.
-  const groups = RAIL_GROUPS.slice(1).map(g =>
-    (g.head === 'You' && isAdmin) ? { ...g, items: [...g.items, { id:'admin', label:'Admin', tone:'teal', icon:'shield-half' }] } : g
-  );
+  // The You group is personalised: Settings shows only when signed in, and admins
+  // get an extra "Admin" item.
+  const groups = RAIL_GROUPS.slice(1).map(g => {
+    if (g.head !== 'You') return g;
+    let items = signedIn ? g.items : g.items.filter(it => it.id !== 'settings');
+    if (isAdmin) items = [...items, { id:'admin', label:'Admin', tone:'teal', icon:'shield-half' }];
+    return { ...g, items };
+  });
   // Greeting changes with the time of day (11pm–6am gets a wry late-night line).
   const hour = new Date().getHours();
   const greeting = (hour >= 23 || hour < 6) ? "It's a bit late, isn't it?"

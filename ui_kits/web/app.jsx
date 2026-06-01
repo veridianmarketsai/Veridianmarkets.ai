@@ -15,6 +15,7 @@ const ROUTE_PATHS = {
   learn:       '/learn',
   memoir:      '/memoir',
   admin:       '/admin',
+  settings:    '/settings',
 };
 const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
 const ROUTE_TITLES = {
@@ -22,7 +23,7 @@ const ROUTE_TITLES = {
   myportfolio:'My portfolio · Veridian Markets', supply:'Supply chain network · Veridian Markets',
   screener:'Search · Veridian Markets', history:'History · Veridian Markets',
   learn:'Learn · Veridian Markets', memoir:'Read memoir · Veridian Markets',
-  admin:'Admin · Veridian Markets', dashboard:'Veridian Markets',
+  admin:'Admin · Veridian Markets', settings:'Settings · Veridian Markets', dashboard:'Veridian Markets',
 };
 
 // Turn the current URL into { route, company }.
@@ -110,7 +111,11 @@ function App() {
   useEffectApp(() => { document.title = ROUTE_TITLES[route] || ROUTE_TITLES.front; }, [route]);
 
   // Session — restored from localStorage so a refresh keeps you signed in.
-  const [user, setUser] = useStateApp(loadSession);
+  // TEMPORARY (testing): auto sign-in as the admin when nothing is stored, so
+  // logged-in features (settings, portfolio, admin) are reachable without the
+  // sign-in flow. To restore the real gate: const [user, setUser] = useStateApp(loadSession);
+  const DEV_ADMIN_USER = { name:'Admin', email:'veridianmarkets.ai@gmail.com', role:'admin', tier:'Business' };
+  const [user, setUser] = useStateApp(() => loadSession() || DEV_ADMIN_USER);
   const signedIn = !!user;
   const signIn = async (email, password) => {            // returns true on success
     const u = await verifyCredentials(email, password);
@@ -132,6 +137,7 @@ function App() {
   const gatedFromAdmin = route==='admin' && !isAdmin;            // signed-out → sign in; signed-in non-admin → home
   const effRoute = gatedFromPortfolio ? 'signin'
     : gatedFromAdmin ? (signedIn ? 'front' : 'signin')
+    : (route==='signin' && signedIn) ? 'front'   // already signed in → never show the sign-in page (temporary)
     : route;
 
   // map rail ids to routes (rail uses 'screener' & 'supply' & 'history' & 'front')
@@ -147,6 +153,7 @@ function App() {
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : 'myportfolio'} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
