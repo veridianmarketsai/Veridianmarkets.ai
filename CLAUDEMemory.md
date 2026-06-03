@@ -15,7 +15,8 @@
 
 - **Live product = the React app in [`ui_kits/web/`](ui_kits/web/).** All edits go
   there. Everything else is **reference/archive — do not edit unless asked**:
-  `Veridian Memoir UI Kit (preview).html`, `uploads/`, `scraps/`.
+  `Veridian Memoir UI Kit (preview).html`, `uploads/` (original wireframes + brief
+  PDF). (`scraps/` was deleted 2026-06-01 as throwaway setup files.)
 - **veridianmarkets.ai is the real product** (not a throwaway demo). Today it's a
   CDN-React + in-browser-Babel prototype; expect a move to a real build (e.g.
   Vite) as foundations progress — write code with production in mind.
@@ -60,6 +61,11 @@ placeholders until their page exists.
 
 ### 2026-06-01
 
+- **Cleanup: deleted `scraps/`** (~6.2M of setup screenshots + extracted PDF page
+  images; unreferenced). Kept `uploads/` (original wireframes + brief PDF) and the
+  `Veridian Memoir UI Kit (preview).html` as archive. Note: deleting committed
+  files doesn't shrink the clone (git history retains blobs) — a history rewrite
+  would be needed for that.
 - **Settled open agendas (user decisions).** (1) **Branch numbering = restart each
   foundation** → Foundation-2 branches are `…-2.<n>`; next free = `…-2.2`. (2)
   **History page** stays at `/history` but **off the rail** (current). (3) **My
