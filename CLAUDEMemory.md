@@ -58,6 +58,9 @@ placeholders until their page exists.
 
 ### 2026-06-01
 
+- **Started `calendar-and-news-pages-1.1`.** New branch (from main) for building a
+  **Calendar** page and a **News** page (the "Global News" front-page kicker hints
+  at the latter). User explicitly named it `…-1.1` (not `…-2.2`); honoured.
 - **Front-page refinement (`home-page-2.1`).** "Find a company" list: removed the
   supply-chain (affiliate) action button; fixed header↔data column alignment and
   left-aligned Price + added a **CHANGE** column label; the **eye** button now
@@ -312,7 +315,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `home-page-2.1` (front-page refinement; first Foundation-2 branch; from main — in progress). All Foundation-1 branches (through `account-settings-1.17`) are merged to main + live.
+**Latest branch (this scheme):** `calendar-and-news-pages-1.1` (new Calendar + News pages; from main — in progress). ⚠️ User explicitly chose the number **1.1** for this one (not the `…-2.2` the running counter would give); honoured as requested — treat as a one-off, the Foundation-2 counter otherwise continues. Previous: `home-page-2.1` (front-page refinement, merged + live). All Foundation-1 branches (through `account-settings-1.17`) are merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
