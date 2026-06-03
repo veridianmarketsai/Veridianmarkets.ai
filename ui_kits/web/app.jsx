@@ -16,14 +16,17 @@ const ROUTE_PATHS = {
   memoir:      '/memoir',
   admin:       '/admin',
   settings:    '/settings',
+  calendar:    '/calendar',
+  news:        '/news',
 };
 const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
 const ROUTE_TITLES = {
   front:'Veridian Markets · history-led finance', signin:'Sign in · Veridian Markets',
-  myportfolio:'My portfolio · Veridian Markets', supply:'Supply chain network · Veridian Markets',
+  myportfolio:'My Account · Veridian Markets', supply:'Supply chain network · Veridian Markets',
   screener:'Search · Veridian Markets', history:'History · Veridian Markets',
   learn:'Learn · Veridian Markets', memoir:'Read memoir · Veridian Markets',
-  admin:'Admin · Veridian Markets', settings:'Settings · Veridian Markets', dashboard:'Veridian Markets',
+  admin:'Admin · Veridian Markets', settings:'Settings · Veridian Markets',
+  calendar:'Calendar · Veridian Markets', news:'News · Veridian Markets', dashboard:'Veridian Markets',
 };
 
 // Turn the current URL into { route, company }.
@@ -152,6 +155,8 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} />;
   else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} />;
+  else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
+  else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : 'myportfolio'} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)

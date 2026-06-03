@@ -98,8 +98,8 @@ function MyPortfolio({ go, user, isMobile }) {
     <div style={{ padding: isMobile?'16px 16px 64px':'26px 32px 72px', maxWidth:1180, margin:'0 auto' }}>
 
       {/* header */}
-      <Kicker>Your account · Portfolio</Kicker>
-      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:isMobile?27:32, lineHeight:1.05, margin:'8px 0 0' }}>My portfolio.</h1>
+      <Kicker>Your account</Kicker>
+      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:isMobile?27:32, lineHeight:1.05, margin:'8px 0 0' }}>My Account.</h1>
       {user && <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, marginTop:4 }}>Signed in as <strong style={{color:VM.ink2}}>{user.name||user.email}</strong></div>}
 
       {/* ── 1. Connect accounts ─────────────────────────────────────────── */}

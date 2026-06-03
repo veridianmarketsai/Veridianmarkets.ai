@@ -317,6 +317,17 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-06-01
 
+- **Calendar + News pages, plus home/search refinement.** New **Calendar** and
+  **News** pages (in the Explore menu, clean URLs). News is an editorial feed with
+  search, category filters, a featured lead, and an **article overlay**; it's
+  reused on the home "Global News" tiles and a new company-dashboard **News tab**.
+  Home gains a **learning banner** (Resume/Start). The Search page's rows now hover
+  exactly like the home list, and its filter chips became **dropdowns** (add /
+  remove / clear all). Rail tidy-up: removed History, "My portfolio" → **My
+  Account**, Settings + Sign out pinned to the bottom when signed in. Company-page
+  breadcrumb → `Search › TICKER › Tab`. All mock data. _(branch:
+  `calendar-and-news-pages-1.1`)_
+
 - **Front-page refinement (Foundation 2).** The home "Find a company" list:
   removed the supply-chain action button; aligned the header columns with the
   data + added a **CHANGE** label; the **eye** button now opens the same inline

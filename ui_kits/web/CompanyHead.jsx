@@ -1,10 +1,10 @@
 // Veridian Markets — shared company header (breadcrumb, ticker lockup, tabs, quote).
-function CompanyHead({ c, tab, onTabChange }) {
-  const tabs = ['Overview','Supply chain','Financials','Patents','History'];
+function CompanyHead({ c, tab, onTabChange, go }) {
+  const tabs = ['Overview','Supply chain','Financials','Patents','History','News'];
   return (
     <div>
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>
-        Companies  ›  Tech  ›  <b style={{color:VM.ink}}>{c.ticker}</b>  ›  <span style={{color:VM.teal}}>{tab}</span>
+        <span onClick={()=>go&&go('screener')} style={{ color:VM.teal, cursor: go?'pointer':'default' }}>Search</span>  ›  <b style={{color:VM.ink}}>{c.ticker}</b>  ›  <span style={{color:VM.teal}}>{tab}</span>
       </Mono>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginTop:10 }}>
         <div style={{ display:'flex', alignItems:'baseline', gap:14 }}>

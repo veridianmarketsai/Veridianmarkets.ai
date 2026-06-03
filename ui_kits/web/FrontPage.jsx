@@ -26,8 +26,11 @@ function FrontPage({ go, isMobile }) {
     .slice(0, 10);
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
   const [screenerHover, setScreenerHover] = useState(false);  // hover shade on the 'Open full screener' button
+  const [newsHover, setNewsHover] = useState(false);          // hover shade on the 'See all news' button
   return (
     <div style={{ padding: isMobile ? '14px 16px 48px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
+      {/* LEARN — resume / start learning, above Global News + Market recap. */}
+      <LearnBanner go={go} isMobile={isMobile} />
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
         {/* STORY TILES — fixed 3×3 window; the button slides through 3 pages of 9 (27 total). Placeholder scaffold. */}
         <div>
@@ -65,11 +68,20 @@ function FrontPage({ go, isMobile }) {
             </div>
             <div style={{ position:'absolute', left:'50%', top:'50%', transform:`translate(${anchorX + 12}px, -50%)`,
               fontFamily:VM.mono, fontSize:10, color:VM.ink3, whiteSpace:'nowrap' }}>{page + 1} / {pageCount}</div>
+            {/* See-all link to the full News page, pinned to the right of the pager row. */}
+            <span onClick={()=>go('news')} onMouseEnter={()=>setNewsHover(true)} onMouseLeave={()=>setNewsHover(false)}
+              style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)', fontFamily:VM.serif, fontSize:14,
+                color:VM.teal, cursor:'pointer', whiteSpace:'nowrap', border:`1px solid ${newsHover ? VM.ink3 : VM.border}`,
+                borderRadius:999, padding:'6px 14px', background: newsHover ? VM.paperDeep : VM.paper,
+                transition:'background .15s ease, border-color .15s ease' }}>See more →</span>
           </div>
         </div>
 
-        {/* RIGHT CARDS — accordion: opening one collapses the other. */}
-        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {/* RIGHT CARDS — accordion. A hidden kicker (desktop) mirrors the left
+            "Global News" kicker so Market recap lines up with the first news tiles. */}
+        <div>
+          {!isMobile && <Kicker style={{ visibility:'hidden' }}>Global News</Kicker>}
+          <div style={{ marginTop: isMobile ? 0 : 10, display:'flex', flexDirection:'column', gap:14 }}>
           <CollapsibleCard letter="A" title="Market recap" open={openCard==='recap'} onToggle={()=>toggleCard('recap')}>
             {recap.map((r,i)=>(
               <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 60px 60px', alignItems:'center', gap:8, padding:'7px 0', borderBottom: i<recap.length-1?`1px dotted ${VM.border}`:'none' }}>
@@ -79,9 +91,11 @@ function FrontPage({ go, isMobile }) {
               </div>
             ))}
           </CollapsibleCard>
-          <CollapsibleCard letter="B" title="Mini calendar" open={openCard==='calendar'} onToggle={()=>toggleCard('calendar')}>
+          <CollapsibleCard letter="B" title="Mini calendar" open={openCard==='calendar'} onToggle={()=>toggleCard('calendar')}
+            action={<OpenBox title="Open calendar" onClick={()=>go('calendar')} />}>
             <MiniCalendar />
           </CollapsibleCard>
+          </div>
         </div>
       </div>
 
@@ -124,7 +138,7 @@ function FrontPage({ go, isMobile }) {
 // Collapsible card — clickable header tab + a chevron that rotates; content animates to its
 // EXACT measured height (not an oversized cap) so a closing panel can't briefly overlap an
 // opening one — which would balloon the column and bounce the section below.
-function CollapsibleCard({ letter, title, open, onToggle, children }) {
+function CollapsibleCard({ letter, title, open, onToggle, children, action }) {
   const innerRef = React.useRef(null);
   const [contentH, setContentH] = React.useState(0);
   const [chevHover, setChevHover] = React.useState(false);
@@ -146,12 +160,26 @@ function CollapsibleCard({ letter, title, open, onToggle, children }) {
           <i className="ti ti-chevron-down" style={{ fontSize:16, display:'inline-block',
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform .3s ease' }}></i>
         </span>
+        {action}
       </div>
       <div style={{ maxHeight: open ? contentH : 0, opacity: open ? 1 : 0, overflow:'hidden',
         transition:'max-height .38s cubic-bezier(.4,0,.2,1), opacity .3s ease' }}>
         <div ref={innerRef} style={{ padding:'0 16px 16px' }}>{children}</div>
       </div>
     </div>
+  );
+}
+
+// Square "open" button — an external-link box that sits beside a card's chevron.
+function OpenBox({ title, onClick }) {
+  const [hover, setHover] = React.useState(false);
+  return (
+    <button title={title} onClick={(e)=>{ e.stopPropagation(); onClick(); }} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+      style={{ width:28, height:28, borderRadius:7, flexShrink:0, padding:0, cursor:'pointer',
+        border:`1px solid ${hover ? VM.ink3 : VM.border}`, background: hover ? VM.paperWarm : 'transparent', color: hover ? VM.ink : VM.ink2,
+        display:'inline-flex', alignItems:'center', justifyContent:'center', transition:'background .15s ease, border-color .15s ease, color .15s ease' }}>
+      <i className="ti ti-external-link" style={{ fontSize:15 }}></i>
+    </button>
   );
 }
 
@@ -299,6 +327,43 @@ function MiniCalendar() {
         <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink2, marginTop:4 }}>14:00 · FOMC minutes</div>
         <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink2 }}>15:30 · US jobless claims</div>
       </div>
+    </div>
+  );
+}
+
+// LEARN banner — resumes an in-progress course, or prompts to start. Links to Learn.
+// `progress` = null would render the "start learning" state. Mock data for now.
+function LearnBanner({ go, isMobile }) {
+  const progress = { title:'Reading a supply chain map', pct:62, step:'3 / 11 modules', streak:4 };
+  const [hover, setHover] = React.useState(false);
+  const resuming = !!progress;
+  return (
+    <div onClick={()=>go('learn')} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+      style={{ marginBottom: isMobile?16:18, display:'flex', flexDirection: isMobile?'column':'row', alignItems: isMobile?'flex-start':'center',
+        gap: isMobile?12:18, padding: isMobile?'15px 16px':'15px 20px', cursor:'pointer',
+        background:`linear-gradient(100deg, ${VM.tealTint} 0%, ${VM.paper} 70%)`,
+        border:`1px solid ${hover?VM.tealTint2:VM.borderSoft}`, borderRadius:14, transition:'border-color .15s ease' }}>
+      <span style={{ width:44, height:44, borderRadius:12, background:VM.forest, color:VM.paperWarm, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <i className={'ti ti-'+(resuming?'player-play-filled':'school')} style={{ fontSize:resuming?18:22 }}></i>
+      </span>
+      <div style={{ flex:1, minWidth:0, width:'100%' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <Kicker>{resuming ? 'Continue learning' : 'Start learning'}</Kicker>
+          {resuming && <Mono size={9.5} color={VM.ink3}>· {progress.streak}-day streak</Mono>}
+        </div>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?16:18, margin:'3px 0 0', color:VM.ink }}>
+          {resuming ? progress.title : 'Learn finance, markets and how to use Veridian.'}
+        </div>
+        {resuming ? (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:8, maxWidth:440 }}>
+            <div style={{ flex:1 }}><ProgressBar v={progress.pct} /></div>
+            <Mono size={10} color={VM.ink3} style={{ whiteSpace:'nowrap' }}>{progress.pct}% · {progress.step}</Mono>
+          </div>
+        ) : (
+          <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink2, marginTop:3 }}>Short courses and guides — pick up a path in a few minutes.</div>
+        )}
+      </div>
+      <Btn solid style={{ flexShrink:0 }}>{resuming ? 'Resume' : 'Browse courses'} <i className="ti ti-arrow-right" style={{ fontSize:15 }}></i></Btn>
     </div>
   );
 }
