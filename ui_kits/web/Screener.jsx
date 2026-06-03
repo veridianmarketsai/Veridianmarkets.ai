@@ -3,10 +3,13 @@ const { useState: useStateScr } = React;
 
 function Screener({ go }) {
   const [open, setOpen] = useStateScr(null);
-  const filters = [
+  const [filters, setFilters] = useStateScr([
     { k:'SECTOR', v:'Technology' }, { k:'MARKET CAP', v:'> $10B' },
     { k:'P/E', v:'< 40' }, { k:'ANALYST', v:'Buy or better' },
-  ];
+  ]);
+  const setFilterVal = (i, v) => setFilters(fs => fs.map((f, j) => j === i ? { ...f, v } : f));
+  const removeFilter = (i) => setFilters(fs => fs.filter((_, j) => j !== i));
+  const addFilter = (k) => setFilters(fs => [...fs, { k, v: FILTER_DEFS[k][0] }]);
   return (
     <div style={{ padding:'26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Company search</b></Mono>
@@ -27,13 +30,22 @@ function Screener({ go }) {
 
       <div style={{ display:'flex', gap:7, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
         <Label style={{marginRight:2}}>Filters:</Label>
-        {filters.map((f,i)=>(<Pill key={i}><b style={{color:VM.ink,fontWeight:700}}>{f.k}</b> {f.v} ×</Pill>))}
-        <Pill dashed>+ ADD FILTER</Pill>
+        {filters.map((f,i)=>(
+          <FilterPill key={f.k} k={f.k} v={f.v} options={FILTER_DEFS[f.k] || []}
+            onChange={(v)=>setFilterVal(i, v)} onRemove={()=>removeFilter(i)} />
+        ))}
+        <AddFilter active={filters.map(f=>f.k)} onAdd={addFilter} />
+        {filters.length > 0 && (
+          <span onClick={()=>setFilters([])} title="Remove all filters"
+            style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3, cursor:'pointer', padding:'6px 8px', whiteSpace:'nowrap', display:'inline-flex', alignItems:'center', gap:5 }}>
+            <i className="ti ti-x" style={{ fontSize:12 }}></i>Clear all
+          </span>
+        )}
       </div>
       <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {VM_COMPANIES.length} of 487 matches · sort: 5Y analogue match</Mono>
 
-      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, overflow:'hidden' }}>
-        <div style={{ display:'grid', gridTemplateColumns:GRID, padding:'7px 18px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}` }}>
+      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:GRID, padding:'7px 18px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
           <Label>Ticker</Label><Label>Company</Label><Label style={{textAlign:'right'}}>Price</Label>
           <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
         </div>
@@ -65,9 +77,10 @@ function Row({ c, open, last, onEye, onNet, onOpen }) {
         <Mono size={13} weight={700} style={{textAlign:'right'}}>${c.price}</Mono>
         <span style={{textAlign:'right'}}><Chg dir={c.dir}>{c.chg}</Chg></span>
         <Sparkline dir={c.dir} w={64} h={22} />
-        <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+        {/* actions reveal on hover (or while open) — same as the home page; eye + arrow only. */}
+        <div style={{ display:'flex', gap:6, justifyContent:'flex-end',
+          opacity: (hover || open) ? 1 : 0, pointerEvents: (hover || open) ? 'auto' : 'none', transition:'opacity .16s ease' }}>
           <IconBtn icon="eye" round size={28} active={open} onClick={onEye} title="Preview" />
-          <IconBtn icon="affiliate" round size={28} onClick={onNet} title="Supply chain" />
           <IconBtn icon="arrow-right" round size={28} onClick={onOpen} title="Open dashboard" />
         </div>
       </div>
@@ -305,6 +318,69 @@ function Node({ kind, t }) {
     <div style={{ padding:'4px 9px', borderRadius:'0 5px 5px 0', border:`1px solid ${VM.border}`,
       borderLeft:'2px solid #185FA5', background:VM.paper,
       fontFamily:VM.mono, fontSize:10, fontWeight:600, minWidth:54 }}>{t}</div>
+  );
+}
+
+// Filter option lists — mock for now; these will eventually come from a database.
+const FILTER_DEFS = {
+  'SECTOR':       ['Technology','Healthcare','Financials','Energy','Consumer','Industrials','Materials','Utilities','Real estate','Communications'],
+  'MARKET CAP':   ['> $1B','> $10B','> $100B','> $1T','< $10B','< $2B'],
+  'P/E':          ['< 10','< 20','< 40','< 60','> 40'],
+  'ANALYST':      ['Strong buy','Buy or better','Hold or better','Underperform'],
+  'DIVIDEND':     ['Any','> 1%','> 2%','> 4%'],
+  '5Y ANALOGUE':  ['Any','> 60% match','> 80% match'],
+  'COUNTRY':      ['United States','United Kingdom','Germany','Japan','China','India'],
+};
+
+// Small dropdown menu shared by the filter pills.
+function FilterMenu({ items, value, onPick, onClose }) {
+  return (
+    <React.Fragment>
+      <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:30 }}></div>
+      <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:31, minWidth:180, maxHeight:260, overflowY:'auto',
+        background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:10, boxShadow:'0 12px 30px rgba(31,29,26,0.18)', padding:5 }}>
+        {items.map(opt => (
+          <button key={opt} onClick={()=>{ onPick(opt); onClose(); }} style={{ display:'flex', alignItems:'center', gap:8, width:'100%', textAlign:'left',
+            padding:'7px 10px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:VM.serif, fontSize:13.5,
+            background: opt===value ? VM.tealTint : 'transparent', color:VM.ink }}>
+            <i className="ti ti-check" style={{ fontSize:13, color:VM.tealInk, visibility: opt===value ? 'visible' : 'hidden' }}></i>{opt}
+          </button>
+        ))}
+      </div>
+    </React.Fragment>
+  );
+}
+
+// One active filter rendered as a pill that opens a value dropdown; × removes it.
+function FilterPill({ k, v, options, onChange, onRemove }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <span style={{ position:'relative', display:'inline-block' }}>
+      <span onClick={()=>setOpen(o=>!o)} style={{ fontFamily:VM.mono, fontSize:11, padding:'6px 11px', borderRadius:999,
+        border:`1px solid ${open?VM.forest:VM.border}`, background: open?VM.tealTint:VM.paper, color:VM.ink2,
+        display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', whiteSpace:'nowrap' }}>
+        <b style={{ color:VM.ink, fontWeight:700 }}>{k}</b><span>{v}</span>
+        <i className="ti ti-chevron-down" style={{ fontSize:12, transform: open?'rotate(180deg)':'none', transition:'transform .2s' }}></i>
+        <i className="ti ti-x" title="Remove" onClick={(e)=>{ e.stopPropagation(); onRemove(); }} style={{ fontSize:12, color:VM.ink3, marginLeft:1 }}></i>
+      </span>
+      {open && <FilterMenu items={options} value={v} onPick={onChange} onClose={()=>setOpen(false)} />}
+    </span>
+  );
+}
+
+// "+ ADD FILTER" — opens a list of filter types not already active.
+function AddFilter({ active, onAdd }) {
+  const [open, setOpen] = React.useState(false);
+  const avail = Object.keys(FILTER_DEFS).filter(k => !active.includes(k));
+  return (
+    <span style={{ position:'relative', display:'inline-block' }}>
+      <span onClick={()=> avail.length && setOpen(o=>!o)} style={{ fontFamily:VM.mono, fontSize:11, padding:'6px 11px', borderRadius:999,
+        border:`1px dashed ${VM.border}`, background:VM.paper, color: avail.length?VM.ink2:VM.faint, cursor: avail.length?'pointer':'default',
+        display:'inline-flex', alignItems:'center', gap:6, whiteSpace:'nowrap' }}>
+        <i className="ti ti-plus" style={{ fontSize:12 }}></i>ADD FILTER
+      </span>
+      {open && <FilterMenu items={avail} value={null} onPick={onAdd} onClose={()=>setOpen(false)} />}
+    </span>
   );
 }
 

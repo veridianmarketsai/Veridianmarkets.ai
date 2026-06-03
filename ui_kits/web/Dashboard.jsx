@@ -8,13 +8,34 @@ function Dashboard({ company, go }) {
 
   return (
     <div style={{ padding:'22px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
-      <CompanyHead c={c} tab={tab} onTabChange={setTab} />
+      <CompanyHead c={c} tab={tab} onTabChange={setTab} go={go} />
 
       {tab === 'Overview'     && <DashOverview   c={c} data={data} />}
       {tab === 'Supply chain' && <DashScn        c={c} />}
       {tab === 'Financials'   && <DashFinancials data={data.financials} />}
       {tab === 'Patents'      && <DashPatents    data={data.patents} />}
       {tab === 'History'      && <DashHistory    c={c} data={data.history} />}
+      {tab === 'News'         && <DashNews        c={c} go={go} />}
+    </div>
+  );
+}
+
+// ── News ──────────────────────────────────────────────────────────────────────
+// Company-specific news; reuses the News page's card + article overlay.
+function DashNews({ c, go }) {
+  const [article, setArticle] = React.useState(null);
+  const tagged = NEWS.filter(n => n.ticker === c.ticker);
+  const list = tagged.length ? tagged : NEWS.slice(0, 4);   // fallback to general market stories
+  const openTicker = (t) => { const co = VM_COMPANIES.find(x => x.ticker === t); if (co) go('dashboard', co); };
+  return (
+    <div style={{ marginTop:24 }}>
+      <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>NEWS · {c.ticker}</Mono>
+      <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:28, margin:'0 0 4px' }}>What’s moving {c.name.split(' ')[0]}.</h2>
+      <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 18px' }}>{tagged.length ? `Stories tagged ${c.ticker}, read through the lens of the past.` : 'Latest market stories.'}</p>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
+        {list.map((n,i) => <NewsCard key={i} n={n} onOpen={()=>setArticle(n)} />)}
+      </div>
+      {article && <ArticleModal article={article} onClose={()=>setArticle(null)} onTicker={openTicker} isMobile={false} />}
     </div>
   );
 }

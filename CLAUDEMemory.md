@@ -41,7 +41,9 @@ belongs to the Toolbar Menu.
 | Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Now wired to a **placeholder client-side auth** (`VM_ACCOUNTS` in `app.jsx`; admin account; SHA-256 hash; session in `localStorage`). **Not real security** — to be replaced by AWS Cognito. |
 | My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated (`signedIn` from `localStorage`). Now a **customisable widget dashboard** (`MyPortfolio.jsx`): Connect-accounts bar (Trading 212 + IBKR/Robinhood/Coinbase/Vanguard/Binance, mock connect), then Summary KPIs, Performance area chart (range toggles), Allocation donut, Holdings table, Watchlist, Analogue alerts. **Customise mode** = show/hide + reorder + resize widgets; layout & connections persist to `localStorage`. Mock data. |
 | Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
-| Search                         | **Main Search Page** | `screener` | Renamed from "Company search". |
+| Search                         | **Main Search Page** | `screener` | Renamed from "Company search". Rows hover/pop-out + eye-preview exactly like the home list; filter chips are now dropdowns (`FILTER_DEFS` mock → DB later) with add/remove + Clear all. |
+| News                           | **News Page**        | `news`     | "Global News" editorial feed (`News.jsx`): search button, category pills, featured lead + article-card grid; clicking a story opens an **article overlay** (`ArticleModal`). Reused on the home page ("Global News" tiles + "See more") and the company dashboard **News tab**. Mock data. |
+| Calendar                       | **Calendar Page**    | `calendar` | Economic/events calendar (`Calendar.jsx`): month grid with type-coded event dots, type filter, selected-day panel. Opened from the home Mini-calendar's external-link box. Mock events. |
 | History                        | **History Page**     | `history`  | Now a **search / "ask" hub** (`History.jsx`): hint pill, big "Search." title, search bar (submit is a scaffold — no backend), and clickable example **Prompts**. Replaced the old analogue-engine layout (analogue data still in `data.jsx`). |
 | Learn                          | **Learn VM**         | `learn`    | Course/guide catalogue (`Learn.jsx`): guided-path banner, search, category pills + Level/Format filters, responsive card grid with Show-more. "App tutorial" cards `go()` into screens. Content is mock scaffold data (inline). |
 | Read memoir                    | **Memoir Page**      | `memoir`   | |
@@ -58,6 +60,21 @@ placeholders until their page exists.
 
 ### 2026-06-01
 
+- **Built Calendar + News pages and lots of home/search refinement (`calendar-and-news-pages-1.1`).**
+  New **Calendar** (`/calendar`) + **News** (`/news`) pages, added to the Explore
+  rail. **News:** search, category pills, lead + card grid, **article overlay**
+  (`ArticleModal`) — reused on the home "Global News" tiles and a new company
+  dashboard **News tab**. **Home:** learning "Resume/Start" banner up top; Market-
+  recap aligned to the news tiles; "See more" (News) + Mini-calendar external-link
+  box (Calendar). **Search/screener:** rows now hover/pop-out + reveal eye+arrow
+  exactly like the home list (removed the affiliate icon; fixed the `overflow:hidden`
+  clip); filter chips are **dropdowns** (`FILTER_DEFS`, → DB) with add/remove +
+  **Clear all**. **Rail:** removed History; My portfolio → **My Account**; Settings
+  + Sign-out pinned to the **bottom** when signed in. **Company page:** breadcrumb
+  → `Search › TICKER › Tab` (Search links to screener). All mock data.
+- **Started `calendar-and-news-pages-1.1`.** New branch (from main) for building a
+  **Calendar** page and a **News** page (the "Global News" front-page kicker hints
+  at the latter). User explicitly named it `…-1.1` (not `…-2.2`); honoured.
 - **Front-page refinement (`home-page-2.1`).** "Find a company" list: removed the
   supply-chain (affiliate) action button; fixed header↔data column alignment and
   left-aligned Price + added a **CHANGE** column label; the **eye** button now
@@ -312,7 +329,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `home-page-2.1` (front-page refinement; first Foundation-2 branch; from main — in progress). All Foundation-1 branches (through `account-settings-1.17`) are merged to main + live.
+**Latest branch (this scheme):** `calendar-and-news-pages-1.1` (new Calendar + News pages; from main — in progress). ⚠️ User explicitly chose the number **1.1** for this one (not the `…-2.2` the running counter would give); honoured as requested — treat as a one-off, the Foundation-2 counter otherwise continues. Previous: `home-page-2.1` (front-page refinement, merged + live). All Foundation-1 branches (through `account-settings-1.17`) are merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
