@@ -19,6 +19,7 @@ function FrontPage({ go, isMobile }) {
   // Clicking the open card's chevron switches to the other; clicking a closed card opens it. Never both closed.
   const toggleCard = (id) => setOpenCard(cur => cur === id ? (id === 'recap' ? 'calendar' : 'recap') : id);
   const [companyQuery, setCompanyQuery] = useState('');  // 'Find a company' search filter
+  const [openRow, setOpenRow] = useState(null);          // ticker of the row whose eye-preview is expanded
   const q = companyQuery.trim().toLowerCase();
   const companyRows = VM_COMPANIES
     .filter(c => !q || c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q))
@@ -30,7 +31,7 @@ function FrontPage({ go, isMobile }) {
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
         {/* STORY TILES — fixed 3×3 window; the button slides through 3 pages of 9 (27 total). Placeholder scaffold. */}
         <div>
-          <Kicker>LEAD · 5-YEAR LENS</Kicker>
+          <Kicker>Global News</Kicker>
           {/* One page of 9 tiles, in an overflow-visible area so hover pop-outs are never clipped.
               Changing page remounts StoryPage (via key), which slides + fades the new tiles in. */}
           <div style={{ marginTop:10 }}>
@@ -86,9 +87,9 @@ function FrontPage({ go, isMobile }) {
 
       {/* TOP COMPANIES PREVIEW */}
       <div style={{ marginTop:44 }}>
-        <Kicker>EXPLORE · 4,904 PUBLIC COMPANIES</Kicker>
+        <Kicker>4,904 PUBLIC COMPANIES</Kicker>
         <div style={{ display:'flex', flexDirection: isMobile?'column':'row', justifyContent:'space-between', alignItems: isMobile?'flex-start':'baseline', gap: isMobile?10:0, margin:'8px 0 16px' }}>
-          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:0 }}>Find a company.</h2>
+          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:0 }}>Search.</h2>
           <span onClick={()=>go('screener')} onMouseEnter={()=>setScreenerHover(true)} onMouseLeave={()=>setScreenerHover(false)}
             style={{ fontFamily:VM.serif, fontSize:14, color:VM.teal, cursor:'pointer', whiteSpace:'nowrap',
               border:`1px solid ${screenerHover ? VM.ink3 : VM.border}`, borderRadius:999, padding:'6px 16px',
@@ -103,14 +104,16 @@ function FrontPage({ go, isMobile }) {
           {companyQuery && <i onClick={()=>setCompanyQuery('')} className="ti ti-x" style={{ fontSize:14, color:VM.ink3, cursor:'pointer' }} title="Clear"></i>}
         </div>
         <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
-          <div style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px', padding: isMobile ? '6px 14px' : '6px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
-            <Label>Ticker</Label><Label>Sector · Market cap</Label><Label style={{textAlign:'right'}}>Price</Label>
+          {/* Header grid MUST match CompanyRow's columns + gap so the labels line up with the data. */}
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px 70px 110px', gap:10, padding: isMobile ? '6px 14px' : '6px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
+            <Label>Ticker</Label><Label>Sector · Market cap</Label><div style={{ textAlign:'left' }}><Label>Price</Label></div><div style={{ textAlign:'left' }}><Label>Change</Label></div>
           </div>
           {companyRows.length === 0 && (
             <div style={{ padding:'18px 16px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No companies match “{companyQuery}”.</div>
           )}
           {companyRows.map((c,i)=>(
-            <CompanyRow key={c.ticker} c={c} last={i===companyRows.length-1} go={go} isMobile={isMobile} />
+            <CompanyRow key={c.ticker} c={c} last={i===companyRows.length-1} go={go} isMobile={isMobile}
+              open={openRow===c.ticker} onEye={()=>setOpenRow(openRow===c.ticker?null:c.ticker)} />
           ))}
         </div>
       </div>
@@ -228,38 +231,46 @@ function StoryTile({ n, title, dir, mins }) {
   );
 }
 
-// A 'Find a company' row — reveals action icons and pops out slightly on hover (matches the screener feel).
-function CompanyRow({ c, last, go, isMobile }) {
+// A 'Find a company' row — the eye expands an inline preview (same component as
+// the screener); the row/arrow opens the dashboard. Pops out slightly on hover.
+function CompanyRow({ c, last, go, isMobile, open, onEye }) {
   const [hover, setHover] = React.useState(false);
-  const pop = hover && !isMobile;   // no hover pop-out / icons on touch
+  const pop = hover && !isMobile && !open;   // no pop while the preview is open
   return (
-    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={()=>go('dashboard', c)}
-      style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px 70px 110px', alignItems:'center', gap:10, padding: isMobile ? '11px 14px' : '12px 16px', cursor:'pointer',
-        borderBottom: last ? 'none' : `1px solid ${VM.borderSoft}`,
-        background: (hover && !isMobile) ? VM.paperWarm : 'transparent',
-        transform: pop ? 'scale(1.015)' : 'scale(1)',
-        boxShadow: pop ? '0 6px 18px rgba(31,29,26,0.10)' : 'none',
-        borderRadius: pop ? 10 : 0, position:'relative', zIndex: pop ? 2 : 1,
-        transition:'transform .16s ease, box-shadow .16s ease, background .16s ease' }}>
-      <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 17 : 20 }}>{c.ticker}</span>
-      <div><Mono size={11} color={VM.ink2}>{c.name}</Mono><div><Label>{c.sector} · {c.cap}</Label></div></div>
-      {isMobile ? (
-        <div style={{ textAlign:'right' }}>
-          <Mono size={12} weight={700}>${c.price}</Mono>
-          <div><Chg dir={c.dir}>{c.chg}</Chg></div>
-        </div>
-      ) : (
-        <React.Fragment>
-          <Mono size={13} weight={700} style={{textAlign:'right'}}>${c.price}</Mono>
-          <span style={{textAlign:'right'}}><Chg dir={c.dir}>{c.chg}</Chg></span>
-          {/* action icons — revealed on hover; the column is always reserved so nothing shifts. */}
-          <div style={{ display:'flex', gap:6, justifyContent:'flex-end',
-            opacity: hover ? 1 : 0, pointerEvents: hover ? 'auto' : 'none', transition:'opacity .16s ease' }}>
-            <IconBtn icon="eye" round size={28} onClick={(e)=>{ e.stopPropagation(); go('dashboard', c); }} title="Preview" />
-            <IconBtn icon="affiliate" round size={28} onClick={(e)=>{ e.stopPropagation(); go('supply', c); }} title="Supply chain" />
-            <IconBtn icon="arrow-right" round size={28} onClick={(e)=>{ e.stopPropagation(); go('dashboard', c); }} title="Open dashboard" />
+    <div style={{ borderBottom: (last && !open) ? 'none' : `1px solid ${VM.borderSoft}`,
+      background: open ? VM.tealTint : 'transparent', position:'relative', zIndex: pop ? 2 : 1 }}>
+      <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={()=>go('dashboard', c)}
+        style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px 70px 110px', alignItems:'center', gap:10, padding: isMobile ? '11px 14px' : '12px 16px', cursor:'pointer',
+          background: (hover && !isMobile && !open) ? VM.paperWarm : 'transparent',
+          transform: pop ? 'scale(1.015)' : 'scale(1)',
+          boxShadow: pop ? '0 6px 18px rgba(31,29,26,0.10)' : 'none',
+          borderRadius: pop ? 10 : 0,
+          transition:'transform .16s ease, box-shadow .16s ease, background .16s ease' }}>
+        <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 17 : 20 }}>{c.ticker}</span>
+        <div><Mono size={11} color={VM.ink2}>{c.name}</Mono><div><Label>{c.sector} · {c.cap}</Label></div></div>
+        {isMobile ? (
+          <div style={{ textAlign:'right' }}>
+            <Mono size={12} weight={700}>${c.price}</Mono>
+            <div><Chg dir={c.dir}>{c.chg}</Chg></div>
           </div>
-        </React.Fragment>
+        ) : (
+          <React.Fragment>
+            <div style={{ textAlign:'left' }}><Mono size={13} weight={700}>${c.price}</Mono></div>
+            <div style={{ textAlign:'left' }}><Chg dir={c.dir}>{c.chg}</Chg></div>
+            {/* action icons — revealed on hover or while open; column is always reserved. */}
+            <div style={{ display:'flex', gap:6, justifyContent:'flex-end',
+              opacity: (hover || open) ? 1 : 0, pointerEvents: (hover || open) ? 'auto' : 'none', transition:'opacity .16s ease' }}>
+              <IconBtn icon="eye" round size={28} active={open} onClick={(e)=>{ e.stopPropagation(); onEye(); }} title="Preview" />
+              <IconBtn icon="arrow-right" round size={28} onClick={(e)=>{ e.stopPropagation(); go('dashboard', c); }} title="Open dashboard" />
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+      {/* inline preview (desktop) — reuses the screener's <Preview>. */}
+      {!isMobile && (
+        <div style={{ maxHeight: open ? 560 : 0, overflow:'hidden', transition:'max-height .35s ease' }}>
+          <Preview c={c} onOpen={()=>go('dashboard', c)} />
+        </div>
       )}
     </div>
   );

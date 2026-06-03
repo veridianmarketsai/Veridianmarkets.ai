@@ -58,6 +58,14 @@ placeholders until their page exists.
 
 ### 2026-06-01
 
+- **Front-page refinement (`home-page-2.1`).** "Find a company" list: removed the
+  supply-chain (affiliate) action button; fixed header↔data column alignment and
+  left-aligned Price + added a **CHANGE** column label; the **eye** button now
+  opens the same inline `<Preview>` the Screener uses (tabs + supply-chain +
+  history); rows lift into a hover-box (and added the same hover-box to the
+  Screener rows for consistency). Copy: heading "Find a company." → **"Search."**,
+  dropped "EXPLORE ·" from the company-count kicker, and "LEAD · 5-YEAR LENS" →
+  **"Global News"**.
 - **Entered Foundation 2 — the refinement phase.** Branch numbering moves to
   `…-2.<n>` (counter restarts at `.1`). Focus now: polish every page for
   consistency + functionality. First branch: `home-page-2.1` (front-page
