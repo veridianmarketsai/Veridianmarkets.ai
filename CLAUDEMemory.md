@@ -60,6 +60,13 @@ placeholders until their page exists.
 
 ### 2026-06-01
 
+- **Settled open agendas (user decisions).** (1) **Branch numbering = restart each
+  foundation** → Foundation-2 branches are `…-2.<n>`; next free = `…-2.2`. (2)
+  **History page** stays at `/history` but **off the rail** (current). (3) **My
+  Account** (portfolio dashboard) and **Settings** (preferences) **stay as two
+  separate** rail items. (4) **Auth bypasses stay for testing** — `/portfolio`
+  remains open without sign-in and the placeholder admin login stays until AWS
+  Cognito. No code changes from these except this record.
 - **Built Calendar + News pages and lots of home/search refinement (`calendar-and-news-pages-1.1`).**
   New **Calendar** (`/calendar`) + **News** (`/news`) pages, added to the Explore
   rail. **News:** search, category pills, lead + card grid, **article overlay**
@@ -329,7 +336,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `calendar-and-news-pages-1.1` (new Calendar + News pages; from main — in progress). ⚠️ User explicitly chose the number **1.1** for this one (not the `…-2.2` the running counter would give); honoured as requested — treat as a one-off, the Foundation-2 counter otherwise continues. Previous: `home-page-2.1` (front-page refinement, merged + live). All Foundation-1 branches (through `account-settings-1.17`) are merged.
+**Latest branch (this scheme):** `calendar-and-news-pages-1.1` (Calendar + News pages + home/search refinement; **merged to main + live**). ⚠️ Off-scheme name — it was the 2nd Foundation-2 effort so should have been `…-2.2`; the `1.1` is a one-off. Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>` from here. Previous: `home-page-2.1` (front page, merged + live). All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -339,6 +346,7 @@ GitHub URLs stay clean (no spaces).
 
 **Next free iteration: `<code-name>-2.2`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*
 
-> ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
-> foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
-> Foundation 1, regardless of which feature the branch is for.
+> ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
+> running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
+> and **resets to `.1` when a new foundation begins**. So Foundation 1 ran 1.1–1.17;
+> Foundation 2 is 2.1, 2.2, …. (Earlier 2026-05-30 note said the same for F1.)
