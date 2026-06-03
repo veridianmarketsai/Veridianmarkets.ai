@@ -315,6 +315,16 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-01
+
+- **Front-page refinement (Foundation 2).** The home "Find a company" list:
+  removed the supply-chain action button; aligned the header columns with the
+  data + added a **CHANGE** label; the **eye** button now opens the same inline
+  company preview as the Search/screener page (tabs, supply-chain, history); rows
+  lift into a hover-box (also applied to the Search page rows for consistency).
+  Copy tweaks: heading → **"Search."**, kicker → "4,904 public companies" and
+  **"Global News"**. _(branch: `home-page-2.1`)_
+
 ### 2026-05-31
 
 - **Account settings page.** A grouped settings list (Instagram "Settings and

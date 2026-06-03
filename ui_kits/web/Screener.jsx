@@ -49,9 +49,17 @@ function Screener({ go }) {
 const GRID = '92px 1fr 90px 68px 76px 104px';
 
 function Row({ c, open, last, onEye, onNet, onOpen }) {
+  const [hover, setHover] = React.useState(false);
+  const pop = hover && !open;   // lift into a box on hover (matches the home page)
   return (
-    <div style={{ borderBottom: last&&!open?'none':`1px solid ${VM.borderSoft}`, background: open?VM.tealTint:'transparent' }}>
-      <div style={{ display:'grid', gridTemplateColumns:GRID, alignItems:'center', gap:10, padding:'12px 18px' }}>
+    <div style={{ borderBottom: last&&!open?'none':`1px solid ${VM.borderSoft}`, background: open?VM.tealTint:'transparent', position:'relative', zIndex: pop?2:1 }}>
+      <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+        style={{ display:'grid', gridTemplateColumns:GRID, alignItems:'center', gap:10, padding:'12px 18px',
+          background: pop?VM.paperWarm:'transparent',
+          transform: pop?'scale(1.012)':'scale(1)',
+          boxShadow: pop?'0 6px 18px rgba(31,29,26,0.10)':'none',
+          borderRadius: pop?10:0,
+          transition:'transform .16s ease, box-shadow .16s ease, background .16s ease' }}>
         <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22 }}>{c.ticker}</span>
         <div><Mono size={11.5} color={VM.ink2}>{c.name}</Mono><div><Label>{c.sector}</Label></div></div>
         <Mono size={13} weight={700} style={{textAlign:'right'}}>${c.price}</Mono>
