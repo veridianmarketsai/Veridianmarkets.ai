@@ -58,6 +58,10 @@ placeholders until their page exists.
 
 ### 2026-06-01
 
+- **Entered Foundation 2 — the refinement phase.** Branch numbering moves to
+  `…-2.<n>` (counter restarts at `.1`). Focus now: polish every page for
+  consistency + functionality. First branch: `home-page-2.1` (front-page
+  refinement). See [[project-phase2-roadmap]].
 - **Started the iOS kit (`ui_kits/iOS/`).** User is building the native app in
   **Xcode (SwiftUI)** — web app is the visual reference, not ported. Added a
   README (Xcode/SwiftUI setup, fonts, bottom-tab nav) + `VeridianTheme.swift`
@@ -283,22 +287,24 @@ GitHub URLs stay clean (no spaces).
 - **Foundation** — which of the product's **6 foundations** the work belongs to.
   The 6 foundations are the deployment pipeline; every change progresses through
   them in order on its way to production: `1 → 2 → 3 → 4 → 5 → 6`.
-  **The entire website is currently on Foundation 1**, so all branch names are
-  `…-1.<iteration>` until the product moves to Foundation 2.
+  **As of 2026-06-01 the product moved to Foundation 2** (the refinement phase —
+  polishing every page for consistency + functionality; see [[project-phase2-roadmap]]).
+  New branch names are now `…-2.<iteration>`. Foundation 1 work (1.1–1.17) is done
+  + merged.
 - **Iteration** — a running counter *within the current foundation*. It
   increments by 1 for **each new branch** (`1.1, 1.2, 1.3, …`). **Claude adds
   this automatically** — the user trusts me to bump `.1 → .2 → .3`.
 
 **How Claude picks the next branch name (do this automatically):**
-1. Foundation = the current foundation (today: **1**).
+1. Foundation = the current foundation (today: **2**).
 2. Iteration = the highest existing `…-<foundation>.N` across all branches,
    **+ 1**. If none exist yet for this foundation, start at `.1`.
 3. New branch (slug) = `<code-name>-<foundation>.<iteration>`.
 4. After creating it, update **"Latest branch"** below and log it in the change
    log (Code Name + full slug + timestamp).
 
-**Current foundation:** 1
-**Latest branch (this scheme):** `account-settings-1.17` (account settings page; branched from main — in progress). Recently merged to main: `database-infrastructure-1.16` (data export tool) + `docs/mobile-plan` (MOBILE.md). `tier-levels-1.17` was created then **deleted** (abandoned, never merged) — which freed 1.17 for this branch.
+**Current foundation:** 2 *(refinement phase, began 2026-06-01)*
+**Latest branch (this scheme):** `home-page-2.1` (front-page refinement; first Foundation-2 branch; from main — in progress). All Foundation-1 branches (through `account-settings-1.17`) are merged to main + live.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -306,7 +312,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-1.18`.**
+**Next free iteration: `<code-name>-2.2`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*
 
 > ✅ Confirmed (2026-05-30): *iteration* is a **running counter for the whole
 > foundation** — `1.1, 1.2, 1.3 …` increment across **all** code names within
