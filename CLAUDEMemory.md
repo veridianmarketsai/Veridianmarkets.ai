@@ -351,7 +351,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.2`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*
+**Next free iteration: `<code-name>-2.3`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `supply-chain-live-2.2` (new "supply chain live" page; user typed 2.1 but 2.1=home-page, so used 2.2 per restart-each-foundation).
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
