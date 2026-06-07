@@ -1,7 +1,7 @@
 // Veridian Markets — Company search / screener with eye-preview.
 const { useState: useStateScr } = React;
 
-function Screener({ go }) {
+function Screener({ go, isMobile }) {
   const [open, setOpen] = useStateScr(null);
   const [filters, setFilters] = useStateScr([
     { k:'SECTOR', v:'Technology' }, { k:'MARKET CAP', v:'> $10B' },
@@ -11,17 +11,16 @@ function Screener({ go }) {
   const removeFilter = (i) => setFilters(fs => fs.filter((_, j) => j !== i));
   const addFilter = (k) => setFilters(fs => [...fs, { k, v: FILTER_DEFS[k][0] }]);
   return (
-    <div style={{ padding:'26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 14px 80px' : '26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Company search</b></Mono>
       <div style={{ marginTop:14 }}><Kicker>EXPLORE · 4,904 PUBLIC COMPANIES</Kicker></div>
-      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:38, margin:'8px 0 6px' }}>Find a company.</h1>
-      <p style={{ fontFamily:VM.serif, fontSize:16, color:VM.ink3, margin:'0 0 18px' }}>Search by ticker, name, or person. Filter by sector, size, fundamentals, or which 5-year historical analogue matches today.</p>
+      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 38, margin:'8px 0 6px' }}>Find a company.</h1>
+      <p style={{ fontFamily:VM.serif, fontSize: isMobile ? 14 : 16, color:VM.ink3, margin:'0 0 18px' }}>Search by ticker, name, or person. Filter by sector, size, fundamentals, or which 5-year historical analogue matches today.</p>
 
-      <div style={{ display:'flex', gap:9, alignItems:'center', marginBottom:14 }}>
+      <div style={{ display:'flex', gap:9, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
         <div style={{ flex:1, display:'flex', alignItems:'center', gap:9, border:`1px solid ${VM.border}`, borderRadius:999, padding:'9px 16px', background:VM.paper }}>
           <i className="ti ti-search" style={{ color:VM.ink3 }}></i>
           <input placeholder="search ticker, company, person, era" style={{ border:0, background:'transparent', outline:0, fontFamily:VM.serif, fontSize:14, color:VM.ink, flex:1 }} />
-          <span style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, border:`1px solid ${VM.borderSoft}`, borderRadius:4, padding:'2px 6px' }}>⌘ K</span>
         </div>
         <Btn style={{ borderRadius:999 }}>Filter <i className="ti ti-chevron-down" style={{fontSize:12}}></i></Btn>
         <IconBtn icon="arrows-sort" round size={38} title="Sort" />
@@ -45,12 +44,14 @@ function Screener({ go }) {
       <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {VM_COMPANIES.length} of 487 matches · sort: 5Y analogue match</Mono>
 
       <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
-        <div style={{ display:'grid', gridTemplateColumns:GRID, padding:'7px 18px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
-          <Label>Ticker</Label><Label>Company</Label><Label style={{textAlign:'right'}}>Price</Label>
-          <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
-        </div>
+        {!isMobile && (
+          <div style={{ display:'grid', gridTemplateColumns:GRID, padding:'7px 18px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
+            <Label>Ticker</Label><Label>Company</Label><Label style={{textAlign:'right'}}>Price</Label>
+            <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
+          </div>
+        )}
         {VM_COMPANIES.map((c,i)=>(
-          <Row key={c.ticker} c={c} open={open===c.ticker} last={i===VM_COMPANIES.length-1}
+          <Row key={c.ticker} c={c} open={open===c.ticker} last={i===VM_COMPANIES.length-1} isMobile={isMobile}
             onEye={()=>setOpen(open===c.ticker?null:c.ticker)}
             onNet={()=>go('supply', c)} onOpen={()=>go('dashboard', c)} />
         ))}
@@ -60,9 +61,51 @@ function Screener({ go }) {
 }
 const GRID = '92px 1fr 90px 68px 76px 104px';
 
-function Row({ c, open, last, onEye, onNet, onOpen }) {
+function Row({ c, open, last, onEye, onNet, onOpen, isMobile }) {
   const [hover, setHover] = React.useState(false);
+  const [sel, setSel] = React.useState(false);   // mobile: first tap selects the row & reveals the actions
   const pop = hover && !open;   // lift into a box on hover (matches the home page)
+
+  // ── Mobile: a contained card. Tap once to select (reveals Preview / Dashboard),
+  //    tap again to choose one. No wide grid, no off-screen buttons.
+  if (isMobile) {
+    const active = sel || open;
+    return (
+      <div style={{ borderBottom: last && !open ? 'none' : `1px solid ${VM.borderSoft}`, background: open ? VM.tealTint : 'transparent' }}>
+        <div onClick={()=>setSel(s=>!s)} style={{ padding:'12px 15px', cursor:'pointer', background: (sel && !open) ? VM.paperWarm : 'transparent' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:20, flexShrink:0 }}>{c.ticker}</span>
+            <div style={{ flex:1, minWidth:0 }}>
+              <Mono size={11.5} color={VM.ink2} style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</Mono>
+              <Label>{c.sector}</Label>
+            </div>
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <Mono size={13} weight={700}>${c.price}</Mono>
+              <div><Chg dir={c.dir}>{c.chg}</Chg></div>
+            </div>
+          </div>
+          {active && (
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:11 }}>
+              <button onClick={(e)=>{ e.stopPropagation(); onEye(); }}
+                style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.serif, fontSize:13, padding:'8px 14px', borderRadius:999,
+                  border:`1px solid ${open ? VM.forest : VM.border}`, background: open ? VM.tealTint : VM.paper, color:VM.ink, cursor:'pointer' }}>
+                <i className="ti ti-eye" style={{ fontSize:14 }}></i> Preview
+              </button>
+              <button onClick={(e)=>{ e.stopPropagation(); onOpen(); }}
+                style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.serif, fontSize:13, padding:'8px 14px', borderRadius:999,
+                  border:`1px solid ${VM.forest}`, background:VM.forest, color:VM.paperWarm, cursor:'pointer' }}>
+                Dashboard <i className="ti ti-arrow-right" style={{ fontSize:14 }}></i>
+              </button>
+            </div>
+          )}
+        </div>
+        <div style={{ maxHeight: open ? 900 : 0, overflow:'hidden', transition:'max-height .35s ease' }}>
+          <Preview c={c} onOpen={onOpen} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ borderBottom: last&&!open?'none':`1px solid ${VM.borderSoft}`, background: open?VM.tealTint:'transparent', position:'relative', zIndex: pop?2:1 }}>
       <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}

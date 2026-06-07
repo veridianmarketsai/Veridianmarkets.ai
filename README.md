@@ -315,6 +315,20 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-07
+
+- **Dependency map + a broad mobile pass.** The supply-chain page became the
+  **Dependency map**: suppliers/customers are grouped into database-ready categories
+  (companies, manufacturing, commodity, materials · carriers, retail, resellers…),
+  each node has **preview** + **make-principle** actions, and there's a **full-screen**
+  view (fills just the content area) with filters and the drill breadcrumb up top and
+  the company's **dashboard tabs** (Overview…News) stacked **below the map** — scroll
+  down to read them, tabs stay pinned at the top. **Mobile:** the map becomes a stacked
+  tap-to-open list; **Search** rows become cards (tap once to select, again for
+  Preview/Dashboard); the **company dashboard** is fully responsive (stacked header,
+  drag-scroll tabs with no scrollbar, mobile map); and a **"Download App for Complete
+  Experience"** bar shows on mobile. All mock data. _(branch: `supply-chain-live-2.2`)_
+
 ### 2026-06-01
 
 - **Calendar + News pages, plus home/search refinement.** New **Calendar** and
