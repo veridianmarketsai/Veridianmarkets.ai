@@ -385,7 +385,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `supply-chain-live-2.2` (Dependency map build-out + full-screen + broad mobile pass; **merged to main + live**). Previous: `calendar-and-news-pages-1.1` (off-scheme one-off — should have been `…-2.2`; merged + live) and `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `mobile-compatibility-2.3` (made every page mobile-compatible; **merged to main + live**). Previous: `supply-chain-live-2.2` (Dependency map + full-screen + broad mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live) and `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -393,7 +393,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.4`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `mobile-compatibility-2.3` (continue making every page work on mobile / contain within the display).
+**Next free iteration: `<code-name>-2.4`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `mobile-compatibility-2.3` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
