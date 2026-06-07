@@ -18,7 +18,7 @@ function SignInField({ label, type, placeholder, autoComplete, value, onChange, 
   );
 }
 
-function SignIn({ go, signIn, redirectTo }) {
+function SignIn({ go, signIn, redirectTo, isMobile }) {
   const [email, setEmail] = useStateSignIn('');
   const [password, setPassword] = useStateSignIn('');
   const [error, setError] = useStateSignIn('');
@@ -35,12 +35,12 @@ function SignIn({ go, signIn, redirectTo }) {
   };
 
   return (
-    <div style={{ minHeight:'100%', display:'flex', alignItems:'center', justifyContent:'center', padding:'48px 24px 72px' }}>
-      <div style={{ width:'100%', maxWidth:380, background:VM.paper, border:`1px solid ${VM.borderSoft}`,
-        borderRadius:14, padding:'30px 28px' }}>
+    <div style={{ minHeight:'100%', display:'flex', alignItems:'center', justifyContent:'center', padding: isMobile ? '32px 16px 80px' : '48px 24px 72px', overflowX:'hidden' }}>
+      <div style={{ width:'100%', maxWidth: isMobile ? '100%' : 380, background:VM.paper, border:`1px solid ${VM.borderSoft}`,
+        borderRadius:14, padding: isMobile ? '24px 18px' : '30px 28px' }}>
         <div style={{ textAlign:'center', marginBottom:22 }}>
           <Kicker>Veridian Markets · Account</Kicker>
-          <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:28, margin:'10px 0 4px' }}>Sign in</h1>
+          <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?24:28, margin:'10px 0 4px' }}>Sign in</h1>
           <p style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, margin:0 }}>
             Welcome back — pick up where the history left off.
           </p>

@@ -43,7 +43,7 @@ function Calendar({ go, isMobile }) {
   for (let d = 1; d <= daysIn; d++) cells.push(d);
 
   return (
-    <div style={{ padding: isMobile ? '16px 16px 56px' : '26px 32px 60px', maxWidth: 1120, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 60px', maxWidth: 1120, margin: '0 auto' }}>
       <Kicker>Calendar · {CAL_EVENTS.length} events</Kicker>
       <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 27 : 32, lineHeight: 1.05, margin: '8px 0 0' }}>Calendar.</h1>
       <p style={{ fontFamily: VM.serif, fontSize: isMobile ? 15 : 16, color: VM.ink2, maxWidth: 620, margin: '8px 0 0' }}>

@@ -156,7 +156,7 @@ function Learn({ go, isMobile }) {
   const anyFilter = cat!=='all' || level!=='all' || format!=='all' || q;
 
   return (
-    <div style={{ padding: isMobile?'14px 16px 56px':'26px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
+    <div style={{ padding: isMobile?'14px 16px 80px':'26px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       <Kicker>LEARN · VM</Kicker>
       <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:isMobile?27:32, lineHeight:1.07, margin:'10px 0 0' }}>Learn.</h1>
       <p style={{ fontFamily:VM.serif, fontSize:isMobile?15:17, color:VM.ink2, maxWidth:640, margin:'10px 0 0', lineHeight:1.45 }}>

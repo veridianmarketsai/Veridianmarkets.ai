@@ -170,14 +170,14 @@ function App() {
   else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
   else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} />;
   else if(effRoute==='history') screen = <History go={go} isMobile={isMobile} />;
-  else if(effRoute==='memoir') screen = <Memoir go={go} />;
+  else if(effRoute==='memoir') screen = <Memoir go={go} isMobile={isMobile} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} />;
+  else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
-  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : 'myportfolio'} />;
+  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : 'myportfolio'} isMobile={isMobile} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
 

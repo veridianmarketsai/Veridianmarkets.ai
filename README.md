@@ -317,6 +317,15 @@ the prototype outgrows the CDN/Babel approach.)
 
 ### 2026-06-07
 
+- **Every page made mobile-compatible.** A responsive pass across the whole app so
+  each page fits a phone without horizontal scrolling: multi-column layouts stack to
+  a single column, control rows wrap, headings scale down, and wide data tables
+  (admin users, financial statements) scroll inside their own box. Covers the admin
+  panel, company dashboard (incl. the History sub-panels and News), portfolio,
+  account settings, sign-in, memoir, calendar, news, search, learn and the front
+  page — plus a bottom-bar "Download App" prompt on mobile. Desktop is unchanged.
+  _(branch: `mobile-compatibility-2.3`)_
+
 - **Dependency map + a broad mobile pass.** The supply-chain page became the
   **Dependency map**: suppliers/customers are grouped into database-ready categories
   (companies, manufacturing, commodity, materials · carriers, retail, resellers…),

@@ -28,7 +28,7 @@ function FrontPage({ go, isMobile }) {
   const [screenerHover, setScreenerHover] = useState(false);  // hover shade on the 'Open full screener' button
   const [newsHover, setNewsHover] = useState(false);          // hover shade on the 'See all news' button
   return (
-    <div style={{ padding: isMobile ? '14px 16px 48px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
+    <div style={{ padding: isMobile ? '14px 16px 80px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       {/* LEARN — resume / start learning, above Global News + Market recap. */}
       <LearnBanner go={go} isMobile={isMobile} />
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>

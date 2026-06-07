@@ -66,6 +66,19 @@ placeholders until their page exists.
   mobile pass started in `supply-chain-live-2.2` — make every remaining page work
   on phones and stay within the display width (next likely targets: History
   sub-panels, Memoir/Learn, Calendar, News, Settings, My Account, front page).
+- **Made every page mobile-compatible (`mobile-compatibility-2.3`).** Threaded
+  `isMobile` into the last components missing it (`Memoir`, `AdminPanel`, `SignIn`)
+  and did a responsive pass across **every page**: stack multi-column grids to one
+  column, wrap control rows, scale down headings, reduce side padding, and add
+  ~80px bottom padding so content clears the fixed mobile "Download App" bar. Wide
+  data tables (Admin users, Financials) now scroll **inside their box**
+  (`overflowX:auto`) instead of widening the page. Specifics: **AdminPanel** (KPI/
+  charts/country grids stack, users table scrolls, course form stacks); **Dashboard
+  History** sub-panels (Past/Present/Future) + Ask-History row + DashNews grid stack;
+  **MyPortfolio** (risk-tier cards, range buttons wrap); **AccountSettings** (isMobile
+  threaded to sub-pages); **SignIn** (full-width card); **Memoir** (smaller quote
+  glyph); **Calendar/News/History/FrontPage/Learn** already responsive — bottom-bar
+  clearance + minor fixes. All gated on `isMobile`; desktop untouched. Mock data.
 
 - **Built out the Dependency map + a broad mobile pass (`supply-chain-live-2.2`). Merged to main + live.**
   - **Dependency map (was "supply chain live").** DB-ready grouped taxonomy —
