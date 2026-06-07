@@ -62,6 +62,11 @@ placeholders until their page exists.
 
 ### 2026-06-07
 
+- **Started `mobile-compatibility-2.3`.** New branch (from main) to continue the
+  mobile pass started in `supply-chain-live-2.2` — make every remaining page work
+  on phones and stay within the display width (next likely targets: History
+  sub-panels, Memoir/Learn, Calendar, News, Settings, My Account, front page).
+
 - **Built out the Dependency map + a broad mobile pass (`supply-chain-live-2.2`). Merged to main + live.**
   - **Dependency map (was "supply chain live").** DB-ready grouped taxonomy —
     suppliers by `company / manufacturing / commodity / materials`, customers by
@@ -375,7 +380,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.3`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `supply-chain-live-2.2` merged to main.
+**Next free iteration: `<code-name>-2.4`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `mobile-compatibility-2.3` (continue making every page work on mobile / contain within the display).
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
