@@ -51,22 +51,22 @@ function AccountSettings({ go, user, onSignOut, isMobile }) {
   };
 
   return (
-    <div style={{ padding: isMobile ? '16px 14px 64px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
-        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => setSection(null)}>{renderSection(section, { go, u, showToast })}</StSubPage>
-        : <StList u={u} onRow={onRow} go={go} />}
+        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => setSection(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile })}</StSubPage>
+        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} />}
       {toast && <StToast text={toast} />}
     </div>
   );
 }
 
 // ── the main list ───────────────────────────────────────────────────────────
-function StList({ u, onRow, go }) {
+function StList({ u, onRow, go, isMobile }) {
   const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
   return (
     <React.Fragment>
       <Kicker>Account</Kicker>
-      <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 30, lineHeight: 1.05, margin: '8px 0 18px' }}>Settings.</h1>
+      <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 26 : 30, lineHeight: 1.05, margin: '8px 0 18px' }}>Settings.</h1>
 
       {/* profile summary → personal details */}
       <div onClick={() => onRow({ id: 'profile' })} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', cursor: 'pointer',
@@ -115,7 +115,7 @@ function StRow({ item, last, onClick }) {
 }
 
 // ── sub-page shell ────────────────────────────────────────────────────────────
-function StSubPage({ title, onBack, children }) {
+function StSubPage({ title, onBack, children, isMobile }) {
   return (
     <React.Fragment>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18 }}>
@@ -124,7 +124,7 @@ function StSubPage({ title, onBack, children }) {
           <i className="ti ti-chevron-left" style={{ fontSize: 16 }}></i>Settings
         </button>
       </div>
-      <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 27, lineHeight: 1.06, margin: '0 0 18px' }}>{title}</h1>
+      <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 24 : 27, lineHeight: 1.06, margin: '0 0 18px' }}>{title}</h1>
       {children}
     </React.Fragment>
   );
@@ -189,7 +189,7 @@ function StToast({ text }) {
 
 // ── per-section content ───────────────────────────────────────────────────────
 function renderSection(id, ctx) {
-  const { go, u, showToast } = ctx;
+  const { go, u, showToast, isMobile } = ctx;
   switch (id) {
     case 'profile': return (
       <React.Fragment>
@@ -234,7 +234,7 @@ function renderSection(id, ctx) {
         <Label style={{ display: 'block', marginBottom: 8 }}>Plans</Label>
         {[{ p: 'Free', price: '£0', d: 'History-led research, delayed data' }, { p: 'Plus', price: '£9/mo', d: 'Live data, watchlists, alerts' }, { p: 'Pro', price: '£19/mo', d: 'Analogue engine, exports, priority' }, { p: 'Business', price: 'Contact', d: 'Teams, seats, admin & SSO' }].map((pl, i) => (
           <div key={pl.p} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', background: VM.paper, border: `1px solid ${pl.p === (u.tier || 'Free') ? VM.forest : VM.borderSoft}`, borderRadius: 12, marginBottom: 8 }}>
-            <div style={{ flex: 1 }}><span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 16 }}>{pl.p}</span><div><Mono size={10} color={VM.ink3}>{pl.d}</Mono></div></div>
+            <div style={{ flex: 1, minWidth: 0 }}><span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 16 }}>{pl.p}</span><div><Mono size={10} color={VM.ink3}>{pl.d}</Mono></div></div>
             <Mono size={13} weight={700}>{pl.price}</Mono>
             {pl.p === (u.tier || 'Free') ? <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.tealInk }}>CURRENT</span> : <Btn onClick={() => showToast('Checkout (mock) — Stripe later.')} style={{ fontSize: 13, padding: '6px 14px' }}>Choose</Btn>}
           </div>

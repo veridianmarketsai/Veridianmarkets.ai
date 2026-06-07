@@ -13,7 +13,7 @@ function History({ go, isMobile }) {
   const submit = (e) => { e.preventDefault(); /* TODO(search): wire to the data/AI provider */ };
 
   return (
-    <div style={{ padding: isMobile ? '20px 16px 60px' : '44px 32px 80px', maxWidth:720, margin:'0 auto' }}>
+    <div style={{ padding: isMobile ? '20px 16px 88px' : '44px 32px 80px', maxWidth:720, margin:'0 auto' }}>
       {/* hint pill */}
       <div style={{ display:'flex', justifyContent:'center', marginBottom: isMobile ? 22 : 30 }}>
         <span style={{ display:'inline-flex', alignItems:'center', gap:7, fontFamily:VM.mono, fontSize:10.5,

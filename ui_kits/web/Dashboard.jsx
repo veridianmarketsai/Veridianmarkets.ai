@@ -15,14 +15,14 @@ function Dashboard({ company, go, isMobile }) {
       {tab === 'Financials'   && <DashFinancials data={data.financials} />}
       {tab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
       {tab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
-      {tab === 'News'         && <DashNews        c={c} go={go} />}
+      {tab === 'News'         && <DashNews        c={c} go={go} isMobile={isMobile} />}
     </div>
   );
 }
 
 // ── News ──────────────────────────────────────────────────────────────────────
 // Company-specific news; reuses the News page's card + article overlay.
-function DashNews({ c, go }) {
+function DashNews({ c, go, isMobile }) {
   const [article, setArticle] = React.useState(null);
   const tagged = NEWS.filter(n => n.ticker === c.ticker);
   const list = tagged.length ? tagged : NEWS.slice(0, 4);   // fallback to general market stories
@@ -30,12 +30,12 @@ function DashNews({ c, go }) {
   return (
     <div style={{ marginTop:24 }}>
       <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>NEWS · {c.ticker}</Mono>
-      <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:28, margin:'0 0 4px' }}>What’s moving {c.name.split(' ')[0]}.</h2>
+      <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?22:28, margin:'0 0 4px' }}>What’s moving {c.name.split(' ')[0]}.</h2>
       <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 18px' }}>{tagged.length ? `Stories tagged ${c.ticker}, read through the lens of the past.` : 'Latest market stories.'}</p>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
         {list.map((n,i) => <NewsCard key={i} n={n} onOpen={()=>setArticle(n)} />)}
       </div>
-      {article && <ArticleModal article={article} onClose={()=>setArticle(null)} onTicker={openTicker} isMobile={false} />}
+      {article && <ArticleModal article={article} onClose={()=>setArticle(null)} onTicker={openTicker} isMobile={isMobile} />}
     </div>
   );
 }
@@ -267,7 +267,7 @@ function PatentFilingChart({ filings }) {
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
-function DashHistory({ c, data }) {
+function DashHistory({ c, data, isMobile }) {
   const [section, setSection] = React.useState('past');
   const [query, setQuery]     = React.useState('');
   const [aiResult, setAiResult] = React.useState(null);
@@ -296,23 +296,23 @@ function DashHistory({ c, data }) {
         ))}
       </div>
 
-      {section === 'past'    && <HistoryPast    data={data} />}
-      {section === 'present' && <HistoryPresent data={data} c={c} />}
-      {section === 'future'  && <HistoryFuture  data={data} c={c} />}
+      {section === 'past'    && <HistoryPast    data={data} isMobile={isMobile} />}
+      {section === 'present' && <HistoryPresent data={data} c={c} isMobile={isMobile} />}
+      {section === 'future'  && <HistoryFuture  data={data} c={c} isMobile={isMobile} />}
 
       <div style={{ marginTop:40, borderTop:`1px solid ${VM.borderSoft}`, paddingTop:26 }}>
         <Kicker tone="rust">Ask History · AI</Kicker>
         <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink2, margin:'8px 0 16px', maxWidth:560 }}>
           Ask what history says about {c.ticker} — analogues, turning points, what happened next.
         </p>
-        <div style={{ display:'flex', gap:10, maxWidth:640 }}>
+        <div style={{ display:'flex', flexDirection: isMobile?'column':'row', gap:10, maxWidth:640 }}>
           <input value={query} onChange={e=>setQuery(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&handleAsk()}
             placeholder={`e.g. "When ${c.ticker} looked like this, what happened to margins?"`}
-            style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 14px',
+            style={{ flex:1, width: isMobile?'100%':undefined, fontFamily:VM.serif, fontSize:14, padding:'10px 14px',
               border:`1px solid ${VM.border}`, borderRadius:8, background:VM.paper,
               outline:'none', color:VM.ink }} />
-          <Btn solid onClick={handleAsk}>{aiLoading ? 'Searching…' : 'Ask'}</Btn>
+          <Btn solid onClick={handleAsk} style={isMobile ? { width:'100%' } : undefined}>{aiLoading ? 'Searching…' : 'Ask'}</Btn>
         </div>
         {aiResult && (
           <div style={{ marginTop:14, padding:'14px 16px', background:VM.tealTint,
@@ -326,7 +326,7 @@ function DashHistory({ c, data }) {
   );
 }
 
-function HistoryPast({ data }) {
+function HistoryPast({ data, isMobile }) {
   const { timeline } = data;
   return (
     <div>
@@ -338,7 +338,7 @@ function HistoryPast({ data }) {
             <Mono size={11} weight={600} color={VM.teal} style={{ minWidth:46, paddingTop:2 }}>{item.y}</Mono>
             <div style={{ width:9, height:9, borderRadius:999, background:VM.teal, flexShrink:0,
               marginTop:3, zIndex:1, marginRight:16, border:`2px solid ${VM.paperWarm}` }}></div>
-            <p style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink2, lineHeight:1.6, margin:0 }}>{item.e}</p>
+            <p style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink2, lineHeight:1.6, margin:0, minWidth:0 }}>{item.e}</p>
           </div>
         ))}
       </div>
@@ -346,10 +346,10 @@ function HistoryPast({ data }) {
   );
 }
 
-function HistoryPresent({ data, c }) {
+function HistoryPresent({ data, c, isMobile }) {
   const { closestAnalogue, patternMatch, patternDiff } = data;
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr', gap:26 }}>
+    <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr', gap: isMobile?16:26 }}>
       <div>
         <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:12 }}>CLOSEST ANALOGUE · PATTERN MATCH</Mono>
         <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'16px', marginBottom:16 }}>
@@ -397,7 +397,7 @@ function HistoryPresent({ data, c }) {
   );
 }
 
-function HistoryFuture({ data, c }) {
+function HistoryFuture({ data, c, isMobile }) {
   const { analogues } = data;
   const col = { CLOSEST:VM.teal, ECHO:VM.tealInk, MIXED:VM.terra, WARNING:VM.downInk };
   return (
@@ -406,7 +406,7 @@ function HistoryFuture({ data, c }) {
       <p style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, margin:'0 0 20px', maxWidth:560 }}>
         The {analogues.length} closest historical matches for {c.ticker}, ranked by pattern similarity. Not a forecast — a base rate.
       </p>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:10 }}>
         {analogues.map((a, i) => (
           <div key={i} style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:10,
             padding:'12px 14px', display:'flex', gap:12, alignItems:'flex-start' }}>

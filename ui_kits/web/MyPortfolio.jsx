@@ -95,7 +95,7 @@ function MyPortfolio({ go, user, isMobile }) {
   },[]);
 
   return (
-    <div style={{ padding: isMobile?'16px 16px 64px':'26px 32px 72px', maxWidth:1180, margin:'0 auto' }}>
+    <div style={{ padding: isMobile?'16px 16px 88px':'26px 32px 72px', maxWidth:1180, margin:'0 auto' }}>
 
       {/* header */}
       <Kicker>Your account</Kicker>
@@ -135,7 +135,7 @@ function MyPortfolio({ go, user, isMobile }) {
             <div style={{ height:6, background:VM.paperDeep, borderRadius:3, overflow:'hidden', marginBottom:6 }}>
               <div style={{ width:`${LEARN_PROGRESS.pct}%`, height:'100%', background:VM.teal, borderRadius:3 }}></div>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ display:'flex', flexDirection: isMobile?'column':'row', justifyContent:'space-between', alignItems: isMobile?'flex-start':'center', gap: isMobile?2:0 }}>
               <Mono size={10} color={VM.ink3}>{LEARN_PROGRESS.pct}% · Next: {LEARN_PROGRESS.next}</Mono>
               <Mono size={10} color={VM.ink3}>{LEARN_PROGRESS.done}/{LEARN_PROGRESS.total} modules</Mono>
             </div>
@@ -177,7 +177,7 @@ function MyPortfolio({ go, user, isMobile }) {
             </div>
           </div>
           <div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'repeat(3,1fr)', gap:8, marginBottom:14 }}>
               {['high','medium','low'].map(tier=>{
                 const holdings = pf.rows.filter(r=>r.risk.tier===tier);
                 return (
@@ -301,7 +301,7 @@ function PfPerformance({ pf }) {
           <Mono size={22} weight={700} color={VM.ink}>{money(pf.total)}</Mono>
           <div style={{ marginTop:2 }}><Chg dir={up?'up':'down'}>{(up?'▲ ':'▼ ')+signPct(change)}</Chg> <Mono size={10} color={VM.ink3}>over {range}</Mono></div>
         </div>
-        <div style={{ display:'flex', gap:4 }}>
+        <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
           {Object.keys(PF_RANGES).map(r=>(
             <button key={r} onClick={()=>setRange(r)} style={{ fontFamily:VM.mono, fontSize:10, padding:'4px 9px', borderRadius:6, cursor:'pointer',
               border:`1px solid ${range===r?VM.forest:VM.border}`, background:range===r?VM.forest:VM.paper, color:range===r?VM.paperWarm:VM.ink2 }}>{r}</button>

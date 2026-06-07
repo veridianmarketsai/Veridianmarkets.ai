@@ -38,7 +38,7 @@ function News({ go, isMobile }) {
   const openTicker = (t) => { const c = VM_COMPANIES.find(x => x.ticker === t); if (c) go('dashboard', c); };
 
   return (
-    <div style={{ padding: isMobile ? '16px 16px 56px' : '26px 32px 60px', maxWidth: 1120, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 60px', maxWidth: 1120, margin: '0 auto' }}>
       <Kicker>Global News</Kicker>
       <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 27 : 32, lineHeight: 1.05, margin: '8px 0 0' }}>News.</h1>
       <p style={{ fontFamily: VM.serif, fontSize: isMobile ? 15 : 16, color: VM.ink2, maxWidth: 640, margin: '8px 0 0' }}>
@@ -81,7 +81,7 @@ function News({ go, isMobile }) {
       )}
 
       {/* article grid */}
-      <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? '100%' : '300px'}, 1fr))`, gap: 16 }}>
+      <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
         {rest.map((n, i) => <NewsCard key={i} n={n} onOpen={() => setArticle(n)} />)}
       </div>
 

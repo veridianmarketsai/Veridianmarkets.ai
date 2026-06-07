@@ -15,7 +15,7 @@ const aMoney = (n) => '$' + Number(n).toLocaleString('en-US');
 const aDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 const aRel = (d) => { const days = Math.round((VM_NOW - d) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
 
-function AdminPanel({ go, user }) {
+function AdminPanel({ go, user, isMobile }) {
   const [tab, setTab] = useStateAdmin('overview');
   const [accessing, setAccessing] = useStateAdmin(null);   // simulated "access account" target
   const stats = React.useMemo(() => vmUserStats(), []);
@@ -25,14 +25,14 @@ function AdminPanel({ go, user }) {
     { id: 'courses', label: 'Courses', icon: 'book' },
   ];
   return (
-    <div style={{ padding: '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <Kicker>Control panel</Kicker>
             <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: VM.paperWarm, background: VM.forest, borderRadius: 5, padding: '2px 7px' }}>Admin</span>
           </div>
-          <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 32, lineHeight: 1.05, margin: '8px 0 0' }}>Admin.</h1>
+          <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 26 : 32, lineHeight: 1.05, margin: '8px 0 0' }}>Admin.</h1>
           <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink3, marginTop: 4 }}>Signed in as <strong style={{ color: VM.ink2 }}>{user ? (user.name || user.email) : 'admin'}</strong> · temporary data</div>
         </div>
       </div>
@@ -58,16 +58,16 @@ function AdminPanel({ go, user }) {
       </div>
 
       <div style={{ marginTop: 22 }}>
-        {tab === 'overview' && <OverviewTab stats={stats} />}
-        {tab === 'users' && <UsersTab onAccess={setAccessing} />}
-        {tab === 'courses' && <CoursesTab go={go} />}
+        {tab === 'overview' && <OverviewTab stats={stats} isMobile={isMobile} />}
+        {tab === 'users' && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
+        {tab === 'courses' && <CoursesTab go={go} isMobile={isMobile} />}
       </div>
     </div>
   );
 }
 
 // ── Overview ────────────────────────────────────────────────────────────────
-function OverviewTab({ stats }) {
+function OverviewTab({ stats, isMobile }) {
   const courseCount = vmGetCourses().length;
   const kpis = [
     { label: 'Total users', value: stats.total, foot: `${stats.active} active` },
@@ -85,10 +85,10 @@ function OverviewTab({ stats }) {
   const maxC = Math.max(...stats.topCountries.map(c => c.n), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         {kpis.map((k, i) => <AdminKpi key={i} {...k} />)}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
         <AdminCard title="Signups · last 12 months"><AdminBars data={stats.months} /></AdminCard>
         <AdminCard title="Plan distribution">
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
@@ -106,7 +106,7 @@ function OverviewTab({ stats }) {
         </AdminCard>
       </div>
       <AdminCard title="Top countries">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
           {stats.topCountries.map(c => (
             <div key={c.c} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ flex: 1, fontFamily: VM.serif, fontSize: 14, color: VM.ink2 }}>{c.c}</span>
@@ -172,7 +172,7 @@ function AdminDonut({ data, size = 140, thickness = 19, center, centerLabel }) {
 
 // ── Users ───────────────────────────────────────────────────────────────────
 const A_USER_COLS = '1.7fr 0.6fr 0.8fr 1fr 0.9fr 0.7fr 34px';
-function UsersTab({ onAccess }) {
+function UsersTab({ onAccess, isMobile }) {
   const [q, setQ] = useStateAdmin('');
   const [status, setStatus] = useStateAdmin('all');
   const [shown, setShown] = useStateAdmin(40);
@@ -202,14 +202,16 @@ function UsersTab({ onAccess }) {
         </div>
       </div>
       <Mono size={10.5} color={VM.ink3} style={{ display: 'block', marginBottom: 8 }}>{rows.length} of {VM_USERS.length} users</Mono>
-      <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: A_USER_COLS, gap: 8, padding: '9px 16px', background: VM.paperWarm, borderBottom: `1px solid ${VM.borderSoft}`, borderRadius: '12px 12px 0 0' }}>
-          {['User', 'Plan', 'Status', 'Country', 'Joined', 'Active', ''].map((h, i) => <Label key={i} style={{ textAlign: i === 1 || i === 2 ? 'center' : 'left' }}>{h}</Label>)}
+      <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 12, overflowX: 'auto' }}>
+        <div style={{ minWidth: isMobile ? 640 : 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: A_USER_COLS, gap: 8, padding: '9px 16px', background: VM.paperWarm, borderBottom: `1px solid ${VM.borderSoft}`, borderRadius: '12px 12px 0 0' }}>
+            {['User', 'Plan', 'Status', 'Country', 'Joined', 'Active', ''].map((h, i) => <Label key={i} style={{ textAlign: i === 1 || i === 2 ? 'center' : 'left' }}>{h}</Label>)}
+          </div>
+          {visible.map((u, i) => (
+            <UserRow key={u.id} u={u} last={i === visible.length - 1} onView={setDetail} onAccess={access} onToast={showToast} />
+          ))}
+          {visible.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>No users match.</div>}
         </div>
-        {visible.map((u, i) => (
-          <UserRow key={u.id} u={u} last={i === visible.length - 1} onView={setDetail} onAccess={access} onToast={showToast} />
-        ))}
-        {visible.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>No users match.</div>}
       </div>
       {rows.length > visible.length && (
         <div style={{ marginTop: 14, textAlign: 'center' }}>
@@ -339,7 +341,7 @@ function UserDetailModal({ u, onClose, onAccess, onToast }) {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 12 }}><Sparkline dir={p.dir} w={520} h={34} /></div>
+            <div style={{ marginTop: 12, width: '100%', overflowX: 'auto' }}><Sparkline dir={p.dir} w={520} h={34} /></div>
           </div>
         </div>
         {/* actions */}
@@ -355,7 +357,7 @@ function UserDetailModal({ u, onClose, onAccess, onToast }) {
 }
 
 // ── Courses ─────────────────────────────────────────────────────────────────
-function CoursesTab({ go }) {
+function CoursesTab({ go, isMobile }) {
   const [courses, setCourses] = useStateAdmin(() => vmGetCourses());
   const refresh = () => setCourses(vmGetCourses());
   const cats = LEARN_CATS.filter(c => c.id !== 'all');
@@ -377,7 +379,7 @@ function CoursesTab({ go }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 18 }}>
       <AdminCard title="Add a course">
-        <form onSubmit={submit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, alignItems: 'end' }}>
+        <form onSubmit={submit} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, alignItems: 'end' }}>
           <Field label="Title" full>
             <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Options, From Scratch" style={inputStyle} />
           </Field>
