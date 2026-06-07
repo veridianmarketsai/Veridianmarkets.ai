@@ -60,6 +60,30 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-06-07
+
+- **Built out the Dependency map + a broad mobile pass (`supply-chain-live-2.2`). Merged to main + live.**
+  - **Dependency map (was "supply chain live").** DB-ready grouped taxonomy —
+    suppliers by `company / manufacturing / commodity / materials`, customers by
+    `mobile_carrier / electronics_retail / warehouse_club / online_reseller / …`
+    (grouping lives on the relationship, schema sketched in `ScnLiveDemo.jsx`).
+    Per-node hover now shows **P** (make principle) + **eye** (preview tab); removed
+    the Risk row and the **5Y Lens** filter; compacted/consolidated nodes.
+  - **Full screen** fills only the content area (`#vm-main`, not the OS/window).
+    Inside it: **Filters** pinned across the top, the drill **breadcrumb** in the
+    top-left, and the company **dashboard tabs** (Overview…News) rendered **inline
+    below the map** — scroll down to read; the tab bar is sticky at the top
+    ("position 2", between map and content), data from the same `resolveCompany`.
+  - **Copy/menu:** rail "Supply chain network" → **Dependency map**; page title
+    "The dependency map." → **"Dependency map."**; dropped "Explore ›" breadcrumb.
+  - **Mobile pass.** Dependency map → stacked principle + **tap-to-open** node cards
+    (no SVG/columns). Search/screener rows → contained cards: **tap once to select,
+    tap again** for Preview / Dashboard. Company dashboard responsive (header stacks,
+    Overview/Patents grids stack, embedded map uses the mobile layout). Company tabs
+    now **drag-scroll** horizontally with the scrollbar hidden (`.vm-noscroll`), like
+    the index ticker. New app-wide mobile **"Download App for Complete Experience"**
+    bottom CTA (placeholder → store link later).
+
 ### 2026-06-01
 
 - **Cleanup: deleted the original archive** — `scraps/`, `uploads/` (original
@@ -343,7 +367,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `calendar-and-news-pages-1.1` (Calendar + News pages + home/search refinement; **merged to main + live**). ⚠️ Off-scheme name — it was the 2nd Foundation-2 effort so should have been `…-2.2`; the `1.1` is a one-off. Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>` from here. Previous: `home-page-2.1` (front page, merged + live). All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `supply-chain-live-2.2` (Dependency map build-out + full-screen + broad mobile pass; **merged to main + live**). Previous: `calendar-and-news-pages-1.1` (off-scheme one-off — should have been `…-2.2`; merged + live) and `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -351,7 +375,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.3`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `supply-chain-live-2.2` (new "supply chain live" page; user typed 2.1 but 2.1=home-page, so used 2.2 per restart-each-foundation).
+**Next free iteration: `<code-name>-2.3`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `supply-chain-live-2.2` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)

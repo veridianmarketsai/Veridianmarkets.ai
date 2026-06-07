@@ -1,20 +1,20 @@
 // Veridian Markets — Company dashboard.
 // resolveCompany() is called once here; all tabs receive data as props.
 // No tab reads VM_COMPANY_DATA or any VM_ global directly.
-function Dashboard({ company, go }) {
+function Dashboard({ company, go, isMobile }) {
   const c    = company || VM_COMPANIES[0];
   const data = resolveCompany(c.ticker);
   const [tab, setTab] = React.useState('Overview');
 
   return (
-    <div style={{ padding:'22px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
-      <CompanyHead c={c} tab={tab} onTabChange={setTab} go={go} />
+    <div style={{ padding: isMobile ? '16px 14px 80px' : '22px 32px 60px', maxWidth:1180, margin:'0 auto', overflowX: isMobile ? 'hidden' : 'visible' }}>
+      <CompanyHead c={c} tab={tab} onTabChange={setTab} go={go} isMobile={isMobile} />
 
-      {tab === 'Overview'     && <DashOverview   c={c} data={data} />}
-      {tab === 'Supply chain' && <DashScn        c={c} />}
+      {tab === 'Overview'     && <DashOverview   c={c} data={data} isMobile={isMobile} />}
+      {tab === 'Supply chain' && <DashScn        c={c} isMobile={isMobile} />}
       {tab === 'Financials'   && <DashFinancials data={data.financials} />}
-      {tab === 'Patents'      && <DashPatents    data={data.patents} />}
-      {tab === 'History'      && <DashHistory    c={c} data={data.history} />}
+      {tab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
+      {tab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
       {tab === 'News'         && <DashNews        c={c} go={go} />}
     </div>
   );
@@ -41,10 +41,10 @@ function DashNews({ c, go }) {
 }
 
 // ── Overview ──────────────────────────────────────────────────────────────────
-function DashOverview({ c, data }) {
+function DashOverview({ c, data, isMobile }) {
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap:32, marginTop:24 }}>
+    <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: isMobile?20:32, marginTop:24 }}>
       <div>
         <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>ABOUT THIS COMPANY</Mono>
         <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:28, margin:'0 0 12px', textWrap:'balance' }}>
@@ -116,10 +116,10 @@ function DashOverview({ c, data }) {
 }
 
 // ── Supply chain ──────────────────────────────────────────────────────────────
-function DashScn({ c }) {
+function DashScn({ c, isMobile }) {
   return (
     <div style={{ marginTop:16 }}>
-      <ScnLiveDemo compact={true} initialTicker={c.ticker} />
+      <ScnLiveDemo compact={true} initialTicker={c.ticker} isMobile={isMobile} />
     </div>
   );
 }
@@ -196,11 +196,11 @@ function DashFinancials({ data }) {
 }
 
 // ── Patents ───────────────────────────────────────────────────────────────────
-function DashPatents({ data }) {
+function DashPatents({ data, isMobile }) {
   const { stats, cats, filings, notable } = data;
   return (
     <div style={{ marginTop:24 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap:14, marginBottom:24 }}>
         {stats.map(([k,v]) => (
           <div key={k} style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:10, padding:'14px 16px' }}>
             <Label>{k}</Label>
@@ -208,7 +208,7 @@ function DashPatents({ data }) {
           </div>
         ))}
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:22 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:22 }}>
         <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'16px' }}>
           <h3 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:17, margin:'0 0 14px' }}>Portfolio by technology</h3>
           {cats.map((r, i) => (

@@ -30,6 +30,9 @@
     main::-webkit-scrollbar { width: 11px; }
     main::-webkit-scrollbar-thumb { background: rgba(31,29,26,0.18); border-radius: 6px; border: 3px solid var(--vm-paper-warm); }
     button { font-family: inherit; }
+    /* drag-to-scroll strips (tabs, etc.) — no visible scrollbar */
+    .vm-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
+    .vm-noscroll::-webkit-scrollbar { display: none; }
   </style>
 </head>
 <body>

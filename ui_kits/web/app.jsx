@@ -83,6 +83,23 @@ function useIsMobile(bp) {
   return m;
 }
 
+// Mobile-only nudge toward the (future) native app. Placeholder: there's no store
+// listing yet, so tapping it just acknowledges "coming soon".
+function MobileAppCta() {
+  const [tapped, setTapped] = useStateApp(false);
+  return (
+    <div style={{ position:'fixed', left:0, right:0, bottom:0, zIndex:60, background:VM.forest,
+      display:'flex', alignItems:'center', gap:8, padding:'9px 12px',
+      paddingBottom:'calc(9px + env(safe-area-inset-bottom, 0px))', boxShadow:'0 -6px 20px rgba(31,29,26,0.18)' }}>
+      <button onClick={()=>setTapped(true)}
+        style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 14px', borderRadius:999,
+          border:'none', background:VM.paperWarm, color:VM.forest, cursor:'pointer' }}>
+        {tapped ? 'Coming soon — iOS & Android' : 'Download App for Complete Experience'}
+      </button>
+    </div>
+  );
+}
+
 function App() {
   // Seed route + company from the current URL so deep links / refreshes land on
   // the right page (front | screener | supply | dashboard | history | memoir |
@@ -93,6 +110,9 @@ function App() {
   const [menuOpen, setMenuOpen] = useStateApp(false);
   const isMobile = useIsMobile(768);
   useEffectApp(()=>{ if(!isMobile) setMenuOpen(false); }, [isMobile]);
+
+  // Mobile "download the app" CTA — always shown on mobile.
+  const showAppCta = isMobile;
 
   const scrollTop = () => { window.scrollTo&&window.scrollTo(0,0); const main=document.getElementById('vm-main'); if(main) main.scrollTop=0; };
   // Navigate: update state AND push a real URL so every page is linkable.
@@ -146,9 +166,9 @@ function App() {
 
   let screen;
   if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} />;
-  else if(effRoute==='screener') screen = <Screener go={go} />;
+  else if(effRoute==='screener') screen = <Screener go={go} isMobile={isMobile} />;
   else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
-  else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} />;
+  else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} />;
   else if(effRoute==='history') screen = <History go={go} isMobile={isMobile} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
@@ -165,7 +185,7 @@ function App() {
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
-        <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm }}>
+        <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: showAppCta ? 76 : 0 }}>
           {screen}
           <Footer />
         </main>
@@ -175,13 +195,14 @@ function App() {
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
             {/* Ticker runs along the very top of every page, just under the green header. */}
             <IndexStrip />
-            <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm }}>
+            <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm, paddingBottom: showAppCta ? 76 : 0 }}>
               {screen}
               <Footer />
             </main>
           </div>
         </div>
       )}
+      {showAppCta && <MobileAppCta />}
     </div>
   );
 }

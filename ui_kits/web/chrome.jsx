@@ -40,7 +40,7 @@ function Masthead({ go }) {
 const RAIL_GROUPS = [
   { head:null, items:[ {id:'search', label:'Search', icon:'search', isSearch:true } ] },
   { head:'You', items:[ {id:'signin', label:'Sign in'}, {id:'myportfolio', label:'My Account'}, {id:'settings', label:'Settings', icon:'settings'} ] },
-  { head:'Explore', items:[ {id:'front', label:'Home'}, {id:'screener', label:'Search'}, {id:'news', label:'News'}, {id:'calendar', label:'Calendar'}, {id:'supply', label:'Supply chain network', badge:'Live Demo'} ] },
+  { head:'Explore', items:[ {id:'front', label:'Home'}, {id:'screener', label:'Search'}, {id:'news', label:'News'}, {id:'calendar', label:'Calendar'}, {id:'supply', label:'Dependency map', badge:'Live Demo'} ] },
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
