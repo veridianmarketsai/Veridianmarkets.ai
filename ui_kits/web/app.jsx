@@ -177,8 +177,24 @@ function App() {
   const [route, setRoute] = useStateApp(initial.route);
   const [company, setCompany] = useStateApp(initial.company || VM_COMPANIES[0]);
   const [menuOpen, setMenuOpen] = useStateApp(false);
+  // Drill trail for the dashboard breadcrumb — each crumb is { co, tab }, so the
+  // path reads e.g. SPX › Supply chain › AAPL › Financials. Seeded from a deep link.
+  const [dashTrail, setDashTrail] = useStateApp(initial.company ? [{ co: initial.company, tab: 'Overview' }] : []);
   const isMobile = useIsMobile(768);
   useEffectApp(()=>{ if(!isMobile) setMenuOpen(false); }, [isMobile]);
+
+  // Keep the trail in step with navigation: drilling into a new company appends a
+  // crumb (fresh on Overview); revisiting an earlier crumb truncates back to it
+  // (restoring the tab it was on); leaving the dashboard flow clears the trail.
+  const syncTrail = (r, c) => setDashTrail(tr => {
+    if (r !== 'dashboard') return [];
+    if (!c) return tr;
+    const i = tr.findIndex(e => e.co.ticker === c.ticker);
+    return i >= 0 ? tr.slice(0, i + 1) : [...tr, { co: c, tab: 'Overview' }];
+  });
+  // Update the current (last) crumb's tab when the user switches dashboard tabs.
+  const setDashTab = (t) => setDashTrail(tr => tr.length ? tr.map((e, i) => i === tr.length - 1 ? { ...e, tab: t } : e) : tr);
+  const dashTab = dashTrail.length ? dashTrail[dashTrail.length - 1].tab : 'Overview';
 
   // Mobile "download the app" CTA — always shown on mobile.
   const showAppCta = isMobile;
@@ -188,6 +204,7 @@ function App() {
   const go = (r, c) => {
     const nextCompany = c || company;
     if (c) setCompany(c);
+    syncTrail(r, c);
     setRoute(r); setMenuOpen(false);
     const path = stateToPath(r, nextCompany);
     if (path !== window.location.pathname) window.history.pushState({}, '', path);
@@ -195,7 +212,7 @@ function App() {
   };
   // Back/forward buttons → sync state from the URL (no new history entry).
   useEffectApp(() => {
-    const onPop = () => { const s = pathToState(window.location.pathname); setRoute(s.route); if (s.company) setCompany(s.company); scrollTop(); };
+    const onPop = () => { const s = pathToState(window.location.pathname); setRoute(s.route); if (s.company) setCompany(s.company); syncTrail(s.route, s.company); scrollTop(); };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
@@ -237,7 +254,7 @@ function App() {
   if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} />;
   else if(effRoute==='screener') screen = <Screener go={go} isMobile={isMobile} />;
   else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
-  else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} />;
+  else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} trail={dashTrail} tab={dashTab} onTabChange={setDashTab} />;
   else if(effRoute==='history') screen = <History go={go} isMobile={isMobile} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} isMobile={isMobile} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;

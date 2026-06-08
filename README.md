@@ -315,6 +315,19 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-08 (indices)
+
+- **Indices, commodities & forex — asset-class-aware maps + search.** Added the S&P
+  500, gold, oil and major FX pairs to **Search** (the heading is now "Search."). The
+  Dependency map adapts to what you're looking at: **commodities/forex** show what it
+  takes to produce them and the **sectors** that consume them; an **index** shows a
+  **family tree** of its constituents by sector — tap any company to preview it (now
+  with full financial statements) or open its dashboard. The dashboard **breadcrumb**
+  records your drill path (Search › SPX › Supply chain › AAPL › Financials), each step
+  clickable. Plus: clickable tickers in Search, bigger green-on-hover row actions,
+  tab hover highlights, and a fix for the dependency-map connector arrows not always
+  drawing. _(branch: `indices-2.6`)_
+
 ### 2026-06-08 (later)
 
 - **Dependency-map tabs, news filters, financials deltas, and a global AI assistant.**

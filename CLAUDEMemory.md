@@ -65,6 +65,28 @@ placeholders until their page exists.
 - **Started `indices-2.6`.** New branch (from main) for indices work (the index
   ticker / index data). (User said "indicies.2.1" → correct spelling "indices",
   numbered 2.6 per the running counter; 2.1–2.5 already used.)
+- **Indices/commodities/forex in search + asset-class maps + dashboard polish (`indices-2.6`). Merged to main + live.**
+  - **Search list:** added SPX, GOLD, WTI, EURUSD/GBPUSD/USDJPY to `VM_COMPANIES`
+    (mock prices). Search heading → **"Search."**, breadcrumb "Company search" → "Search".
+    Search rows: **ticker/name now clickable** to open the dashboard; action buttons
+    are **large squares that turn green on hover**.
+  - **Asset-class-aware Dependency map (`SCN_DB` + `mode`):** commodities/forex reuse
+    the bipartite map with their own group labels (left = production/drivers,
+    right = consuming **sectors**); **indices** render a **family tree** of
+    constituents by GICS sector (`ScnIndexTree`). Tapping a constituent opens a
+    **preview popup** (the shared `Preview`, now with a **News** tab + the **full
+    `DashFinancials`** statements). Threaded `go` into the embedded map so
+    **Open dashboard** works.
+  - **Breadcrumb = drill trail.** Lifted the dashboard tab to app state; the trail
+    is `{co, tab}` per crumb (Search › SPX › Supply chain › AAPL › Financials), each
+    clickable to step back.
+  - **Dashboard tabs** highlight (green tint) on hover. **Financials:** controls row
+    no longer overlaps the sheet sub-tabs (wraps cleanly).
+  - **Connector arrows fixed (the inconsistency):** the per-render `nodeEls` reset was
+    wiping freshly-set refs post-commit → no arrows until a later re-render; now refs
+    self-clean (delete on unmount) + a ResizeObserver/fonts-ready re-measure. Also
+    guarded `scnGet` against the index entry (no inputs/customers) and gave the
+    generic placeholder proper groups so drilled-to companies render + connect.
 
 - **Started `dependency-map-2.5`.** New branch (from main) for further updates to the
   Dependency map (`ScnLiveDemo.jsx`). (User said "dependancy map" → correct spelling,
@@ -429,7 +451,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `dependency-map-2.5` (map tabs + News filters + Financials %Δ/$Δ deltas + legend + global AI assistant; **merged to main + live**). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `indices-2.6` (indices/commodities/forex in search + asset-class maps + S&P family tree + constituent preview + breadcrumb drill trail + connector-arrow fix; **merged to main + live**). Previous: `dependency-map-2.5` (map tabs + News filters + Financials deltas + legend + AI assistant; merged + live). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -437,7 +459,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.7`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `indices-2.6` (indices work; user said "indicies.2.1" — used correct spelling "indices", numbered 2.6 per the running counter since 2.1–2.5 are taken).
+**Next free iteration: `<code-name>-2.7`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `indices-2.6` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)

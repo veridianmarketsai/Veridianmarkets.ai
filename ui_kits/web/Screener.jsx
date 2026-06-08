@@ -12,9 +12,9 @@ function Screener({ go, isMobile }) {
   const addFilter = (k) => setFilters(fs => [...fs, { k, v: FILTER_DEFS[k][0] }]);
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
-      <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Company search</b></Mono>
+      <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Search</b></Mono>
       <div style={{ marginTop:14 }}><Kicker>EXPLORE · 4,904 PUBLIC COMPANIES</Kicker></div>
-      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 38, margin:'8px 0 6px' }}>Find a company.</h1>
+      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 38, margin:'8px 0 6px' }}>Search.</h1>
       <p style={{ fontFamily:VM.serif, fontSize: isMobile ? 14 : 16, color:VM.ink3, margin:'0 0 18px' }}>Search by ticker, name, or person. Filter by sector, size, fundamentals, or which 5-year historical analogue matches today.</p>
 
       <div style={{ display:'flex', gap:9, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
@@ -115,16 +115,19 @@ function Row({ c, open, last, onEye, onNet, onOpen, isMobile }) {
           boxShadow: pop?'0 6px 18px rgba(31,29,26,0.10)':'none',
           borderRadius: pop?10:0,
           transition:'transform .16s ease, box-shadow .16s ease, background .16s ease' }}>
-        <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22 }}>{c.ticker}</span>
-        <div><Mono size={11.5} color={VM.ink2}>{c.name}</Mono><div><Label>{c.sector}</Label></div></div>
+        <span onClick={onOpen} title={`Open ${c.ticker} dashboard`}
+          style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, cursor:'pointer',
+            textDecoration: hover ? 'underline' : 'none', textUnderlineOffset:3, textDecorationColor:VM.teal }}>{c.ticker}</span>
+        <div onClick={onOpen} title={`Open ${c.ticker} dashboard`} style={{ cursor:'pointer' }}>
+          <Mono size={11.5} color={VM.ink2}>{c.name}</Mono><div><Label>{c.sector}</Label></div></div>
         <Mono size={13} weight={700} style={{textAlign:'right'}}>${c.price}</Mono>
         <span style={{textAlign:'right'}}><Chg dir={c.dir}>{c.chg}</Chg></span>
         <Sparkline dir={c.dir} w={64} h={22} />
-        {/* actions reveal on hover (or while open) — same as the home page; eye + arrow only. */}
-        <div style={{ display:'flex', gap:6, justifyContent:'flex-end',
+        {/* actions reveal on hover (or while open) — large squares that go green on hover. */}
+        <div style={{ display:'flex', gap:8, justifyContent:'flex-end',
           opacity: (hover || open) ? 1 : 0, pointerEvents: (hover || open) ? 'auto' : 'none', transition:'opacity .16s ease' }}>
-          <IconBtn icon="eye" round size={28} active={open} onClick={onEye} title="Preview" />
-          <IconBtn icon="arrow-right" round size={28} onClick={onOpen} title="Open dashboard" />
+          <SqBtn icon="eye" active={open} onAct={onEye} title="Preview" />
+          <SqBtn icon="arrow-right" onAct={onOpen} title="Open dashboard" />
         </div>
       </div>
       <div style={{ maxHeight: open?540:0, overflow:'hidden', transition:'max-height .35s ease' }}>
@@ -134,10 +137,25 @@ function Row({ c, open, last, onEye, onNet, onOpen, isMobile }) {
   );
 }
 
+// Row action — a large square button that turns green on hover (or while active).
+function SqBtn({ icon, active, onAct, title }) {
+  const [h, setH] = React.useState(false);
+  const on = h || active;
+  return (
+    <button onClick={(e)=>{ e.stopPropagation(); onAct(); }} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} title={title}
+      style={{ width:40, height:40, borderRadius:9, cursor:'pointer', padding:0,
+        border:`1px solid ${on ? VM.forest : VM.border}`, background: on ? VM.forest : VM.paper, color: on ? VM.paperWarm : VM.ink2,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        transition:'background .14s ease, color .14s ease, border-color .14s ease' }}>
+      <i className={'ti ti-' + icon} style={{ fontSize:18 }}></i>
+    </button>
+  );
+}
+
 function Preview({ c, onOpen }) {
   const [tab, setTab] = React.useState('Overview');
   const data = resolveCompany(c.ticker);
-  const tabs = ['Overview','Supply chain','Financials','Patents','History'];
+  const tabs = ['Overview','Supply chain','Financials','Patents','History','News'];
 
   return (
     <div style={{ margin:'0 18px 16px', background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:12, overflow:'hidden' }}>
@@ -171,9 +189,10 @@ function Preview({ c, onOpen }) {
       <div style={{ padding:14 }}>
         {tab === 'Overview'     && <PreviewOverview     c={c} />}
         {tab === 'Supply chain' && <PreviewScn          c={c} />}
-        {tab === 'Financials'   && <PreviewFinancials   data={data.financials} />}
+        {tab === 'Financials'   && <DashFinancials      data={data.financials} />}
         {tab === 'Patents'      && <PreviewPatents      data={data.patents} />}
         {tab === 'History'      && <PreviewHistory      c={c} data={data.history} />}
+        {tab === 'News'         && <PreviewNews         c={c} />}
       </div>
     </div>
   );
@@ -347,6 +366,25 @@ function PreviewHistory({ c, data }) {
           <div style={{textAlign:'right'}}><Label>Bull P75</Label><div><Mono size={13} weight={700} color={VM.upInk}>+148%</Mono></div></div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── News preview ──────────────────────────────────────────────────────────────
+function PreviewNews({ c }) {
+  const tagged = NEWS.filter(n => n.ticker === c.ticker);
+  const list = tagged.length ? tagged : NEWS.slice(0, 3);   // fallback to general stories
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+      <Label style={{ display:'block', color:VM.terra }}>{tagged.length ? `Tagged ${c.ticker}` : 'Latest market stories'}</Label>
+      {list.map((n, i) => (
+        <div key={i} style={{ border:`1px solid ${VM.borderSoft}`, borderRadius:10, padding:'11px 13px' }}>
+          <Mono size={9} color={VM.terra} weight={700} style={{ letterSpacing:'0.06em', textTransform:'uppercase' }}>{n.kicker}</Mono>
+          <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14, lineHeight:1.2, margin:'5px 0 0' }}>{n.headline}</div>
+          <p style={{ fontFamily:VM.serif, fontSize:12.5, color:VM.ink2, lineHeight:1.45, margin:'6px 0 0' }}>{n.summary}</p>
+          <Mono size={9.5} color={VM.ink3} style={{ display:'block', marginTop:7 }}>{n.source} · {n.time}</Mono>
+        </div>
+      ))}
     </div>
   );
 }
