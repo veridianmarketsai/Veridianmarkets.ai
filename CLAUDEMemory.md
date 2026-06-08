@@ -62,6 +62,10 @@ placeholders until their page exists.
 
 ### 2026-06-08
 
+- **Started `indices-2.6`.** New branch (from main) for indices work (the index
+  ticker / index data). (User said "indicies.2.1" → correct spelling "indices",
+  numbered 2.6 per the running counter; 2.1–2.5 already used.)
+
 - **Started `dependency-map-2.5`.** New branch (from main) for further updates to the
   Dependency map (`ScnLiveDemo.jsx`). (User said "dependancy map" → correct spelling,
   numbered 2.5 per the running counter; 2.2–2.4 already used.)
@@ -433,7 +437,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.6`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `dependency-map-2.5` merged to main.
+**Next free iteration: `<code-name>-2.7`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `indices-2.6` (indices work; user said "indicies.2.1" — used correct spelling "indices", numbered 2.6 per the running counter since 2.1–2.5 are taken).
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
