@@ -62,6 +62,10 @@ placeholders until their page exists.
 
 ### 2026-06-08
 
+- **Started `dependency-map-2.5`.** New branch (from main) for further updates to the
+  Dependency map (`ScnLiveDemo.jsx`). (User said "dependancy map" → correct spelling,
+  numbered 2.5 per the running counter; 2.2–2.4 already used.)
+
 - **Started `calendar-update-2.4`.** New branch (from main) for calendar work.
   (User asked for "calendarupdate2.2"; 2.2/2.3 already used, so numbered 2.4 per
   the restart-each-foundation running counter.)
@@ -412,7 +416,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.5`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `calendar-update-2.4` merged to main.
+**Next free iteration: `<code-name>-2.6`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `dependency-map-2.5` (further updates to the Dependency map / supply-chain view; user said "dependancy map" — used correct spelling, numbered 2.5 per the running counter).
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
