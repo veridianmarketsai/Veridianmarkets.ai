@@ -315,6 +315,16 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-08
+
+- **Calendar: list view, legend, and month/week navigation.** The Calendar gains a
+  **Month / List** toggle — List shows an economic-calendar-style table (date, time,
+  region, impact, event, actual, forecast, previous) grouped by day. A **Legend**
+  button (key icon) opens a popup explaining every column, the impact levels, and the
+  event types. The month grid's **‹ ›** arrows now change month, and the list view has
+  its own **Week / Month** period navigator. Mock data (events seeded in June 2026).
+  _(branch: `calendar-update-2.4`)_
+
 ### 2026-06-07
 
 - **Every page made mobile-compatible.** A responsive pass across the whole app so
