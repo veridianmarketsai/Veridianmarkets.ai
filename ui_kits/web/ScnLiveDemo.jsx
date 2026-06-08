@@ -156,10 +156,10 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
   // whole viewport and NOT OS fullscreen.
   const [isFull, setIsFull] = React.useState(false);
   const [fullRect, setFullRect] = React.useState(null);
-  const [dashTab, setDashTab] = React.useState('Supply chain');   // bottom tabs — full screen only
+  const [dashTab, setDashTab] = React.useState('Overview');   // bottom tabs — full screen only
   const toggleFull = () => setIsFull(f => !f);
   React.useEffect(() => {
-    if (!isFull) { setFullRect(null); setDashTab('Supply chain'); return; }
+    if (!isFull) { setFullRect(null); setDashTab('Overview'); return; }
     const compute = () => {
       const main = document.getElementById('vm-main');
       const r = main && main.getBoundingClientRect();
@@ -225,9 +225,9 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
   // the bottom; selecting one renders that company's matching dashboard view inline,
   // right here, from the exact same data (resolveCompany) the dashboard uses.
   const principleCo = VM_COMPANIES.find(c => c.ticker === data.ticker) || { ticker:data.ticker, name:data.name, sector:'—' };
-  const DASH_TABS = ['Overview','Supply chain','Financials','Patents','History','News'];
+  const DASH_TABS = ['Overview','Financials','Patents','History','News'];   // Supply chain = the map itself (always shown), so not a tab
   // The map always shows; on a non-map tab the dashboard view stacks BELOW it (scroll down).
-  const dashData = (isFull && dashTab !== 'Supply chain') ? resolveCompany(data.ticker) : null;
+  const dashData = isFull ? resolveCompany(data.ticker) : null;
 
   // The drill trail (AAPL › TSM › …) — shown above the canvas, and again inside the
   // canvas in full screen (where the page-level trail is hidden by the overlay).
@@ -506,7 +506,7 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
             {dashTab === 'Financials' && <DashFinancials data={dashData.financials} />}
             {dashTab === 'Patents'    && <DashPatents    data={dashData.patents} />}
             {dashTab === 'History'    && <DashHistory    c={principleCo} data={dashData.history} />}
-            {dashTab === 'News'       && <DashNews       c={principleCo} go={go} />}
+            {dashTab === 'News'       && <DashNews       c={principleCo} go={go} scn={true} />}
           </div>
         )}
       </div>

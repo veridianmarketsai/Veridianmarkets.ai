@@ -22,17 +22,113 @@ function Dashboard({ company, go, isMobile }) {
 
 // ── News ──────────────────────────────────────────────────────────────────────
 // Company-specific news; reuses the News page's card + article overlay.
-function DashNews({ c, go, isMobile }) {
+// In the dependency-map context (scn=true) it gains a two-tier filter that mirrors
+// the map: two key sides (Upstream supply / Customers demand), each with
+// sub-categories. (Mock data — these tags will come from the database later.)
+const DNEWS_GROUPS = [
+  { id: 'up',   label: 'Upstream',  subs: [
+    { id: 'principal',     label: 'Principal news' },
+    { id: 'manufacturing', label: 'Manufacturing' },
+    { id: 'commodity',     label: 'Commodity' },
+    { id: 'materials',     label: 'Materials' },
+    { id: 'geopolitics',   label: 'Geopolitics' },
+  ] },
+  { id: 'down', label: 'Customers', subs: [
+    { id: 'carriers',     label: 'Mobile carriers' },
+    { id: 'retail',       label: 'Electronics retail' },
+    { id: 'warehouse',    label: 'Warehouse clubs' },
+    { id: 'online',       label: 'Online resellers' },
+    { id: 'distributors', label: 'Distributors' },
+  ] },
+];
+const DNEWS_ITEMS = [
+  // upstream · principal
+  { side:'up', sub:'principal', cat:'Principal', kicker:'AAPL · ANALOGUE', source:'The Ledger', time:'4h ago', ticker:'AAPL',
+    headline:'Apple’s services pivot draws the MSFT-2014 comparison again.', summary:'Capital-light, margin-expanding, re-rating slowly — the closest historical match still reads constructive, with caveats on China.' },
+  { side:'up', sub:'principal', cat:'Principal', kicker:'AAPL · PRODUCT', source:'Veridian', time:'9h ago', ticker:'AAPL',
+    headline:'The iPhone cycle lengthens — echoes of the 2016 plateau.', summary:'Upgrade cadence stretches as the installed base matures; the install-base annuity is the story, not unit growth.' },
+  // upstream · manufacturing
+  { side:'up', sub:'manufacturing', cat:'Manufacturing', kicker:'TSM · FOUNDRY', source:'Veridian', time:'5h ago', ticker:'TSM',
+    headline:'TSMC’s 2nm ramp tightens the leading-edge supply.', summary:'Capacity is spoken for years out; pricing power sits upstream. The fabless model’s oldest dependency, revisited.' },
+  { side:'up', sub:'manufacturing', cat:'Manufacturing', kicker:'FOXCONN · ASSEMBLY', source:'The Ledger', time:'11h ago', ticker:'2317.TW',
+    headline:'Foxconn shifts more assembly to India.', summary:'Diversification away from a single geography — slow, costly, strategically overdue. A 1990s-style supply migration.' },
+  { side:'up', sub:'manufacturing', cat:'Logistics', kicker:'MAERSK · FREIGHT', source:'Bretton House', time:'1d ago', ticker:'MAERSK',
+    headline:'Container rates spike as Red Sea reroutes persist.', summary:'Longer routes, higher costs — logistics re-enters the margin conversation the way it did in 2021.' },
+  // upstream · commodity
+  { side:'up', sub:'commodity', cat:'Commodity', kicker:'OIL · 5-YEAR LENS', source:'Veridian', time:'2h ago', ticker:'XOM',
+    headline:'Oil at $78 feeds into freight and input costs.', summary:'Energy is the quiet variable in every hardware bill of materials. Past spikes were less dramatic than the headlines.' },
+  // upstream · materials
+  { side:'up', sub:'materials', cat:'Materials', kicker:'RARE EARTH · MP', source:'Bretton House', time:'7h ago', ticker:'MP',
+    headline:'Rare-earth magnets back in the policy crosshairs.', summary:'Concentrated supply, strategic demand — the materials layer is where geopolitics meets the bill of materials.' },
+  { side:'up', sub:'materials', cat:'Materials', kicker:'LITHIUM · ALB', source:'Veridian', time:'13h ago', ticker:'ALB',
+    headline:'Lithium prices base after a brutal de-stocking.', summary:'The cure for low prices is low prices; the cycle rhymes with past commodity troughs.' },
+  // upstream · geopolitics
+  { side:'up', sub:'geopolitics', cat:'Geopolitics', kicker:'CHINA · EXPORT CONTROLS', source:'Bretton House', time:'3h ago',
+    headline:'New chip export controls ripple up the supply chain.', summary:'Each tightening reshapes where things get made. The cost is paid in inventory and lead times, not headlines.' },
+  { side:'up', sub:'geopolitics', cat:'Geopolitics', kicker:'TARIFFS · TRADE', source:'The Ledger', time:'15h ago',
+    headline:'Tariff threats revive the reshoring debate.', summary:'A 1980s-style trade fight, re-staged. The map of dependencies is the real exposure, not the ticker.' },
+  // customers
+  { side:'down', sub:'carriers', cat:'Mobile carriers', kicker:'CARRIERS · DEMAND', source:'Veridian', time:'6h ago', ticker:'TMUS',
+    headline:'Carrier promo intensity cools — a tailwind for handset margins.', summary:'Subsidy discipline at the big three shapes the upgrade pulse downstream. Demand-side oxygen for the principle.' },
+  { side:'down', sub:'retail', cat:'Electronics retail', kicker:'RETAIL · BBY', source:'The Ledger', time:'10h ago', ticker:'BBY',
+    headline:'Electronics retail stabilises after the pandemic hangover.', summary:'Best Buy’s footfall normalises; the channel read-through is steadier sell-through, not a boom.' },
+  { side:'down', sub:'warehouse', cat:'Warehouse clubs', kicker:'WAREHOUSE · COST', source:'Veridian', time:'12h ago', ticker:'COST',
+    headline:'Costco’s membership engine keeps humming.', summary:'A warehouse-club channel that sells volume on thin markup — a different demand signal than premium retail.' },
+  { side:'down', sub:'online', cat:'Online resellers', kicker:'ONLINE · AMZN', source:'Bretton House', time:'1d ago', ticker:'AMZN',
+    headline:'Marketplace pricing pressure tests brand control.', summary:'Online resale widens reach but compresses pricing discipline; the 2010s channel-conflict question, again.' },
+  { side:'down', sub:'distributors', cat:'Distributors', kicker:'DISTRIBUTION · CHANNEL', source:'The Ledger', time:'1d ago',
+    headline:'Distributor inventories run lean into the cycle.', summary:'Lean channels mean less cushion but cleaner signals — the bullwhip works both ways.' },
+];
+
+function DashNews({ c, go, isMobile, scn }) {
   const [article, setArticle] = React.useState(null);
-  const tagged = NEWS.filter(n => n.ticker === c.ticker);
-  const list = tagged.length ? tagged : NEWS.slice(0, 4);   // fallback to general market stories
-  const openTicker = (t) => { const co = VM_COMPANIES.find(x => x.ticker === t); if (co) go('dashboard', co); };
+  const [nkey, setNkey] = React.useState('all');   // 'all' | 'up' | 'down'
+  const [nsub, setNsub] = React.useState('all');
+  const openTicker = (t) => { const co = VM_COMPANIES.find(x => x.ticker === t); if (co) go && go('dashboard', co); };
+
+  let list;
+  if (scn) {
+    list = DNEWS_ITEMS;
+    if (nkey !== 'all') list = list.filter(n => n.side === nkey);
+    if (nkey !== 'all' && nsub !== 'all') list = list.filter(n => n.sub === nsub);
+  } else {
+    const tagged = NEWS.filter(n => n.ticker === c.ticker);
+    list = tagged.length ? tagged : NEWS.slice(0, 4);   // fallback to general market stories
+  }
+  const activeGroup = DNEWS_GROUPS.find(g => g.id === nkey);
+  const subChip = (on) => ({ fontFamily: VM.mono, fontSize: 10, letterSpacing: '0.03em', textTransform: 'uppercase',
+    padding: '4px 11px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap',
+    border: `1px solid ${on ? VM.forest : VM.border}`, background: on ? VM.tealTint : VM.paper, color: on ? VM.forest : VM.ink3 });
+
   return (
     <div style={{ marginTop:24 }}>
-      <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>NEWS · {c.ticker}</Mono>
+      {!scn && <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>NEWS · {c.ticker}</Mono>}
       <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?22:28, margin:'0 0 4px' }}>What’s moving {c.name.split(' ')[0]}.</h2>
-      <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 18px' }}>{tagged.length ? `Stories tagged ${c.ticker}, read through the lens of the past.` : 'Latest market stories.'}</p>
+      <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 18px' }}>{scn ? 'Filtered by where it sits in the dependency map — upstream supply and downstream demand.' : 'Stories read through the lens of the past.'}</p>
+
+      {scn && (
+        <div style={{ marginBottom: 18 }}>
+          {/* two key filters */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Pill active={nkey === 'all'} onClick={() => { setNkey('all'); setNsub('all'); }}>All news</Pill>
+            {DNEWS_GROUPS.map(g => (
+              <Pill key={g.id} active={nkey === g.id} onClick={() => { setNkey(g.id); setNsub('all'); }}>{g.label}</Pill>
+            ))}
+          </div>
+          {/* sub-categories of the chosen key filter */}
+          {activeGroup && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+              <button onClick={() => setNsub('all')} style={subChip(nsub === 'all')}>All {activeGroup.label.toLowerCase()}</button>
+              {activeGroup.subs.map(s => (
+                <button key={s.id} onClick={() => setNsub(s.id)} style={subChip(nsub === s.id)}>{s.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap:16 }}>
+        {list.length === 0 && <Mono size={12} color={VM.ink3} style={{ padding: '8px 0' }}>No stories in this filter.</Mono>}
         {list.map((n,i) => <NewsCard key={i} n={n} onOpen={()=>setArticle(n)} />)}
       </div>
       {article && <ArticleModal article={article} onClose={()=>setArticle(null)} onTicker={openTicker} isMobile={isMobile} />}
@@ -126,9 +222,15 @@ function DashScn({ c, isMobile }) {
 
 // ── Financials ────────────────────────────────────────────────────────────────
 function DashFinancials({ data }) {
-  const [sheet, setSheet]   = React.useState('income');
-  const [period, setPeriod] = React.useState('annual');
+  const [sheet, setSheet]     = React.useState('income');
+  const [period, setPeriod]   = React.useState('annual');
+  const [showPct, setShowPct] = React.useState(false);   // %Δ — percentage change vs prior period
+  const [showAbs, setShowAbs] = React.useState(false);   // $Δ — absolute change vs prior period
+  const [legend, setLegend]   = React.useState(false);   // "reading the financials" popup
   const rows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheet];
+  const periods = data.periods;
+  const showDelta = showPct || showAbs;
+  const deltaCols = (showPct ? 1 : 0) + (showAbs ? 1 : 0);
 
   function fmt(v, fmtType) {
     if (fmtType === 'eps') return `$${Math.abs(v).toFixed(2)}`;
@@ -136,10 +238,35 @@ function DashFinancials({ data }) {
     const s   = abs >= 1000 ? `$${(abs/1000).toFixed(1)}B` : `$${abs.toFixed(0)}M`;
     return v < 0 ? `(${s})` : s;
   }
+  function fmtAbsDelta(diff, fmtType) {
+    const sign = diff < 0 ? '-' : '+';
+    if (fmtType === 'eps') return `${sign}$${Math.abs(diff).toFixed(2)}`;
+    const abs = Math.abs(diff);
+    const s   = abs >= 1000 ? `$${(abs/1000).toFixed(1)}B` : `$${abs.toFixed(0)}M`;
+    return `${sign}${s}`;
+  }
+  // negative → orange (terra), positive → green (teal), flat → muted.
+  const deltaColor = (x) => x < 0 ? VM.terra : (x > 0 ? VM.teal : VM.ink3);
+
+  // Column model: each period, with a Δ slot inserted between adjacent periods.
+  const cols = [];
+  periods.forEach((p, pi) => {
+    cols.push({ type:'period', label:p, pi });
+    if (showDelta && pi < periods.length - 1) cols.push({ type:'delta', newIdx:pi, oldIdx:pi + 1, range:`${periods[pi + 1]} → ${p}` });
+  });
+  const hair = `1px solid ${VM.borderHair}`;
+  const dPad = { padding:'7px 10px', textAlign:'right', whiteSpace:'nowrap', fontFamily:VM.mono, fontSize:11 };
+
+  // Grab-and-drag to scroll the (wide) table sideways with the mouse, like the ticker.
+  const scrollRef = React.useRef(null);
+  const dragRef = React.useRef(null);
+  const onDragDown = (e) => { const el = scrollRef.current; if (!el) return; dragRef.current = { x: e.clientX, sl: el.scrollLeft }; el.style.cursor = 'grabbing'; if (el.setPointerCapture) el.setPointerCapture(e.pointerId); };
+  const onDragMove = (e) => { if (!dragRef.current || !scrollRef.current) return; scrollRef.current.scrollLeft = dragRef.current.sl - (e.clientX - dragRef.current.x); };
+  const onDragUp = (e) => { if (!dragRef.current) return; dragRef.current = null; const el = scrollRef.current; if (el) { el.style.cursor = 'grab'; if (el.releasePointerCapture) el.releasePointerCapture(e.pointerId); } };
 
   return (
     <div style={{ marginTop:24 }}>
-      <div style={{ display:'flex', gap:0, marginBottom:20, borderBottom:`1px solid ${VM.borderSoft}` }}>
+      <div style={{ display:'flex', gap:0, flexWrap:'wrap', marginBottom:20, borderBottom:`1px solid ${VM.borderSoft}` }}>
         {[['income','Income statement'],['balance','Balance sheet'],['cashflow','Cash flow']].map(([id,lbl]) => (
           <span key={id} onClick={()=>setSheet(id)} style={{
             fontFamily:VM.serif, fontSize:14, padding:'6px 18px 10px', cursor:'pointer',
@@ -147,7 +274,17 @@ function DashFinancials({ data }) {
             borderBottom: sheet===id ? `2px solid ${VM.forest}` : '2px solid transparent', marginBottom:-1,
           }}>{lbl}</span>
         ))}
-        <div style={{ marginLeft:'auto', display:'flex', gap:6, alignItems:'center', paddingBottom:8 }}>
+        <div style={{ marginLeft:'auto', display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', paddingBottom:8 }}>
+          {/* change-vs-prior-period toggles (independent) */}
+          {[['pct','%Δ', showPct, setShowPct, 'Show % change vs prior period'],
+            ['abs','$Δ', showAbs, setShowAbs, 'Show $ change vs prior period']].map(([id,lbl,on,set,title]) => (
+            <button key={id} onClick={()=>set(v=>!v)} title={title} style={{
+              fontFamily:VM.mono, fontSize:11, fontWeight:700, padding:'4px 11px', borderRadius:5, cursor:'pointer',
+              border:`1px solid ${on ? VM.forest : VM.border}`,
+              background: on ? VM.forest : VM.paper, color: on ? VM.paperWarm : VM.ink3,
+            }}>{lbl}</button>
+          ))}
+          <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>
           {[['annual','Annual'],['quarterly','Quarterly']].map(([id,lbl]) => (
             <span key={id} onClick={()=>setPeriod(id)} style={{
               fontFamily:VM.mono, fontSize:10, padding:'4px 10px', borderRadius:5, cursor:'pointer',
@@ -155,19 +292,39 @@ function DashFinancials({ data }) {
               background: period===id ? VM.forest : VM.paper, color: period===id ? VM.paperWarm : VM.ink3,
             }}>{lbl}</span>
           ))}
+          <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>
+          <button onClick={()=>setLegend(true)} title="Legend — how to read this" style={{
+            display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
+            padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink2, cursor:'pointer' }}>
+            <i className="ti ti-key" style={{ fontSize:12 }}></i>Legend
+          </button>
         </div>
       </div>
-      <div style={{ overflowX:'auto' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
+      <div ref={scrollRef} onPointerDown={onDragDown} onPointerMove={onDragMove} onPointerUp={onDragUp} onPointerLeave={onDragUp} onPointerCancel={onDragUp}
+        style={{ overflowX:'auto', cursor:'grab', userSelect:'none', touchAction:'pan-y' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', minWidth: showDelta ? 760 : 600 }}>
           <thead>
-            <tr style={{ borderBottom:`1.5px solid ${VM.borderSoft}` }}>
-              <th style={{ textAlign:'left', padding:'6px 12px 8px', fontFamily:VM.mono, fontSize:9.5,
-                fontWeight:500, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.06em', width:'38%' }}>Breakdown</th>
-              {data.periods.map(p => (
-                <th key={p} style={{ textAlign:'right', padding:'6px 12px 8px', fontFamily:VM.mono, fontSize:9.5,
-                  fontWeight:500, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.06em' }}>{p}</th>
-              ))}
+            <tr style={{ borderBottom: showDelta ? 'none' : `1.5px solid ${VM.borderSoft}` }}>
+              <th rowSpan={showDelta ? 2 : 1} style={{ textAlign:'left', verticalAlign:'bottom', padding:'6px 12px 8px', fontFamily:VM.mono, fontSize:9.5,
+                fontWeight:500, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.06em', width: showDelta ? '24%' : '38%' }}>Breakdown</th>
+              {cols.map((col, ci) => col.type === 'period'
+                ? <th key={ci} rowSpan={showDelta ? 2 : 1} style={{ textAlign:'right', verticalAlign:'bottom', padding:'6px 12px 8px', fontFamily:VM.mono, fontSize:9.5,
+                    fontWeight:500, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.06em' }}>{col.label}</th>
+                : <th key={ci} colSpan={deltaCols} style={{ textAlign:'center', padding:'6px 10px 4px', fontFamily:VM.mono, fontSize:8.5,
+                    fontWeight:600, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap',
+                    background:VM.paperWarm, borderLeft:hair, borderRight:hair }}>{col.range}</th>
+              )}
             </tr>
+            {showDelta && (
+              <tr style={{ borderBottom:`1.5px solid ${VM.borderSoft}` }}>
+                {cols.filter(c => c.type === 'delta').map((col, di) => (
+                  <React.Fragment key={di}>
+                    {showPct && <th style={{ ...dPad, padding:'2px 10px 6px', fontSize:8.5, fontWeight:700, color:VM.ink3, background:VM.paperWarm, borderLeft:hair, ...(showAbs ? {} : { borderRight:hair }) }}>%Δ</th>}
+                    {showAbs && <th style={{ ...dPad, padding:'2px 10px 6px', fontSize:8.5, fontWeight:700, color:VM.ink3, background:VM.paperWarm, borderRight:hair, ...(showPct ? {} : { borderLeft:hair }) }}>$Δ</th>}
+                  </React.Fragment>
+                ))}
+              </tr>
+            )}
           </thead>
           <tbody>
             {rows.map((row, i) => (
@@ -177,20 +334,99 @@ function DashFinancials({ data }) {
                     ? <span style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>{row.k}</span>
                     : <span style={{ fontFamily:VM.serif, fontSize:13, fontWeight: row.b ? 700 : 400, color:VM.ink }}>{row.k}</span>}
                 </td>
-                {row.v.map((v, j) => (
-                  <td key={j} style={{ padding:'7px 12px', textAlign:'right', fontFamily:VM.mono, fontSize:12,
-                    color: v < 0 ? VM.downInk : (row.b ? VM.ink : VM.ink2), fontWeight: row.b ? 600 : 400 }}>
-                    {fmt(v, row.fmt)}
-                  </td>
-                ))}
+                {cols.map((col, ci) => {
+                  if (col.type === 'period') {
+                    const v = row.v[col.pi];
+                    return (
+                      <td key={ci} style={{ padding:'7px 12px', textAlign:'right', fontFamily:VM.mono, fontSize:12,
+                        color: v < 0 ? VM.downInk : (row.b ? VM.ink : VM.ink2), fontWeight: row.b ? 600 : 400 }}>
+                        {fmt(v, row.fmt)}
+                      </td>
+                    );
+                  }
+                  const nv = row.v[col.newIdx], ov = row.v[col.oldIdx];
+                  const diff = (nv == null || ov == null) ? null : nv - ov;
+                  const pct  = (diff == null || ov === 0) ? null : (diff / Math.abs(ov)) * 100;
+                  return (
+                    <React.Fragment key={ci}>
+                      {showPct && (
+                        <td style={{ ...dPad, fontWeight: row.b ? 700 : 500, color: pct == null ? VM.faint : deltaColor(pct), borderLeft:hair, ...(showAbs ? {} : { borderRight:hair }) }}>
+                          {pct == null ? '—' : `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`}
+                        </td>
+                      )}
+                      {showAbs && (
+                        <td style={{ ...dPad, fontWeight: row.b ? 700 : 500, color: diff == null ? VM.faint : deltaColor(diff), borderRight:hair, ...(showPct ? {} : { borderLeft:hair }) }}>
+                          {diff == null ? '—' : fmtAbsDelta(diff, row.fmt)}
+                        </td>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:10 }}>
-        All figures USD · illustrative mock data · not financial advice
+        All figures USD · illustrative mock data · not financial advice{showDelta ? ' · Δ vs prior period' : ''}
       </Mono>
+      {legend && <FinLegendModal onClose={()=>setLegend(false)} />}
+    </div>
+  );
+}
+
+// "Reading the financials" — legend popup for the statement table (rows, columns, buttons).
+function FinLegendModal({ onClose }) {
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const Section = ({ title, items }) => (
+    <React.Fragment>
+      <Label style={{ display:'block', margin:'16px 0 8px', color:VM.terra }}>{title}</Label>
+      {items.map(([k, d]) => (
+        <div key={k} style={{ display:'grid', gridTemplateColumns:'128px 1fr', gap:10, padding:'6px 0', borderBottom:`1px dotted ${VM.border}` }}>
+          <Mono size={11} weight={700} color={VM.ink}>{k}</Mono>
+          <span style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink2, lineHeight:1.45 }}>{d}</span>
+        </div>
+      ))}
+    </React.Fragment>
+  );
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:90, background:'rgba(31,29,26,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div onClick={(e)=>e.stopPropagation()} style={{ width:'100%', maxWidth:560, maxHeight:'85vh', overflowY:'auto', background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:14, boxShadow:'0 24px 60px rgba(31,29,26,0.3)' }}>
+        <div style={{ position:'sticky', top:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:`1px solid ${VM.borderSoft}`, background:VM.paperWarm }}>
+          <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+            <i className="ti ti-key" style={{ fontSize:16, color:VM.teal }}></i>
+            <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:17 }}>Reading the financials.</span>
+          </div>
+          <i className="ti ti-x" onClick={onClose} title="Close" style={{ fontSize:18, color:VM.ink3, cursor:'pointer' }}></i>
+        </div>
+        <div style={{ padding:'4px 18px 20px' }}>
+          <Section title="Statements (tabs)" items={[
+            ['Income statement', 'Revenue down to net income and EPS, for each period.'],
+            ['Balance sheet', 'What the company owns and owes at period end — assets, liabilities, equity.'],
+            ['Cash flow', 'Cash actually generated and used across the period.'],
+          ]} />
+          <Section title="Rows" items={[
+            ['Bold rows', 'Subtotals & totals (Gross profit, Operating income, Net income…).'],
+            ['Indented rows', 'Components that roll up into the bold total above them.'],
+            ['(Parentheses)', 'A negative figure or an outflow; shown in red.'],
+            ['$B / $M', 'Billions / millions of USD. EPS is per share, e.g. $6.51.'],
+          ]} />
+          <Section title="Columns" items={[
+            ['TTM', 'Trailing twelve months — the most recent rolling year.'],
+            ['FY2025…', 'Fiscal-year periods, most recent on the left.'],
+            ['%Δ / $Δ', 'Change vs the prior period. Green = up, orange = down. The merged header names the two periods compared.'],
+          ]} />
+          <Section title="Buttons" items={[
+            ['%Δ', 'Toggle the percentage-change column between periods.'],
+            ['$Δ', 'Toggle the dollar-change column between periods.'],
+            ['Annual / Quarterly', 'Switch the period basis.'],
+          ]} />
+        </div>
+      </div>
     </div>
   );
 }

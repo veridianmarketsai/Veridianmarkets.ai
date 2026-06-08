@@ -315,6 +315,18 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-08 (later)
+
+- **Dependency-map tabs, news filters, financials deltas, and a global AI assistant.**
+  The full-screen dependency map drops the redundant "Supply chain" tab and defaults
+  to Overview. Its **News** view gains a two-tier filter (Upstream supply vs Customer
+  demand, each with sub-categories). The **Financials** table adds **%Δ** and **$Δ**
+  toggles that insert change-vs-prior-period columns (green up / orange down) under a
+  merged range header, can be **dragged with the mouse** to scroll, and gets a
+  **Legend** popup. Plus a sticky bottom-right **AI assistant** bubble (a Times New
+  Roman "Q") that expands into an "Ask Veridian AI…" bar — placeholder for now, ready
+  for the Claude API. _(branch: `dependency-map-2.5`)_
+
 ### 2026-06-08
 
 - **Calendar: list view, legend, and month/week navigation.** The Calendar gains a

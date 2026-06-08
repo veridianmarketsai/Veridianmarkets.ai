@@ -65,6 +65,23 @@ placeholders until their page exists.
 - **Started `dependency-map-2.5`.** New branch (from main) for further updates to the
   Dependency map (`ScnLiveDemo.jsx`). (User said "dependancy map" → correct spelling,
   numbered 2.5 per the running counter; 2.2–2.4 already used.)
+- **Dependency-map tabs + News filters + Financials deltas + AI assistant (`dependency-map-2.5`). Merged to main + live.**
+  - **Full-screen map tabs:** removed the redundant "Supply chain" tab (the map is
+    always on top) and default-select **Overview** instead.
+  - **News (map view):** two-tier filter mirroring the map — key filters **Upstream**
+    (Principal/Manufacturing/Commodity/Materials/Geopolitics) and **Customers**
+    (carriers/retail/warehouse/online/distributors), each with sub-category chips;
+    driven by a categorized mock set (`DNEWS_GROUPS`/`DNEWS_ITEMS`). Gated by an `scn`
+    prop so the plain dashboard News tab is unchanged; removed the duplicate kicker.
+  - **Financials:** new **%Δ** and **$Δ** toggle buttons → change-vs-prior-period
+    columns inserted between periods, with a two-row merged header (range on top,
+    %Δ/$Δ below). Negative = orange, positive = green. The (wide) table is now
+    **drag-to-scroll** with the mouse. Added a **Legend** popup ("Reading the
+    financials" — statements/rows/columns/buttons), key-icon, like the Calendar one.
+  - **AI assistant:** global sticky **dark-green bubble** bottom-right that expands
+    left into an "Ask Veridian AI…" bar (the icon is a **Times New Roman "Q"**; send
+    arrow once typing). Placeholder responder — `TODO(Phase 3)` marks the Claude API
+    call. Sits above the mobile Download-App bar.
 
 - **Started `calendar-update-2.4`.** New branch (from main) for calendar work.
   (User asked for "calendarupdate2.2"; 2.2/2.3 already used, so numbered 2.4 per
@@ -408,7 +425,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `calendar-update-2.4` (Calendar List view + Legend + month/week navigation; **merged to main + live**). Previous: `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `dependency-map-2.5` (map tabs + News filters + Financials %Δ/$Δ deltas + legend + global AI assistant; **merged to main + live**). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -416,7 +433,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.6`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `dependency-map-2.5` (further updates to the Dependency map / supply-chain view; user said "dependancy map" — used correct spelling, numbered 2.5 per the running counter).
+**Next free iteration: `<code-name>-2.6`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `dependency-map-2.5` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
