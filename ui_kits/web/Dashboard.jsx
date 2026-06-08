@@ -1,21 +1,25 @@
 // Veridian Markets — Company dashboard.
 // resolveCompany() is called once here; all tabs receive data as props.
 // No tab reads VM_COMPANY_DATA or any VM_ global directly.
-function Dashboard({ company, go, isMobile }) {
+function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
   const c    = company || VM_COMPANIES[0];
   const data = resolveCompany(c.ticker);
-  const [tab, setTab] = React.useState('Overview');
+  // Tab is lifted to the app so the breadcrumb trail can record it; fall back to
+  // local state if a parent doesn't supply it.
+  const [tabLocal, setTabLocal] = React.useState('Overview');
+  const curTab = tab || tabLocal;
+  const setTab = onTabChange || setTabLocal;
 
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '22px 32px 60px', maxWidth:1180, margin:'0 auto', overflowX: isMobile ? 'hidden' : 'visible' }}>
-      <CompanyHead c={c} tab={tab} onTabChange={setTab} go={go} isMobile={isMobile} />
+      <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} />
 
-      {tab === 'Overview'     && <DashOverview   c={c} data={data} isMobile={isMobile} />}
-      {tab === 'Supply chain' && <DashScn        c={c} isMobile={isMobile} />}
-      {tab === 'Financials'   && <DashFinancials data={data.financials} />}
-      {tab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
-      {tab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
-      {tab === 'News'         && <DashNews        c={c} go={go} isMobile={isMobile} />}
+      {curTab === 'Overview'     && <DashOverview   c={c} data={data} isMobile={isMobile} />}
+      {curTab === 'Supply chain' && <DashScn        c={c} go={go} isMobile={isMobile} />}
+      {curTab === 'Financials'   && <DashFinancials data={data.financials} />}
+      {curTab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
+      {curTab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
+      {curTab === 'News'         && <DashNews        c={c} go={go} isMobile={isMobile} />}
     </div>
   );
 }
@@ -212,10 +216,10 @@ function DashOverview({ c, data, isMobile }) {
 }
 
 // ── Supply chain ──────────────────────────────────────────────────────────────
-function DashScn({ c, isMobile }) {
+function DashScn({ c, go, isMobile }) {
   return (
     <div style={{ marginTop:16 }}>
-      <ScnLiveDemo compact={true} initialTicker={c.ticker} isMobile={isMobile} />
+      <ScnLiveDemo go={go} compact={true} initialTicker={c.ticker} isMobile={isMobile} />
     </div>
   );
 }
@@ -266,15 +270,17 @@ function DashFinancials({ data }) {
 
   return (
     <div style={{ marginTop:24 }}>
-      <div style={{ display:'flex', gap:0, flexWrap:'wrap', marginBottom:20, borderBottom:`1px solid ${VM.borderSoft}` }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', columnGap:14, rowGap:8, marginBottom:20 }}>
+        <div style={{ display:'flex', flex:'1 1 240px', borderBottom:`1px solid ${VM.borderSoft}` }}>
         {[['income','Income statement'],['balance','Balance sheet'],['cashflow','Cash flow']].map(([id,lbl]) => (
           <span key={id} onClick={()=>setSheet(id)} style={{
-            fontFamily:VM.serif, fontSize:14, padding:'6px 18px 10px', cursor:'pointer',
+            fontFamily:VM.serif, fontSize:14, padding:'6px 16px 10px', cursor:'pointer', whiteSpace:'nowrap',
             color: sheet===id ? VM.ink : VM.ink3, fontWeight: sheet===id ? 700 : 400,
             borderBottom: sheet===id ? `2px solid ${VM.forest}` : '2px solid transparent', marginBottom:-1,
           }}>{lbl}</span>
         ))}
-        <div style={{ marginLeft:'auto', display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', paddingBottom:8 }}>
+        </div>
+        <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', paddingBottom:8 }}>
           {/* change-vs-prior-period toggles (independent) */}
           {[['pct','%Δ', showPct, setShowPct, 'Show % change vs prior period'],
             ['abs','$Δ', showAbs, setShowAbs, 'Show $ change vs prior period']].map(([id,lbl,on,set,title]) => (

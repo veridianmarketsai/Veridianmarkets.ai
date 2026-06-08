@@ -38,6 +38,14 @@ const VM_COMPANIES = [
   { ticker:'AVGO', name:'Broadcom Inc.',      sector:'Tech · Semiconductors', cap:'$623B',  price:'1342.0', chg:'+2.10%', dir:'up',   sub:'Semis + software',       analogue:'TXN',  analogueYear:'2010', match:57 },
   { ticker:'JPM',  name:'JPMorgan Chase',     sector:'Finance · Banking',     cap:'$615B',  price:'215.40', chg:'+0.18%', dir:'up',   sub:'Universal bank',         analogue:'WFC',  analogueYear:'2006', match:44 },
   { ticker:'V',    name:'Visa Inc.',          sector:'Finance · Payments',    cap:'$560B',  price:'275.18', chg:'+0.55%', dir:'up',   sub:'Payment rails',          analogue:'MA',   analogueYear:'2012', match:66 },
+
+  // Indices / commodities / forex — added for testing the search list (not equities).
+  { ticker:'SPX',    name:'S&P 500 Index',     sector:'Index · US large-cap',  cap:'—', price:'5,247.10', chg:'+0.42%', dir:'up',   sub:'US 500 large-caps',   analogue:'1995', analogueYear:'1995', match:61 },
+  { ticker:'GOLD',   name:'Gold · spot',       sector:'Commodity · Metals',    cap:'—', price:'2,341',    chg:'+0.88%', dir:'up',   sub:'Safe-haven metal',    analogue:'1979', analogueYear:'1979', match:58 },
+  { ticker:'WTI',    name:'Crude Oil · WTI',   sector:'Commodity · Energy',    cap:'—', price:'78.14',    chg:'+1.40%', dir:'up',   sub:'US benchmark crude',  analogue:'1973', analogueYear:'1973', match:53 },
+  { ticker:'EURUSD', name:'Euro / US Dollar',  sector:'Forex · Majors',        cap:'—', price:'1.0842',   chg:'-0.09%', dir:'down', sub:'EUR/USD spot',        analogue:'2002', analogueYear:'2002', match:47 },
+  { ticker:'GBPUSD', name:'Pound / US Dollar', sector:'Forex · Majors',        cap:'—', price:'1.2710',   chg:'-0.12%', dir:'down', sub:'GBP/USD spot',        analogue:'1992', analogueYear:'1992', match:45 },
+  { ticker:'USDJPY', name:'US Dollar / Yen',   sector:'Forex · Majors',        cap:'—', price:'156.30',   chg:'+0.21%', dir:'up',   sub:'USD/JPY spot',        analogue:'1998', analogueYear:'1998', match:49 },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

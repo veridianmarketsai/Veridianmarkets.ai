@@ -120,18 +120,130 @@ const SCN_DB = {
       {id:'META', name:'Meta Platforms', ticker:'META', group:'cloud', role:'AWS infrastructure', note:'Partial cloud workloads', risk:'Multi-cloud hedging'},
     ]
   },
+
+  // ── Non-equities: creative, asset-class-specific maps ──────────────────────
+  // Commodities/forex reuse the bipartite map but with their own group labels:
+  // left = what it takes to produce it, right = the SECTORS that consume it.
+  GOLD: {
+    name:'Gold · spot', ticker:'GOLD', meta:'COMMODITY · PRECIOUS METAL', mode:'commodity',
+    leftLabel:'Extraction & supply', rightLabel:'Consuming sectors',
+    supGroups:[
+      {id:'producer',  label:'Producers'},
+      {id:'energy',    label:'Energy & power'},
+      {id:'reagents',  label:'Reagents'},
+      {id:'equipment', label:'Equipment'},
+      {id:'capital',   label:'Capital & labour'},
+    ],
+    custGroups:[
+      {id:'jewellery',  label:'Jewellery'},
+      {id:'investment', label:'Investment'},
+      {id:'official',   label:'Central banks'},
+      {id:'technology', label:'Technology'},
+      {id:'industrial', label:'Industrial'},
+    ],
+    inputs:[
+      {id:'NEM', name:'Newmont',            ticker:'NEM', group:'producer',  cat:'a', role:'Largest producer',  note:'Primary mined supply'},
+      {id:'AEM', name:'Agnico Eagle',       ticker:'AEM', group:'producer',  cat:'a', role:'Tier-one mines',    note:'North America'},
+      {id:'ABX', name:'Barrick / AngloGold',ticker:'—',   group:'producer',  cat:'a', role:'Major producers',   note:'Mined output'},
+      {id:'PWR', name:'Diesel & grid power',ticker:'—',   group:'energy',    cat:'b', role:'Energy-intensive',  note:'~1/3 of cash cost'},
+      {id:'CYN', name:'Cyanide & lime',     ticker:'—',   group:'reagents',  cat:'b', role:'Ore leaching',      note:'Heap-leach extraction'},
+      {id:'CAT', name:'Haul trucks & drills',ticker:'CAT',group:'equipment', cat:'b', role:'Mining equipment',  note:'Caterpillar, Komatsu'},
+      {id:'LAB', name:'Labour & financing', ticker:'—',   group:'capital',   cat:'b', role:'Capital-intensive', note:'Mine development'},
+    ],
+    customers:[
+      {id:'JWL', name:'Jewellery demand',      ticker:'—', group:'jewellery',  role:'~45% of demand', note:'India & China led'},
+      {id:'INV', name:'Bars, coins & ETFs',    ticker:'—', group:'investment', role:'~25% of demand', note:'Safe-haven flows'},
+      {id:'CB',  name:'Central-bank reserves', ticker:'—', group:'official',   role:'~23% of demand', note:'Official buying'},
+      {id:'TEC', name:'Electronics & semis',   ticker:'—', group:'technology', role:'Conductive contacts', note:'Bonding wire'},
+      {id:'IND', name:'Dentistry & catalysis', ticker:'—', group:'industrial', role:'Industrial uses', note:'Small share'},
+    ],
+  },
+  WTI: {
+    name:'Crude Oil · WTI', ticker:'WTI', meta:'COMMODITY · ENERGY', mode:'commodity',
+    leftLabel:'Production & supply', rightLabel:'Consuming sectors',
+    supGroups:[
+      {id:'producer',  label:'Producers'},
+      {id:'opec',      label:'OPEC+'},
+      {id:'services',  label:'Oilfield services'},
+      {id:'transport', label:'Transport'},
+    ],
+    custGroups:[
+      {id:'transport',  label:'Transportation'},
+      {id:'petrochem',  label:'Petrochemicals'},
+      {id:'power',      label:'Power & heating'},
+      {id:'industrial', label:'Industrial'},
+    ],
+    inputs:[
+      {id:'XOM',  name:'ExxonMobil',        ticker:'XOM', group:'producer',  cat:'a', role:'Integrated major', note:'Upstream output'},
+      {id:'CVX',  name:'Chevron',           ticker:'CVX', group:'producer',  cat:'a', role:'Integrated major', note:'Permian focus'},
+      {id:'OPEC', name:'OPEC+ quotas',      ticker:'—',   group:'opec',      cat:'b', role:'Supply discipline', note:'Sets the floor'},
+      {id:'SLB',  name:'SLB (Schlumberger)',ticker:'SLB', group:'services',  cat:'a', role:'Drilling & completion', note:'Service intensity'},
+      {id:'PIPE', name:'Pipelines & tankers',ticker:'—',  group:'transport', cat:'b', role:'Midstream logistics', note:'Cushing hub'},
+    ],
+    customers:[
+      {id:'TRAN', name:'Gasoline, diesel & jet', ticker:'—', group:'transport',  role:'~60% of demand', note:'Road & air'},
+      {id:'PCH',  name:'Plastics & chemicals',   ticker:'—', group:'petrochem',  role:'Feedstock',      note:'Naphtha, ethylene'},
+      {id:'HEAT', name:'Heating & power',        ticker:'—', group:'power',      role:'Heating oil',    note:'Seasonal'},
+      {id:'AILU', name:'Asphalt & lubricants',   ticker:'—', group:'industrial', role:'Industrial uses', note:'Residuals'},
+    ],
+  },
+  EURUSD: {
+    name:'Euro / US Dollar', ticker:'EURUSD', meta:'FOREX · MAJOR PAIR', mode:'forex',
+    leftLabel:'What moves it', rightLabel:'Where it flows',
+    supGroups:[
+      {id:'policy',    label:'Monetary policy'},
+      {id:'inflation', label:'Inflation'},
+      {id:'growth',    label:'Growth'},
+      {id:'risk',      label:'Risk sentiment'},
+    ],
+    custGroups:[
+      {id:'trade',    label:'Trade settlement'},
+      {id:'reserves', label:'Reserves'},
+      {id:'tourism',  label:'Tourism & remittance'},
+      {id:'specs',    label:'Speculation'},
+    ],
+    inputs:[
+      {id:'RATES', name:'Fed vs ECB rate gap', ticker:'—', group:'policy',    cat:'a', role:'Rate differential', note:'Drives carry & flows'},
+      {id:'CPI',   name:'US–EZ inflation gap', ticker:'—', group:'inflation', cat:'b', role:'Real-yield driver',  note:'Policy expectations'},
+      {id:'GDP',   name:'Growth differential', ticker:'—', group:'growth',    cat:'b', role:'Relative momentum',  note:'PMIs, jobs'},
+      {id:'RISK',  name:'Risk-on / risk-off',  ticker:'—', group:'risk',      cat:'b', role:'Dollar haven bid',   note:'The “USD smile”'},
+    ],
+    customers:[
+      {id:'TRD', name:'Cross-border trade', ticker:'—', group:'trade',    role:'Invoicing & settlement', note:'EU–US flows'},
+      {id:'RES', name:'FX reserves',        ticker:'—', group:'reserves', role:'Central-bank holdings',  note:'EUR ~20% of reserves'},
+      {id:'TUR', name:'Tourism & remittance',ticker:'—',group:'tourism',  role:'Retail flows',           note:'Seasonal'},
+      {id:'SPC', name:'Carry & speculation',ticker:'—', group:'specs',    role:'Leveraged positioning',  note:'The most-traded pair'},
+    ],
+  },
+  // Indices get a "family tree" of constituents instead of a supply chain.
+  SPX: {
+    name:'S&P 500 Index', ticker:'SPX', meta:'INDEX · US LARGE-CAP', mode:'index',
+    constituents:[
+      {sector:'Information Technology',   weight:'31%',  members:[{t:'AAPL',n:'Apple',w:'7.0%'},{t:'MSFT',n:'Microsoft',w:'6.5%'},{t:'NVDA',n:'NVIDIA',w:'6.1%'},{t:'AVGO',n:'Broadcom',w:'1.6%'}]},
+      {sector:'Communication Services',   weight:'9%',   members:[{t:'GOOGL',n:'Alphabet',w:'4.0%'},{t:'META',n:'Meta',w:'2.6%'}]},
+      {sector:'Consumer Discretionary',   weight:'10%',  members:[{t:'AMZN',n:'Amazon',w:'3.9%'},{t:'TSLA',n:'Tesla',w:'1.4%'}]},
+      {sector:'Financials',               weight:'13%',  members:[{t:'BRK.B',n:'Berkshire',w:'1.7%'},{t:'JPM',n:'JPMorgan',w:'1.3%'},{t:'V',n:'Visa',w:'1.0%'}]},
+      {sector:'Health Care',              weight:'12%',  members:[{t:'LLY',n:'Eli Lilly',w:'1.4%'},{t:'UNH',n:'UnitedHealth',w:'1.1%'},{t:'JNJ',n:'J&J',w:'0.8%'}]},
+      {sector:'Industrials',              weight:'8%',   members:[{t:'CAT',n:'Caterpillar',w:'0.5%'},{t:'GE',n:'GE Aerospace',w:'0.5%'},{t:'HON',n:'Honeywell',w:'0.4%'}]},
+      {sector:'Consumer Staples',         weight:'6%',   members:[{t:'WMT',n:'Walmart',w:'0.7%'},{t:'COST',n:'Costco',w:'0.8%'},{t:'PG',n:'P&G',w:'0.7%'}]},
+      {sector:'Energy',                   weight:'4%',   members:[{t:'XOM',n:'ExxonMobil',w:'0.9%'},{t:'CVX',n:'Chevron',w:'0.6%'}]},
+      {sector:'Utilities',                weight:'2.5%', members:[{t:'NEE',n:'NextEra',w:'0.3%'}]},
+      {sector:'Materials',                weight:'2.2%', members:[{t:'LIN',n:'Linde',w:'0.4%'}]},
+      {sector:'Real Estate',              weight:'2.2%', members:[{t:'PLD',n:'Prologis',w:'0.3%'}]},
+    ],
+  },
 };
 
 // Resolve a principle by key; build a generic placeholder for nodes without their own entry.
 function scnGet(id) {
   if (SCN_DB[id]) return SCN_DB[id];
   for (const k in SCN_DB) {
-    for (const n of [...SCN_DB[k].inputs, ...SCN_DB[k].customers]) {
+    for (const n of [...(SCN_DB[k].inputs || []), ...(SCN_DB[k].customers || [])]) {
       if (n.id === id || n.ticker === id) {
         if (SCN_DB[n.ticker]) return SCN_DB[n.ticker];
         return { name:n.name, ticker:n.ticker, meta:'MARKET · EQUITY', generic:true,
-          inputs:[{id:'g1', name:'Upstream dependencies', ticker:'—', cat:'a', role:'Supply chain', note:'Data not yet loaded', risk:'—'}],
-          customers:[{id:'g2', name:'End markets', ticker:'—', role:'Distribution channels', note:'Data not yet loaded', risk:'—'}] };
+          inputs:[{id:'g1', name:'Upstream suppliers', ticker:'—', group:'company', cat:'a', role:'Supply chain', note:'Detailed map not yet loaded', risk:'—'}],
+          customers:[{id:'g2', name:'End markets', ticker:'—', group:'distributor', role:'Distribution channels', note:'Detailed map not yet loaded', risk:'—'}] };
       }
     }
   }
@@ -139,6 +251,71 @@ function scnGet(id) {
 }
 
 const SCN = { blue:'#185FA5', blueLine:'#378ADD', coral:'#C0563B', tealLine:'#1D9E75', cust:'#0F6E56' };
+
+// Index "family tree" — the index at top, then constituents grouped by sector.
+// Tapping a constituent pops the company up in a preview (tabs: Overview, Supply
+// chain, Financials, Patents, History) with an "Open dashboard" button.
+function ScnIndexTree({ data, go, isMobile }) {
+  const [preview, setPreview] = React.useState(null);   // company being previewed (popup)
+  React.useEffect(() => {
+    if (!preview) return;
+    const onKey = (e) => { if (e.key === 'Escape') setPreview(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [preview]);
+  return (
+    <div style={{ marginTop:14 }}>
+      {/* the index */}
+      <div style={{ borderRadius:13, background:VM.forest, padding: isMobile ? '16px 18px' : '18px 22px', textAlign:'center', marginBottom:18 }}>
+        <div style={{ fontFamily:VM.mono, fontSize:8, color:'#9FE1CB', letterSpacing:'1px', textTransform:'uppercase', marginBottom:5 }}>{data.meta}</div>
+        <div style={{ fontFamily:VM.serif, fontSize: isMobile ? 22 : 26, fontWeight:600, color:'#E1F5EE', lineHeight:1.2 }}>{data.name}</div>
+        <div style={{ fontFamily:VM.mono, fontSize:9.5, color:'#5DCAA5', marginTop:4 }}>{data.ticker} · the index · 500 constituents</div>
+      </div>
+      <div style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', marginBottom:10 }}>Family tree · by GICS sector · tap a company to preview</div>
+      {data.constituents.map((s, i) => (
+        <div key={i} style={{ marginBottom:14 }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:7 }}>
+            <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:15, color:VM.ink }}>{s.sector}</span>
+            <Mono size={10} color={VM.terra} weight={700}>{s.weight}</Mono>
+            <span style={{ flex:1, height:1, background:VM.borderSoft }}></span>
+          </div>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            {s.members.map(m => {
+              const co = VM_COMPANIES.find(x => x.ticker === m.t);
+              return (
+                <button key={m.t} onClick={()=> co && setPreview(co)} title={co ? `Preview ${m.t}` : m.n}
+                  style={{ display:'inline-flex', alignItems:'baseline', gap:6, padding:'7px 11px', borderRadius:8,
+                    border:`1px solid ${VM.border}`, background:VM.paper, cursor: co ? 'pointer' : 'default' }}>
+                  <Mono size={11.5} weight={700} color={VM.ink}>{m.t}</Mono>
+                  <span style={{ fontFamily:VM.serif, fontSize:12, color:VM.ink3 }}>{m.n}</span>
+                  <Mono size={9.5} color={VM.ink3}>{m.w}</Mono>
+                  {co && <i className="ti ti-eye" style={{ fontSize:12, color:VM.teal, alignSelf:'center' }}></i>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:6 }}>Top names by weight · a 500-name index · illustrative mock data</Mono>
+
+      {/* company preview popup */}
+      {preview && (
+        <div onClick={()=>setPreview(null)} style={{ position:'fixed', inset:0, zIndex:80, background:'rgba(31,29,26,0.45)',
+          display:'flex', alignItems:'flex-start', justifyContent:'center', padding: isMobile ? '12px' : '40px 20px', overflowY:'auto' }}>
+          <div onClick={(e)=>e.stopPropagation()} style={{ position:'relative', width:'100%', maxWidth:760, background:VM.paper,
+            borderRadius:16, boxShadow:'0 24px 60px rgba(31,29,26,0.3)', overflow:'hidden' }}>
+            <div style={{ display:'flex', justifyContent:'flex-end', padding:'8px 10px 0' }}>
+              <button onClick={()=>setPreview(null)} title="Close" style={{ width:30, height:30, borderRadius:999,
+                border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink2, cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}><i className="ti ti-x" style={{ fontSize:15 }}></i></button>
+            </div>
+            <Preview c={preview} onOpen={()=>{ const co = preview; setPreview(null); go && go('dashboard', co); }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
   const [history, setHistory] = React.useState([initialTicker || 'AAPL']);
@@ -174,10 +351,15 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
   }, [isFull]);
 
   const data = scnGet(current);
-  const inputs = data.inputs.filter(n =>
+  // Per-instrument groups + column labels (commodities/forex override the equity defaults).
+  const supGroups  = data.supGroups  || SCN_SUP_GROUPS;
+  const custGroups = data.custGroups || SCN_CUST_GROUPS;
+  const leftLabel  = data.leftLabel  || 'Inputs · dependencies';
+  const rightLabel = data.rightLabel || 'Customers · channels';
+  const inputs = (data.inputs || []).filter(n =>
     filter === 'companies' ? n.cat === 'a' :
     filter === 'external'  ? n.cat === 'b' : true);
-  const customers = data.customers;
+  const customers = data.customers || [];
 
   const measure = React.useCallback(() => {
     const canvas = mapRef.current, p = principleRef.current;
@@ -199,18 +381,30 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
     setPaths(out);
   });
 
-  React.useLayoutEffect(() => { nodeEls.current = {}; }, [current]);
+  // Stable handle to the latest measure() (it's re-created each render).
+  const measureRef = React.useRef(measure); measureRef.current = measure;
+  const remeasure = React.useCallback(() => { measureRef.current && measureRef.current(); }, []);
+
   // Re-measure on data/filter changes AND on entering/exiting fullscreen (layout
-  // moves). Double rAF so we measure after the fullscreen layout has settled.
+  // moves). Double rAF so we measure after layout + the new node refs have settled.
+  // (We do NOT clear nodeEls here — the ref callbacks add/remove entries themselves;
+  // clearing post-commit was wiping the freshly-set refs and dropping the arrows.)
   React.useLayoutEffect(() => {
-    const id = requestAnimationFrame(() => requestAnimationFrame(measure));
-    return () => cancelAnimationFrame(id);
-  }, [current, filter, isMobile, isFull, fullRect, dashTab]);
+    let raf2;
+    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(remeasure); });
+    return () => { cancelAnimationFrame(raf1); if (raf2) cancelAnimationFrame(raf2); };
+  }, [current, filter, isMobile, isFull, fullRect, dashTab, remeasure]);
+  // Robust against late layout shifts: re-measure on element/window resize and once
+  // web fonts finish loading (the node cards reflow when the fonts swap in).
   React.useEffect(() => {
-    const on = () => measure();
+    const on = () => remeasure();
     window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  });
+    let ro;
+    if (typeof ResizeObserver !== 'undefined' && canvasRef.current) { ro = new ResizeObserver(on); ro.observe(canvasRef.current); }
+    let cancelled = false;
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!cancelled) remeasure(); });
+    return () => { cancelled = true; window.removeEventListener('resize', on); if (ro) ro.disconnect(); };
+  }, [remeasure]);
 
   const drill = (n) => {
     setPreviewId(null);
@@ -265,7 +459,7 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
     const prevSide  = side === 'right' ? { right:'calc(100% + 12px)' } : { left:'calc(100% + 12px)' };
     const co = VM_COMPANIES.find(c => c.ticker === n.ticker);
     return (
-      <div key={n.id} ref={el => { if (el) nodeEls.current[n.id] = el; }}
+      <div key={n.id} ref={el => { if (el) nodeEls.current[n.id] = el; else delete nodeEls.current[n.id]; }}
         onMouseEnter={()=>setHovered(n.id)} onMouseLeave={()=>setHovered(h => h===n.id ? null : h)}
         onClick={()=>drill(n)}
         style={{ position:'relative', padding:'4px 10px', background: (hl || isPrev) ? VM.paperWarm : VM.paper,
@@ -365,6 +559,26 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
   // columns + principle inset down to clear it.
   const colInset = isFull ? { top:44, height:'calc(100% - 44px)' } : { top:0, height:'100%' };
 
+  // An index isn't a supply chain — render its family tree of constituents instead.
+  if (data.mode === 'index') {
+    return (
+      <div style={{ padding: compact ? '0' : (isMobile ? '14px 16px 80px' : '26px 32px 60px'), maxWidth:1180, margin:'0 auto' }}>
+        {!compact && <>
+          <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}><b style={{color:VM.ink}}>Index family tree</b></Mono>
+          <div style={{ marginTop:14 }}><Kicker>INDEX · CONSTITUENTS</Kicker></div>
+          <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 38, margin:'8px 0 6px' }}>{data.name}.</h1>
+          <p style={{ fontFamily:VM.serif, fontSize:16, color:VM.ink3, margin:'0 0 18px', maxWidth:640 }}>
+            An index isn’t a supply chain — it’s a basket. Here’s its <i>family tree</i>: the constituent companies, grouped by sector and weight.
+          </p>
+        </>}
+        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:14, minHeight:26 }}>
+          {renderCrumbs()}
+        </div>
+        <ScnIndexTree data={data} go={go} isMobile={isMobile} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: compact ? '0' : (isMobile ? '14px 16px 48px' : '26px 32px 60px'), maxWidth:1180, margin:'0 auto' }}>
       {!compact && <>
@@ -440,8 +654,8 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
 
         {/* left column — inputs / dependencies */}
         <div style={{ position:'absolute', left:18, width:colW, ...colInset, display:'flex', flexDirection:'column', justifyContent:'center', gap:5 }}>
-          <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase' }}>Inputs · dependencies</div>
-          {SCN_SUP_GROUPS.map((g, gi) => {
+          <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase' }}>{leftLabel}</div>
+          {supGroups.map((g, gi) => {
             const ns = inputs.filter(n => (n.group || (n.cat === 'a' ? 'company' : 'manufacturing')) === g.id);
             if (!ns.length) return null;
             return (
@@ -465,8 +679,8 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
 
         {/* right column — customers / channels */}
         <div style={{ position:'absolute', right:18, width:colW, ...colInset, display:'flex', flexDirection:'column', justifyContent:'center', gap:5 }}>
-          <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', textAlign:'right' }}>Customers · channels</div>
-          {SCN_CUST_GROUPS.map((g, gi) => {
+          <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', textAlign:'right' }}>{rightLabel}</div>
+          {custGroups.map((g, gi) => {
             const ns = customers.filter(n => n.group === g.id);
             if (!ns.length) return null;
             return (
@@ -524,8 +738,8 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
           </div>
 
           {/* inputs · dependencies */}
-          <div style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', marginBottom:6 }}>Inputs · dependencies</div>
-          {SCN_SUP_GROUPS.map(g => {
+          <div style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', marginBottom:6 }}>{leftLabel}</div>
+          {supGroups.map(g => {
             const ns = inputs.filter(n => (n.group || (n.cat === 'a' ? 'company' : 'manufacturing')) === g.id);
             if (!ns.length) return null;
             return (
@@ -537,8 +751,8 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
           })}
 
           {/* customers · channels */}
-          <div style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', margin:'22px 0 6px' }}>Customers · channels</div>
-          {SCN_CUST_GROUPS.map(g => {
+          <div style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', margin:'22px 0 6px' }}>{rightLabel}</div>
+          {custGroups.map(g => {
             const ns = customers.filter(n => n.group === g.id);
             if (!ns.length) return null;
             return (
