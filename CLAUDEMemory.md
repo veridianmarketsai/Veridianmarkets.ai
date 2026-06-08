@@ -60,6 +60,25 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-06-08
+
+- **Started `calendar-update-2.4`.** New branch (from main) for calendar work.
+  (User asked for "calendarupdate2.2"; 2.2/2.3 already used, so numbered 2.4 per
+  the restart-each-foundation running counter.)
+- **Calendar: List view, Legend popup, month + week/month navigation (`calendar-update-2.4`). Merged to main + live.**
+  - **Month / List toggle** in the filter row. **List** renders an economic-calendar
+    table (Date · Time · Region · Impact · Event · Actual · Forecast · Previous),
+    grouped by day, today tinted; mobile scrolls inside its box. Enriched
+    `CAL_EVENTS` with region/impact/forecast/previous (Actual = — until release).
+  - **Legend** button (key icon) → modal explaining every column, the Impact key
+    (High/Med/Low) and the event types — data-driven from `CAL_TYPES`/`CAL_IMPACT`
+    (`desc` added) + `CAL_COL_HELP`. Closes on ×/backdrop/Esc.
+  - **Month grid nav:** the ‹ › arrows now work (state `ym`); dynamic month label;
+    events stay in the June-2026 seed month; "Today" link to jump back.
+  - **List nav:** independent **Week / Month** window with ‹ › arrows + range label
+    ("June 2026" / "Jun 7 – Jun 13, 2026"); "Today" reset. All mock data still
+    seeded in June 2026 (events keyed by day), so other periods read empty.
+
 ### 2026-06-07
 
 - **Started `mobile-compatibility-2.3`.** New branch (from main) to continue the
@@ -385,7 +404,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `mobile-compatibility-2.3` (made every page mobile-compatible; **merged to main + live**). Previous: `supply-chain-live-2.2` (Dependency map + full-screen + broad mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live) and `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `calendar-update-2.4` (Calendar List view + Legend + month/week navigation; **merged to main + live**). Previous: `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -393,7 +412,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.4`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `mobile-compatibility-2.3` merged to main.
+**Next free iteration: `<code-name>-2.5`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `calendar-update-2.4` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
