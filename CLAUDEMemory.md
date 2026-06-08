@@ -60,6 +60,12 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-06-08
+
+- **Started `calendar-update-2.4`.** New branch (from main) for calendar work.
+  (User asked for "calendarupdate2.2"; 2.2/2.3 already used, so numbered 2.4 per
+  the restart-each-foundation running counter.)
+
 ### 2026-06-07
 
 - **Started `mobile-compatibility-2.3`.** New branch (from main) to continue the
@@ -393,7 +399,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.4`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `mobile-compatibility-2.3` merged to main.
+**Next free iteration: `<code-name>-2.5`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `calendar-update-2.4` (user typed "calendarupdate2.2" but 2.2=supply-chain-live and 2.3=mobile-compatibility, so used 2.4 per the running-counter / auto-increment rule).
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
