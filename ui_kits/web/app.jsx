@@ -100,6 +100,75 @@ function MobileAppCta() {
   );
 }
 
+// Floating AI assistant — a sticky dark-green "thinking bubble" at the bottom-right
+// that expands leftward into an "Ask Veridian AI" search bar. Placeholder responder
+// for now; the submit handler is where the Claude API call will go (Phase 3).
+function AiAssistant({ isMobile, bottom }) {
+  const [open, setOpen]     = useStateApp(false);
+  const [q, setQ]           = useStateApp('');
+  const [answer, setAnswer] = useStateApp(null);
+  const [busy, setBusy]     = useStateApp(false);
+  const inputRef = React.useRef(null);
+
+  const openIt = () => { setOpen(true); setTimeout(() => inputRef.current && inputRef.current.focus(), 80); };
+  const close  = () => setOpen(false);
+  const ask = () => {
+    const query = q.trim();
+    if (!query) { close(); return; }
+    setBusy(true); setAnswer(null);
+    // TODO(Phase 3): replace with a real Claude API call (history-led answer).
+    setTimeout(() => {
+      setBusy(false);
+      setAnswer(`Veridian AI is coming soon. I’ll answer “${query}” with history-led context — analogues, base rates, and what tends to happen next — powered by Claude.`);
+    }, 750);
+  };
+  useEffectApp(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') { setAnswer(null); close(); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  const hasQ = q.trim().length > 0;
+  const rightAction = () => { if (!open) return openIt(); if (hasQ) return ask(); close(); };
+
+  return (
+    <div style={{ position:'fixed', right: isMobile ? 16 : 24, bottom, zIndex: 75, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:10 }}>
+      {/* answer / thinking bubble (above the bar) */}
+      {open && (busy || answer) && (
+        <div style={{ maxWidth: isMobile ? '86vw' : 360, background: VM.paper, border:`1px solid ${VM.border}`, borderRadius:14,
+          padding:'12px 14px', boxShadow:'0 14px 34px rgba(31,29,26,0.2)' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+            <Label style={{ color: VM.terra }}>Veridian AI</Label>
+            <i className="ti ti-x" onClick={()=>setAnswer(null)} title="Dismiss" style={{ fontSize:14, color:VM.ink3, cursor:'pointer' }}></i>
+          </div>
+          {busy
+            ? <Mono size={12} color={VM.ink3}>Thinking…</Mono>
+            : <span style={{ fontFamily:VM.serif, fontSize:13.5, color:VM.ink2, lineHeight:1.5 }}>{answer}</span>}
+        </div>
+      )}
+      {/* the bubble button → search bar */}
+      <div onClick={()=> !open && openIt()} style={{ display:'flex', alignItems:'center', height:52,
+        width: open ? (isMobile ? 'min(86vw, 360px)' : 360) : 52, borderRadius:999, background: VM.forest,
+        boxShadow:'0 10px 30px rgba(31,29,26,0.28)', overflow:'hidden', cursor: open ? 'default' : 'pointer',
+        transition:'width .3s cubic-bezier(.4,0,.2,1)' }}>
+        {open && (
+          <input ref={inputRef} value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=> e.key === 'Enter' && ask()}
+            className="vm-ai-input" placeholder="Ask Veridian AI…"
+            style={{ flex:1, minWidth:0, border:'none', outline:'none', background:'transparent', fontFamily:VM.serif, fontSize:15, color:VM.paperWarm, padding:'0 6px 0 18px' }} />
+        )}
+        <button onClick={(e)=>{ e.stopPropagation(); rightAction(); }} title={open ? (hasQ ? 'Ask' : 'Close') : 'Ask Veridian AI'}
+          style={{ width:52, height:52, flexShrink:0, border:'none', background:'transparent', color:VM.paperWarm, cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
+          {(open && hasQ)
+            ? <i className="ti ti-arrow-up" style={{ fontSize:22 }}></i>
+            : <span style={{ fontFamily:'"Times New Roman", Times, serif', fontSize:27, fontWeight:700, lineHeight:1 }}>Q</span>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   // Seed route + company from the current URL so deep links / refreshes land on
   // the right page (front | screener | supply | dashboard | history | memoir |
@@ -203,6 +272,7 @@ function App() {
         </div>
       )}
       {showAppCta && <MobileAppCta />}
+      <AiAssistant isMobile={isMobile} bottom={showAppCta ? 86 : (isMobile ? 16 : 24)} />
     </div>
   );
 }
