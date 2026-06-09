@@ -62,6 +62,11 @@ placeholders until their page exists.
 
 ### 2026-06-09
 
+- **Started `business-page-2.8`.** New branch (from main) for a **Personal ⇄ Business**
+  account switcher (a toggle up top) and a new **My Business** page (`mybusiness`) where
+  companies build their **own dependency map**. (User said "business page 2.2" → numbered
+  **2.8** per the running counter; 2.2 already used by `supply-chain-live-2.2`.)
+
 - **Started `financials-2.7`.** New branch (from main) for financials work. (User
   said "financials.2.*" → numbered 2.7 per the running counter; 2.1–2.6 already
   used.)
@@ -478,7 +483,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.8`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `financials-2.7` merged to main.
+**Next free iteration: `<code-name>-2.9`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `business-page-2.8` (Personal⇄Business switcher + My Business dependency-map page).
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
