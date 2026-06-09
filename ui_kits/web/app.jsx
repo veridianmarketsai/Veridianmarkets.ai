@@ -1,5 +1,5 @@
 // Veridian Markets — app shell + URL router (History API).
-const { useState: useStateApp, useEffect: useEffectApp } = React;
+const { useState: useStateApp, useEffect: useEffectApp, useRef: useRefApp } = React;
 
 // ── Routing ────────────────────────────────────────────────────────────────
 // Each Toolbar Menu page gets its own clean URL. The company dashboard is
@@ -40,6 +40,7 @@ function pathToState(pathname) {
     const company = VM_COMPANIES.find(c => c.ticker.toUpperCase() === ticker);
     return { route:'dashboard', company: company || null };
   }
+  if (p.startsWith('/settings')) return { route: 'settings', company: null };
   return { route: PATH_ROUTES[p] || 'front', company: null };
 }
 // Turn a route (+ company for the dashboard) into a URL.

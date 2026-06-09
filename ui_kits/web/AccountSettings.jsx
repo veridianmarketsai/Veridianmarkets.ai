@@ -3,7 +3,7 @@
 // in the VM editorial style: a profile summary, sectioned rows with icon chips +
 // chevrons, each row drilling into its own sub-page. Sub-navigation is internal
 // state (one /settings route); a back arrow returns to the list. Mock/scaffold.
-const { useState: useStateSettings } = React;
+const { useState: useStateSettings, useEffect: useEffectSettings } = React;
 
 // ── settings model: groups → rows. `action` rows fire a handler instead of a page.
 const SETTINGS_GROUPS = [
@@ -23,8 +23,6 @@ const SETTINGS_GROUPS = [
   { head: 'Privacy & data', items: [
     { id: 'privacy',     icon: 'shield-lock', label: 'Account privacy' },
     { id: 'permissions', icon: 'key',         label: 'Data & permissions' },
-    { id: 'blocked',     icon: 'ban',         label: 'Blocked' },
-    { id: 'download',    icon: 'download',    label: 'Download your data' },
   ]},
   { head: 'Support', items: [
     { id: 'help',  icon: 'help-circle', label: 'Help centre' },
@@ -38,24 +36,103 @@ const SETTINGS_GROUPS = [
 ];
 const SETTINGS_TITLES = SETTINGS_GROUPS.flatMap(g => g.items).reduce((m, i) => (m[i.id] = i.label, m), {});
 
+function DeleteAccountModal({ email, onConfirm, onClose }) {
+  const [typed, setTyped] = useStateSettings('');
+  const ready = typed === 'DELETE';
+  return ReactDOM.createPortal(
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:460, width:'100%', boxShadow:'0 24px 64px rgba(31,29,26,0.32)' }}>
+        <div style={{ padding:'22px 22px 0', display:'flex', alignItems:'flex-start', gap:14 }}>
+          <div style={{ width:42, height:42, borderRadius:10, background:'#FDE8E8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <i className="ti ti-trash" style={{ fontSize:20, color:VM.downInk }}></i>
+          </div>
+          <div>
+            <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginBottom:6 }}>Delete your account?</div>
+            <div style={{ fontFamily:VM.serif, fontSize:13.5, color:VM.ink2, lineHeight:1.6 }}>
+              This will permanently remove your profile, saved companies, watchlists, activity history, and all connected accounts. <strong>This cannot be undone.</strong>
+            </div>
+          </div>
+        </div>
+        <div style={{ padding:'18px 22px 22px', display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ background:VM.paperDeep, border:`1px solid ${VM.borderSoft}`, borderRadius:9, padding:'12px 14px' }}>
+            <div style={{ fontFamily:VM.mono, fontSize:10.5, color:VM.ink3, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:4 }}>Signed in as</div>
+            <div style={{ fontFamily:VM.mono, fontSize:12, color:VM.ink2 }}>{email}</div>
+          </div>
+          <div>
+            <div style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3, marginBottom:6 }}>Type <strong style={{ color:VM.ink }}>DELETE</strong> to confirm</div>
+            <input
+              value={typed} onChange={e => setTyped(e.target.value)}
+              placeholder="DELETE"
+              style={{ width:'100%', boxSizing:'border-box', fontFamily:VM.mono, fontSize:14, padding:'10px 12px', borderRadius:8,
+                border:`1.5px solid ${ready ? VM.downInk : VM.border}`, background:VM.paper, color:VM.ink, outline:'none' }}
+            />
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={onClose} style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor:'pointer' }}>
+              Cancel
+            </button>
+            <button onClick={ready ? onConfirm : undefined} style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 0', borderRadius:999, border:'none',
+              background: ready ? VM.downInk : VM.faint, color: ready ? '#fff' : VM.ink3, cursor: ready ? 'pointer' : 'default', transition:'all .15s' }}>
+              Delete account
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }) {
-  const [section, setSection] = useStateSettings(null);   // null = list; otherwise a row id
+  const initSection = () => {
+    const m = window.location.pathname.match(/^\/settings\/(.+)$/);
+    return m ? m[1] : null;
+  };
+  const [section, setSection] = useStateSettings(initSection);
   const [toast, setToast] = useStateSettings('');
+  const [showDelete, setShowDelete] = useStateSettings(false);
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 2800); };
   const u = user || { name: 'Guest', email: 'not signed in', tier: 'Free' };
 
+  const navTo = (id) => {
+    setSection(id);
+    const path = id ? '/settings/' + id : '/settings';
+    if (window.location.pathname !== path) window.history.pushState({}, '', path);
+    document.title = id ? (SETTINGS_TITLES[id] || id) + ' · Settings · Veridian Markets' : 'Settings · Veridian Markets';
+  };
+
+  useEffectSettings(() => {
+    const onPop = () => {
+      const m = window.location.pathname.match(/^\/settings\/(.+)$/);
+      setSection(m ? m[1] : null);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   const onRow = (item) => {
     if (item.id === 'logout') { onSignOut && onSignOut(); return; }
-    if (item.id === 'delete') { showToast('Account deletion (mock) — would confirm first.'); return; }
-    setSection(item.id);
+    if (item.id === 'delete') { setShowDelete(true); return; }
+    navTo(item.id);
+  };
+
+  const handleDeleteConfirm = () => {
+    // Clear all local data (prototype — admin credentials remain hardcoded in app.jsx)
+    try {
+      ['vm_session','vm_theme','vm_2fa_app','vm_2fa_sms','vm_2fa_phone',
+       'vm_other_sessions','vm_pf_brokers','vm_mock_password','vm_account_mode'].forEach(k => localStorage.removeItem(k));
+    } catch(e) {}
+    setShowDelete(false);
+    onSignOut && onSignOut();
   };
 
   return (
     <div style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
-        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => setSection(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange })}</StSubPage>
+        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange })}</StSubPage>
         : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} />}
       {toast && <StToast text={toast} />}
+      {showDelete && <DeleteAccountModal email={u.email} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
     </div>
   );
 }
@@ -181,6 +258,76 @@ function StNote({ children }) {
 function StSave({ onClick, label = 'Save changes' }) {
   return <Btn solid onClick={onClick} style={{ fontFamily: VM.serif }}><i className="ti ti-check" style={{ fontSize: 15 }}></i>{label}</Btn>;
 }
+const HELP_ARTICLES = {
+  'Getting started': {
+    icon: 'rocket',
+    body: [
+      { h: 'Welcome to Veridian Markets', p: 'Veridian is a history-led finance platform. Every market move you see today has echoes in history — we surface those analogues so you can make more informed decisions.' },
+      { h: 'Navigate the platform', p: 'Use the left rail to move between pages. Home shows the editorial overview. Search lets you look up any company. Calendar tracks upcoming market events.' },
+      { h: 'My Account', p: 'Your personal dashboard. Connect a broker to import your portfolio, track performance, and see historical parallels to your holdings.' },
+      { h: 'History tab', p: 'The core of Veridian. Type any market question and we surface the closest historical analogues — with data, context, and what happened next.' },
+    ],
+  },
+  'Account & billing': {
+    icon: 'credit-card',
+    body: [
+      { h: 'Plans', p: 'Veridian offers Free, Plus, Pro, and Business tiers. The Free plan gives you access to the home feed, search, and limited history queries. Plus and Pro unlock full history depth, broker connections, and AI-powered analogues.' },
+      { h: 'Changing your plan', p: 'Go to Settings → Subscription & billing to upgrade or downgrade. Changes take effect at the next billing cycle. Downgrades retain access until the period ends.' },
+      { h: 'Invoices', p: 'All invoices are emailed to your registered address and available in the Subscription & billing section. Payments are processed securely via Stripe.' },
+      { h: 'Cancellation', p: 'You can cancel anytime from Settings → Subscription & billing. Your access continues until the end of the paid period — no partial refunds.' },
+    ],
+  },
+  'Connecting a broker': {
+    icon: 'plug-connected',
+    body: [
+      { h: 'Supported brokers', p: 'Veridian currently supports Trading 212, Interactive Brokers, Robinhood, Coinbase, Vanguard, and Binance. More brokers are being added regularly.' },
+      { h: 'How to connect', p: 'Go to Settings → Connected accounts. Find your broker and tap Connect. You will be redirected to your broker\'s authorisation page — approve read-only access, and your portfolio will sync automatically.' },
+      { h: 'Read-only access', p: 'Veridian only requests read-only permission. We cannot place trades, move funds, or make any changes to your broker account.' },
+      { h: 'Disconnecting', p: 'You can disconnect a broker at any time from Settings → Connected accounts. Your historical data is retained unless you clear your activity.' },
+    ],
+  },
+  'Contact support': {
+    icon: 'mail',
+    body: [
+      { h: 'Email support', p: 'Reach the team at support@veridianmarkets.ai. We aim to respond within one business day.' },
+      { h: 'Bug reports', p: 'Found something broken? Email us with a short description of what happened, which page you were on, and your browser. Screenshots are always helpful.' },
+      { h: 'Feature requests', p: 'We read every message. If you have an idea that would make Veridian more useful, send it to feedback@veridianmarkets.ai.' },
+      { h: 'Response times', p: 'During beta, support is handled by a small team. We prioritise account issues and data problems. General queries may take 2–3 business days.' },
+    ],
+  },
+};
+
+function HelpModal({ article, onClose, articles }) {
+  const data = (articles || HELP_ARTICLES)[article];
+  if (!data) return null;
+  return ReactDOM.createPortal(
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.42)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:520, width:'100%', maxHeight:'82vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(31,29,26,0.28)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 20px 14px', borderBottom:`1px solid ${VM.borderSoft}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:9, background:VM.tealTint, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <i className={'ti ti-'+data.icon} style={{ fontSize:18, color:VM.tealInk }}></i>
+            </div>
+            <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink }}>{article}</span>
+          </div>
+          <button onClick={onClose} style={{ width:32, height:32, borderRadius:8, border:`1px solid ${VM.border}`, background:'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:VM.ink3 }}>
+            <i className="ti ti-x" style={{ fontSize:15 }}></i>
+          </button>
+        </div>
+        <div style={{ padding:'18px 20px 24px', display:'flex', flexDirection:'column', gap:18 }}>
+          {data.body.map((block, i) => (
+            <div key={i}>
+              <div style={{ fontFamily:VM.serif, fontWeight:600, fontSize:15, color:VM.ink, marginBottom:5 }}>{block.h}</div>
+              <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink2, lineHeight:1.65 }}>{block.p}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function StToast({ text }) {
   return <div style={{ position: 'fixed', left: '50%', bottom: 28, transform: 'translateX(-50%)', zIndex: 90, display: 'flex', alignItems: 'center', gap: 8,
     padding: '10px 16px', borderRadius: 999, background: VM.forest, color: VM.paperWarm, fontFamily: VM.serif, fontSize: 14, boxShadow: '0 8px 24px rgba(31,29,26,0.22)' }}>
@@ -544,6 +691,166 @@ function StSecuritySection({ u, showToast }) {
   );
 }
 
+const LEGAL_ARTICLES = {
+  'Terms of service': {
+    icon: 'file-text',
+    body: [
+      { h: 'Acceptance', p: 'By accessing Veridian Markets you agree to these terms. If you do not agree, please do not use the platform. These terms govern your use of the website, app, and all associated services.' },
+      { h: 'Use of the platform', p: 'Veridian Markets is provided for informational and educational purposes only. Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any security.' },
+      { h: 'Account responsibility', p: 'You are responsible for maintaining the confidentiality of your login credentials and for all activity that occurs under your account. Notify us immediately at support@veridianmarkets.ai if you suspect unauthorised access.' },
+      { h: 'Intellectual property', p: 'All content on Veridian Markets — including editorial text, data visualisations, and the Veridian brand — is owned by Veridian Markets Ltd and may not be reproduced without written permission.' },
+      { h: 'Termination', p: 'We reserve the right to suspend or terminate accounts that violate these terms, engage in abusive behaviour, or attempt to scrape or automate access to the platform.' },
+    ],
+  },
+  'Privacy policy': {
+    icon: 'shield-lock',
+    body: [
+      { h: 'What we collect', p: 'We collect your email address, name, and usage data (pages visited, searches made, companies viewed). If you connect a broker, we store read-only portfolio data. We never collect payment card details directly — payments go through Stripe.' },
+      { h: 'How we use it', p: 'Your data is used to personalise your experience, deliver relevant history analogues, send account notifications, and improve the platform. We do not sell your data to third parties.' },
+      { h: 'Data storage', p: 'Data is stored on AWS infrastructure in the EU (Ireland) region. We apply encryption at rest and in transit. Access is restricted to authorised personnel only.' },
+      { h: 'Your rights', p: 'You have the right to access, correct, or delete your personal data at any time. To exercise these rights, visit Settings → Your activity or email privacy@veridianmarkets.ai. We will respond within 30 days.' },
+      { h: 'Cookies', p: 'We use essential cookies for authentication and session management, and optional analytics cookies to understand how the platform is used. You can manage cookie preferences in Settings → Data & permissions.' },
+    ],
+  },
+  'Cookie policy': {
+    icon: 'cookie',
+    body: [
+      { h: 'What are cookies', p: 'Cookies are small text files stored on your device when you visit a website. They help us keep you signed in, remember your preferences, and understand how you use Veridian.' },
+      { h: 'Essential cookies', p: 'These are required for the platform to function. They manage your login session and security tokens. You cannot opt out of essential cookies without also opting out of the platform.' },
+      { h: 'Analytics cookies', p: 'We use privacy-focused analytics to count page visits and understand which features are used most. These cookies contain no personally identifiable information and are aggregated before being reviewed.' },
+      { h: 'Managing cookies', p: 'You can disable non-essential cookies at any time in Settings → Data & permissions. You can also clear cookies via your browser settings, though this will sign you out.' },
+    ],
+  },
+  'Risk disclosure': {
+    icon: 'alert-triangle',
+    body: [
+      { h: 'Not financial advice', p: 'All content on Veridian Markets — including historical analogues, market data, company profiles, and editorial commentary — is for informational purposes only. It does not constitute financial advice.' },
+      { h: 'Past performance', p: 'Historical patterns and analogues are provided to offer context, not to predict future outcomes. Past market behaviour does not guarantee future results. Markets can and do behave differently from historical precedents.' },
+      { h: 'Investment risk', p: 'Investing in financial instruments carries risk, including the possible loss of principal. You should consider your financial situation, investment objectives, and risk tolerance before making any investment decision.' },
+      { h: 'Seek professional advice', p: 'Nothing on this platform replaces the advice of a qualified financial adviser. If you are unsure about an investment decision, consult a regulated financial professional in your jurisdiction.' },
+    ],
+  },
+};
+
+function LegalSection() {
+  const [open, setOpen] = useStateSettings(null);
+  return (
+    <React.Fragment>
+      <StCard title="Terms & policies">
+        {Object.keys(LEGAL_ARTICLES).map((h, i, a) => (
+          <StLink key={h} label={h} onClick={() => setOpen(h)} last={i === a.length - 1} />
+        ))}
+      </StCard>
+      {open && <HelpModal article={open} onClose={() => setOpen(null)} articles={LEGAL_ARTICLES} />}
+    </React.Fragment>
+  );
+}
+
+const CHANGELOG = [
+  {
+    version: '0.9', date: 'Jun 2025', tag: 'Latest',
+    changes: [
+      'Settings — interactive Password & Security with 2FA and session management',
+      'Settings — Connected accounts with broker connect / disconnect flow',
+      'Settings — Light and dark theme switcher',
+      'Settings — Activity clear with 30-day restore window',
+      'My Business — dependency map builder',
+      'Personal / Business account rail switcher',
+      'Financials — CSV & Excel export popup',
+      'Calendar — event education cards',
+    ],
+  },
+  {
+    version: '0.8', date: 'May 2025', tag: null,
+    changes: [
+      'Supply chain network live demo',
+      'Company dashboard — Financials tab with multi-period tables',
+      'Screener — filter by sector, market cap, region',
+      'News feed with editorial tagging',
+    ],
+  },
+  {
+    version: '0.7', date: 'Apr 2025', tag: null,
+    changes: [
+      'History tab — analogue matching engine (prototype)',
+      'Learn section — course cards and progress tracking',
+      'Calendar — earnings and macro event feed',
+      'Index strip — draggable ticker marquee',
+    ],
+  },
+  {
+    version: '0.6', date: 'Mar 2025', tag: null,
+    changes: [
+      'My Account — portfolio overview with broker mock data',
+      'AI Assistant bubble — placeholder for Claude integration',
+      'Sign-in with SHA-256 hashed credentials',
+      'Mobile hamburger menu and responsive rail',
+    ],
+  },
+];
+
+function AboutSection() {
+  const [showChangelog, setShowChangelog] = useStateSettings(false);
+  return (
+    <React.Fragment>
+      <StCard>
+        <StLink label="Version" value="0.9 (prototype)" onClick={() => setShowChangelog(true)} last />
+      </StCard>
+      <StNote>Veridian Markets — history-led finance. A research and learning platform that reads today's markets through the lens of the past.</StNote>
+      {showChangelog && ReactDOM.createPortal(
+        <div onClick={() => setShowChangelog(false)} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.42)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:520, width:'100%', maxHeight:'82vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(31,29,26,0.28)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 20px 14px', borderBottom:`1px solid ${VM.borderSoft}`, position:'sticky', top:0, background:VM.paper, zIndex:1 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ width:36, height:36, borderRadius:9, background:VM.tealTint, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <i className="ti ti-notes" style={{ fontSize:18, color:VM.tealInk }}></i>
+                </div>
+                <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink }}>Recent updates</span>
+              </div>
+              <button onClick={() => setShowChangelog(false)} style={{ width:32, height:32, borderRadius:8, border:`1px solid ${VM.border}`, background:'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:VM.ink3 }}>
+                <i className="ti ti-x" style={{ fontSize:15 }}></i>
+              </button>
+            </div>
+            <div style={{ padding:'4px 0 20px' }}>
+              {CHANGELOG.map((release, ri) => (
+                <div key={release.version} style={{ padding:'16px 20px', borderBottom: ri < CHANGELOG.length - 1 ? `1px solid ${VM.borderHair}` : 'none' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                    <span style={{ fontFamily:VM.mono, fontWeight:700, fontSize:13, color:VM.ink }}>v{release.version}</span>
+                    {release.tag && (
+                      <span style={{ fontFamily:VM.mono, fontSize:9.5, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:VM.upInk, background:VM.tealTint, border:`1px solid ${VM.up}`, borderRadius:5, padding:'2px 7px' }}>{release.tag}</span>
+                    )}
+                    <span style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3, marginLeft:'auto' }}>{release.date}</span>
+                  </div>
+                  <ul style={{ margin:0, padding:'0 0 0 16px', display:'flex', flexDirection:'column', gap:5 }}>
+                    {release.changes.map((c, ci) => (
+                      <li key={ci} style={{ fontFamily:VM.serif, fontSize:13.5, color:VM.ink2, lineHeight:1.55 }}>{c}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </React.Fragment>
+  );
+}
+
+function HelpSection({ showToast }) {
+  const [open, setOpen] = useStateSettings(null);
+  return (
+    <React.Fragment>
+      <StCard title="Help centre">
+        {Object.keys(HELP_ARTICLES).map((h, i, a) => (
+          <StLink key={h} label={h} onClick={() => setOpen(h)} last={i === a.length - 1} />
+        ))}
+      </StCard>
+      {open && <HelpModal article={open} onClose={() => setOpen(null)} />}
+    </React.Fragment>
+  );
+}
+
 const MOCK_SEARCHES  = ['oil prices', 'AAPL supply chain', 'interest rates', 'NVDA'];
 const MOCK_VIEWED    = VM_COMPANIES.slice(0, 3);
 
@@ -732,13 +1039,6 @@ function renderSection(id, ctx) {
         </StCard>
       </React.Fragment>
     );
-    case 'privacy': return (
-      <StCard title="Account privacy">
-        <StToggle label="Private profile" desc="Only you can see your activity" on />
-        <StToggle label="Show online status" />
-        <StToggle label="Searchable by email" on last />
-      </StCard>
-    );
     case 'permissions': return (
       <StCard title="Data & permissions">
         <StToggle label="Personalised recommendations" desc="Use my activity to tailor content" on />
@@ -746,39 +1046,16 @@ function renderSection(id, ctx) {
         <StToggle label="Marketing emails" last />
       </StCard>
     );
-    case 'blocked': return (
-      <React.Fragment>
-        <StNote>You haven't blocked anyone.</StNote>
-        <div style={{ textAlign: 'center', padding: '30px 0', color: VM.ink3 }}>
-          <i className="ti ti-ban" style={{ fontSize: 26 }}></i>
-          <div style={{ fontFamily: VM.serif, fontSize: 14, marginTop: 8 }}>Blocked accounts will appear here.</div>
-        </div>
-      </React.Fragment>
-    );
-    case 'download': return (
-      <React.Fragment>
-        <StNote>Request a copy of your data — profile, watchlists, activity and settings. We'll email a download link when it's ready.</StNote>
-        <Btn solid onClick={() => showToast('Data export requested (mock).')}><i className="ti ti-download" style={{ fontSize: 15 }}></i>Request download</Btn>
-      </React.Fragment>
-    );
-    case 'help': return (
-      <StCard title="Help centre">
-        {['Getting started', 'Account & billing', 'Connecting a broker', 'Contact support'].map((h, i, a) => <StLink key={h} label={h} onClick={() => showToast('Help (mock).')} last={i === a.length - 1} />)}
+    case 'privacy': return (
+      <StCard title="Account privacy">
+        <StToggle label="Private profile" desc="Only you can see your activity" on />
+        <StToggle label="Show online status" />
+        <StToggle label="Searchable by email" on last />
       </StCard>
     );
-    case 'legal': return (
-      <StCard title="Terms & policies">
-        {['Terms of service', 'Privacy policy', 'Cookie policy', 'Risk disclosure'].map((h, i, a) => <StLink key={h} label={h} onClick={() => showToast('Opens document (mock).')} last={i === a.length - 1} />)}
-      </StCard>
-    );
-    case 'about': return (
-      <React.Fragment>
-        <StCard>
-          <StLink label="Version" value="0.9 (prototype)" last />
-        </StCard>
-        <StNote>Veridian Markets — history-led finance. A research and learning platform that reads today's markets through the lens of the past.</StNote>
-      </React.Fragment>
-    );
+    case 'help': return <HelpSection showToast={showToast} />;
+    case 'legal': return <LegalSection />;
+    case 'about': return <AboutSection />;
     default: return <StNote>Coming soon.</StNote>;
   }
 }
