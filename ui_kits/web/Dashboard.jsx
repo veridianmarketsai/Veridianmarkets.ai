@@ -16,7 +16,7 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
 
       {curTab === 'Overview'     && <DashOverview   c={c} data={data} isMobile={isMobile} />}
       {curTab === 'Supply chain' && <DashScn        c={c} go={go} isMobile={isMobile} />}
-      {curTab === 'Financials'   && <DashFinancials data={data.financials} c={c} />}
+      {curTab === 'Financials'   && <DashFinancials data={data.financials} c={c} isMobile={isMobile} />}
       {curTab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
       {curTab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
       {curTab === 'News'         && <DashNews        c={c} go={go} isMobile={isMobile} />}
@@ -236,7 +236,7 @@ function downloadBlob(filename, content, mime) {
 
 const SHEET_LABELS = { income:'Income statement', balance:'Balance sheet', cashflow:'Cash flow' };
 
-function DashFinancials({ data, c }) {
+function DashFinancials({ data, c, isMobile }) {
   const [sheet, setSheet]     = React.useState('income');
   const [period, setPeriod]   = React.useState('annual');
   const [showPct, setShowPct] = React.useState(false);   // %Δ — percentage change vs prior period
@@ -369,7 +369,7 @@ function DashFinancials({ data, c }) {
         </div>
         <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', paddingBottom:8 }}>
           {/* change-vs-prior-period toggles (independent) */}
-          {[['pct','%Δ', showPct, setShowPct, 'Show % change vs prior period'],
+          {!isMobile && [['pct','%Δ', showPct, setShowPct, 'Show % change vs prior period'],
             ['abs','$Δ', showAbs, setShowAbs, 'Show $ change vs prior period']].map(([id,lbl,on,set,title]) => (
             <button key={id} onClick={()=>set(v=>!v)} title={title} style={{
               fontFamily:VM.mono, fontSize:11, fontWeight:700, padding:'4px 11px', borderRadius:5, cursor:'pointer',
@@ -377,7 +377,7 @@ function DashFinancials({ data, c }) {
               background: on ? VM.forest : VM.paper, color: on ? VM.paperWarm : VM.ink3,
             }}>{lbl}</button>
           ))}
-          <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>
+          {!isMobile && <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>}
           {[['annual','Annual'],['quarterly','Quarterly']].map(([id,lbl]) => (
             <span key={id} onClick={()=>setPeriod(id)} style={{
               fontFamily:VM.mono, fontSize:10, padding:'4px 10px', borderRadius:5, cursor:'pointer',
