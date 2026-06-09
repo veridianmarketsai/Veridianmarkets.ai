@@ -12,7 +12,7 @@ const VM_LIGHT = {
   serif:"'Spectral', Georgia, serif", mono:"'JetBrains Mono', ui-monospace, monospace",
 };
 const VM_DARK = {
-  ink:'#EAE6DE', ink2:'#B0A99F', ink3:'#6B6560', faint:'#3E3A36',
+  ink:'#F0EDE7', ink2:'#C8C2BA', ink3:'#9A9490', faint:'#5A5450',
   paper:'#1C1A17', paperWarm:'#201E1B', paperDeep:'#171512', rail:'#191C1D',
   teal:'#4A9490', forest:'#1D5C45', tealInk:'#5ABFA6', tealTint:'#0D2420', tealTint2:'#0F2C28',
   terra:'#D4784A', rust:'#C46A3B', rustDeep:'#B35A3A',
@@ -34,9 +34,23 @@ const VM = {
 function applyVMTheme(name) {
   var palette = name === 'dark' ? VM_DARK : VM_LIGHT;
   Object.assign(VM, palette);
-  try { localStorage.setItem('vm_theme', name); } catch(e) {}
+  try {
+    localStorage.setItem('vm_theme', name);
+    // Body sits outside React's tree — must be updated manually.
+    document.body.style.background = VM.paperWarm;
+    document.body.style.color = VM.ink;
+    document.documentElement.setAttribute('data-theme', name);
+  } catch(e) {}
   if (window.__vmThemeUpdate) window.__vmThemeUpdate(name);
 }
+
+// Apply saved theme immediately so VM has correct values on React's first render.
+(function() {
+  try {
+    var _t = localStorage.getItem('vm_theme');
+    if (_t === 'dark') { Object.assign(VM, VM_DARK); document.body.style.background = VM_DARK.paperWarm; document.body.style.color = VM_DARK.ink; document.documentElement.setAttribute('data-theme','dark'); }
+  } catch(e) {}
+})();
 
 // ---- text bits ----
 function Kicker({ children, tone='teal', style }) {
