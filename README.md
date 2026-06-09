@@ -315,6 +315,17 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-09 (business)
+
+- **Personal ⇄ Business mode + My Business map builder.** The left rail gains a
+  **Personal / Business** toggle (persisted) and a new **My Business** item. Business
+  mode opens a new **signed-in-only** page (`/my-business`) where a company builds its
+  **own dependency map**: the firm sits at the centre with **draggable** supplier
+  (blue), external-factor (coral) and customer (teal) nodes, **curved connectors that
+  redraw live**, and a side-panel editor (name / ticker / role / note / type + delete).
+  Add / clear / reset, plus **Save** to `localStorage`. Mobile gets a tap-to-edit list
+  fallback. Mock persistence until the AWS backend. _(branch: `business-page-2.8`)_
+
 ### 2026-06-09 (financials)
 
 - **Financials export + educational Calendar events.** The company **Financials**
