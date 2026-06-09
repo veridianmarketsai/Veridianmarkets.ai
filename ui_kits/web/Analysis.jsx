@@ -231,6 +231,31 @@ function EChartsCanvas({ option, height }) {
   return <div ref={divRef} style={{ width:'100%', height: height || 340 }} />;
 }
 
+// ── Mobile chart strip (horizontal scrollable chip row) ──────────────────────
+function MobileChartStrip({ activeChart, onSelect }) {
+  const allCharts = CHART_CATEGORIES.flatMap(cat => cat.charts);
+  return (
+    <div className="vm-noscroll" style={{ overflowX:'auto', flexShrink:0, display:'flex', gap:6,
+      padding:'8px 10px', borderBottom:`1px solid ${VM.borderSoft}`, background:VM.paper }}>
+      {allCharts.map(ch => {
+        const active = ch.id === activeChart;
+        return (
+          <button key={ch.id} onClick={() => onSelect(ch.id)} style={{
+            display:'inline-flex', alignItems:'center', gap:5, flexShrink:0, cursor:'pointer',
+            fontFamily:VM.mono, fontSize:10, letterSpacing:'0.02em', whiteSpace:'nowrap',
+            padding:'5px 10px', borderRadius:20,
+            border:`1px solid ${active ? VM.teal : VM.border}`,
+            background: active ? VM.tealTint : 'transparent',
+            color: active ? VM.tealInk : VM.ink2 }}>
+            <i className={`ti ti-${ch.icon}`} style={{ fontSize:11 }}></i>
+            {ch.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 function AnalysisSidebar({ activeChart, onSelect, search, onSearch }) {
   const q = (search || '').toLowerCase();
@@ -369,7 +394,14 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
   const [toggles, setToggles]       = useStateA({ period:'annual', range:'5y', scale:'linear' });
   const [explaining, setExplaining] = useStateA(false);
   const [explanation, setExplanation] = useStateA(null);
+  const [isMob, setIsMob]           = useStateA(() => window.innerWidth <= 768);
   const dialogRef = useRefA(null);
+
+  useEffectA(() => {
+    const onResize = () => setIsMob(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Persist last-used chart per ticker
   useEffectA(() => {
@@ -424,31 +456,39 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
   const chartMeta = CHART_MAP[activeChart];
 
   if (!open) return null;
+  const handleClose = () => { onClose(); if (analysisButtonRef && analysisButtonRef.current) analysisButtonRef.current.focus(); };
   return ReactDOM.createPortal(
-    <div onClick={() => { onClose(); if (analysisButtonRef && analysisButtonRef.current) analysisButtonRef.current.focus(); }}
-      style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(20,18,15,0.55)',
-        display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
+    <div onClick={handleClose}
+      style={{ position:'fixed', inset:0, zIndex:300,
+        background: isMob ? VM.paper : 'rgba(20,18,15,0.55)',
+        display:'flex', alignItems: isMob ? 'flex-start' : 'center',
+        justifyContent:'center', padding: isMob ? 0 : '16px' }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={`Analysis — ${c ? c.ticker : ''}`}
         tabIndex={-1} onClick={e => e.stopPropagation()}
-        style={{ background:VM.paper, borderRadius:14, width:'min(92vw, 1100px)', height:'min(88vh, 720px)',
-          display:'flex', flexDirection:'column', boxShadow:'0 32px 80px rgba(0,0,0,0.36)',
-          border:`1px solid ${VM.borderSoft}`, outline:'none', overflow:'hidden' }}>
+        style={{ background:VM.paper,
+          borderRadius: isMob ? 0 : 14,
+          width: isMob ? '100%' : 'min(92vw, 1100px)',
+          height: isMob ? '100%' : 'min(88vh, 720px)',
+          display:'flex', flexDirection:'column',
+          boxShadow: isMob ? 'none' : '0 32px 80px rgba(0,0,0,0.36)',
+          border: isMob ? 'none' : `1px solid ${VM.borderSoft}`,
+          outline:'none', overflow:'hidden' }}>
 
         {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 18px',
+        <div style={{ display:'flex', alignItems:'center', gap:12,
+          padding: isMob ? '12px 14px' : '14px 18px',
           borderBottom:`1px solid ${VM.borderSoft}`, flexShrink:0, background:VM.paper }}>
-          <div style={{ width:34, height:34, borderRadius:9, background:VM.tealTint, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            <i className="ti ti-chart-bar" style={{ fontSize:17, color:VM.tealInk }}></i>
+          <div style={{ width:32, height:32, borderRadius:9, background:VM.tealTint, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <i className="ti ti-chart-bar" style={{ fontSize:15, color:VM.tealInk }}></i>
           </div>
-          <div>
-            <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:17, color:VM.ink, lineHeight:1.15 }}>
+          <div style={{ minWidth:0, flex:1 }}>
+            <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMob ? 15 : 17, color:VM.ink, lineHeight:1.15, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
               Analysis{c ? ` — ${c.ticker}` : ''}
             </div>
             {chartMeta && <div style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3 }}>{chartMeta.label}</div>}
           </div>
-          <button onClick={() => { onClose(); if (analysisButtonRef && analysisButtonRef.current) analysisButtonRef.current.focus(); }}
-            aria-label="Close analysis" tabIndex={0}
-            style={{ marginLeft:'auto', width:32, height:32, borderRadius:8, border:`1px solid ${VM.border}`,
+          <button onClick={handleClose} aria-label="Close analysis" tabIndex={0}
+            style={{ flexShrink:0, width:32, height:32, borderRadius:8, border:`1px solid ${VM.border}`,
               background:'transparent', cursor:'pointer', display:'flex', alignItems:'center',
               justifyContent:'center', color:VM.ink3 }}>
             <i className="ti ti-x" style={{ fontSize:15 }}></i>
@@ -456,9 +496,11 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
         </div>
 
         {/* Body */}
-        <div style={{ display:'flex', flex:1, minHeight:0 }}>
-          {/* Left sidebar */}
-          <AnalysisSidebar activeChart={activeChart} onSelect={handleSelect} search={search} onSearch={setSearch} />
+        <div style={{ display:'flex', flexDirection: isMob ? 'column' : 'row', flex:1, minHeight:0 }}>
+          {/* Sidebar: left panel on desktop, horizontal chip strip on mobile */}
+          {isMob
+            ? <MobileChartStrip activeChart={activeChart} onSelect={handleSelect} />
+            : <AnalysisSidebar activeChart={activeChart} onSelect={handleSelect} search={search} onSearch={setSearch} />}
 
           {/* Main canvas area */}
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
@@ -467,16 +509,16 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
 
             <div style={{ flex:1, overflowY:'auto', minHeight:0 }}>
               {chartOption
-                ? <div style={{ padding:'20px 20px 4px' }}>
-                    <EChartsCanvas option={chartOption} height={300} />
+                ? <div style={{ padding: isMob ? '12px 12px 4px' : '20px 20px 4px' }}>
+                    <EChartsCanvas option={chartOption} height={isMob ? 220 : 300} />
                   </div>
                 : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-                    height:'100%', gap:12, padding:40 }}>
-                    <div style={{ width:52, height:52, borderRadius:14, background:VM.paperDeep, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      <i className="ti ti-lock" style={{ fontSize:22, color:VM.faint }}></i>
+                    height: isMob ? 180 : '100%', gap:12, padding: isMob ? 24 : 40 }}>
+                    <div style={{ width:48, height:48, borderRadius:14, background:VM.paperDeep, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <i className="ti ti-lock" style={{ fontSize:20, color:VM.faint }}></i>
                     </div>
-                    <div style={{ fontFamily:VM.serif, fontWeight:600, fontSize:16, color:VM.ink }}>Coming soon</div>
-                    <div style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3, textAlign:'center', maxWidth:280 }}>
+                    <div style={{ fontFamily:VM.serif, fontWeight:600, fontSize:15, color:VM.ink }}>Coming soon</div>
+                    <div style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3, textAlign:'center', maxWidth:260 }}>
                       {chartMeta ? `${chartMeta.label} is on the roadmap.` : 'This chart is not yet available.'} Select Revenue, Margins, or EPS to get started.
                     </div>
                   </div>}
