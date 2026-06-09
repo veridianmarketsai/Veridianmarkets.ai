@@ -2,6 +2,25 @@
 // Editorial serif + machine mono. Line-art charts.
 const { useMemo } = React;
 
+const VM_LIGHT = {
+  ink:'#1F1D1A', ink2:'#4A4640', ink3:'#8A857D', faint:'#B6AFA2',
+  paper:'#FBF9F3', paperWarm:'#F4F1E8', paperDeep:'#ECE7DB', rail:'#E7ECED',
+  teal:'#2D5E5A', forest:'#1D4E3A', tealInk:'#0F6E56', tealTint:'#E1F1EC', tealTint2:'#CFE5DD',
+  terra:'#C46A3B', rust:'#B35A3A', rustDeep:'#A8512A',
+  up:'#1D9E75', upInk:'#0F6E56', down:'#C0563B', downInk:'#A32D2D',
+  border:'rgba(31,29,26,0.18)', borderSoft:'rgba(31,29,26,0.10)', borderHair:'rgba(31,29,26,0.06)',
+  serif:"'Spectral', Georgia, serif", mono:"'JetBrains Mono', ui-monospace, monospace",
+};
+const VM_DARK = {
+  ink:'#EAE6DE', ink2:'#B0A99F', ink3:'#6B6560', faint:'#3E3A36',
+  paper:'#1C1A17', paperWarm:'#201E1B', paperDeep:'#171512', rail:'#191C1D',
+  teal:'#4A9490', forest:'#1D5C45', tealInk:'#5ABFA6', tealTint:'#0D2420', tealTint2:'#0F2C28',
+  terra:'#D4784A', rust:'#C46A3B', rustDeep:'#B35A3A',
+  up:'#22C28A', upInk:'#3DD9A4', down:'#D06B4E', downInk:'#E07868',
+  border:'rgba(234,230,222,0.12)', borderSoft:'rgba(234,230,222,0.07)', borderHair:'rgba(234,230,222,0.04)',
+  serif:"'Spectral', Georgia, serif", mono:"'JetBrains Mono', ui-monospace, monospace",
+};
+
 const VM = {
   ink:'#1F1D1A', ink2:'#4A4640', ink3:'#8A857D', faint:'#B6AFA2',
   paper:'#FBF9F3', paperWarm:'#F4F1E8', paperDeep:'#ECE7DB', rail:'#E7ECED',
@@ -11,6 +30,13 @@ const VM = {
   border:'rgba(31,29,26,0.18)', borderSoft:'rgba(31,29,26,0.10)', borderHair:'rgba(31,29,26,0.06)',
   serif:"'Spectral', Georgia, serif", mono:"'JetBrains Mono', ui-monospace, monospace",
 };
+
+function applyVMTheme(name) {
+  var palette = name === 'dark' ? VM_DARK : VM_LIGHT;
+  Object.assign(VM, palette);
+  try { localStorage.setItem('vm_theme', name); } catch(e) {}
+  if (window.__vmThemeUpdate) window.__vmThemeUpdate(name);
+}
 
 // ---- text bits ----
 function Kicker({ children, tone='teal', style }) {
@@ -110,4 +136,4 @@ function Hatch({ w, h, label, style }) {
   </div>;
 }
 
-Object.assign(window, { VM, Kicker, Label, Mono, Chg, IconBtn, Pill, Btn, Sparkline, OverlayChart, ProgressBar, Hatch });
+Object.assign(window, { VM, VM_LIGHT, VM_DARK, applyVMTheme, Kicker, Label, Mono, Chg, IconBtn, Pill, Btn, Sparkline, OverlayChart, ProgressBar, Hatch });
