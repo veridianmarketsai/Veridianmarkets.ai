@@ -16,7 +16,7 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
 
       {curTab === 'Overview'     && <DashOverview   c={c} data={data} isMobile={isMobile} />}
       {curTab === 'Supply chain' && <DashScn        c={c} go={go} isMobile={isMobile} />}
-      {curTab === 'Financials'   && <DashFinancials data={data.financials} />}
+      {curTab === 'Financials'   && <DashFinancials data={data.financials} c={c} />}
       {curTab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
       {curTab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
       {curTab === 'News'         && <DashNews        c={c} go={go} isMobile={isMobile} />}
@@ -225,12 +225,24 @@ function DashScn({ c, go, isMobile }) {
 }
 
 // ── Financials ────────────────────────────────────────────────────────────────
-function DashFinancials({ data }) {
+// Trigger a client-side file download from an in-memory string (no backend).
+function downloadBlob(filename, content, mime) {
+  const url = URL.createObjectURL(new Blob([content], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const SHEET_LABELS = { income:'Income statement', balance:'Balance sheet', cashflow:'Cash flow' };
+
+function DashFinancials({ data, c }) {
   const [sheet, setSheet]     = React.useState('income');
   const [period, setPeriod]   = React.useState('annual');
   const [showPct, setShowPct] = React.useState(false);   // %Δ — percentage change vs prior period
   const [showAbs, setShowAbs] = React.useState(false);   // $Δ — absolute change vs prior period
   const [legend, setLegend]   = React.useState(false);   // "reading the financials" popup
+  const [exportOpen, setExportOpen] = React.useState(false); // CSV/Excel export popup
   const rows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheet];
   const periods = data.periods;
   const showDelta = showPct || showAbs;
@@ -251,6 +263,79 @@ function DashFinancials({ data }) {
   }
   // negative → orange (terra), positive → green (teal), flat → muted.
   const deltaColor = (x) => x < 0 ? VM.terra : (x > 0 ? VM.teal : VM.ink3);
+
+  // Build a grid ({header, body}) of raw numbers for one statement, with the Δ
+  // columns interleaved between periods (so the export mirrors the on-screen
+  // table). Values stay computable: USD millions, except per-share rows.
+  function buildGrid(sheetId, pct, abs) {
+    const sheetRows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheetId];
+    const header = ['Breakdown'];
+    periods.forEach((p, pi) => {
+      header.push(p);
+      if (pi < periods.length - 1) {
+        const range = `${periods[pi + 1]} → ${p}`;
+        if (pct) header.push(`%Δ ${range}`);
+        if (abs) header.push(`$Δ ${range}`);
+      }
+    });
+    const body = sheetRows.map(r => {
+      const line = [r.k];
+      periods.forEach((p, pi) => {
+        line.push(r.v[pi] == null ? '' : r.v[pi]);
+        if (pi < periods.length - 1) {
+          const nv = r.v[pi], ov = r.v[pi + 1];
+          const diff = (nv == null || ov == null) ? null : nv - ov;
+          // Store %Δ as a fraction (2% → 0.02) so a spreadsheet's "%" number
+          // format renders it correctly instead of ×100 (200%).
+          const frac = (diff == null || ov === 0) ? null : diff / Math.abs(ov);
+          if (pct) line.push(frac == null ? '' : +frac.toFixed(4));
+          if (abs) line.push(diff == null ? '' : diff);
+        }
+      });
+      return line;
+    });
+    return { header, body };
+  }
+
+  // Export the chosen statement(s) as CSV or Excel.
+  //   multiple sheets → CSV: stacked sections (extra rows); Excel: separate tabs.
+  function runExport(kind, sheetIds, pct, abs) {
+    const perLabel  = period === 'annual' ? 'Annual' : 'Quarterly';
+    const tag       = sheetIds.length === 3 ? 'all' : sheetIds.join('-');
+    const base      = `${c.ticker}_${tag}_${period}_financials`;
+    const pctNote   = pct ? ' · %Δ as fraction (format cell as %)' : '';
+    const title     = `${c.ticker} — Financials (${perLabel}) · USD millions, except per-share${pctNote}`;
+    if (kind === 'csv') {
+      const rowsOut = [[title]];
+      sheetIds.forEach((sid, idx) => {
+        const { header, body } = buildGrid(sid, pct, abs);
+        rowsOut.push([], [SHEET_LABELS[sid]], header, ...body);
+      });
+      const csv = rowsOut.map(row => row.map(cell => {
+        const s = String(cell == null ? '' : cell);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(',')).join('\r\n');
+      downloadBlob(`${base}.csv`, '﻿' + csv, 'text/csv;charset=utf-8');
+    } else {
+      const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const sheetsXml = sheetIds.map(sid =>
+        `<x:ExcelWorksheet><x:Name>${esc(SHEET_LABELS[sid])}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>`).join('');
+      const tables = sheetIds.map(sid => {
+        const { header, body } = buildGrid(sid, pct, abs);
+        const isPctCol = header.map(h => typeof h === 'string' && h.startsWith('%Δ'));
+        const head = header.map(h => `<th style="text-align:left;background:#eee;border:1px solid #ccc">${esc(h)}</th>`).join('');
+        const tb   = body.map(r => '<tr>' + r.map((cell, i) =>
+          `<td style="border:1px solid #ccc;${i === 0 ? '' : 'text-align:right'}${isPctCol[i] ? `;mso-number-format:'0.0%'` : ''}">${esc(cell)}</td>`).join('') + '</tr>').join('');
+        return `<table style="border-collapse:collapse"><caption style="text-align:left;font-weight:bold;padding:6px 0">${esc(c.ticker)} — ${esc(SHEET_LABELS[sid])} (${esc(perLabel)})</caption>`
+          + `<thead><tr>${head}</tr></thead><tbody>${tb}</tbody></table>`;
+      }).join('<br/>');
+      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">`
+        + `<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>${sheetsXml}</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`
+        + `<body>${tables}</body></html>`;
+      downloadBlob(`${base}.xls`, html, 'application/vnd.ms-excel');
+    }
+    setExportOpen(false);
+  }
 
   // Column model: each period, with a Δ slot inserted between adjacent periods.
   const cols = [];
@@ -303,6 +388,11 @@ function DashFinancials({ data }) {
             display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
             padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink2, cursor:'pointer' }}>
             <i className="ti ti-key" style={{ fontSize:12 }}></i>Legend
+          </button>
+          <button onClick={()=>setExportOpen(true)} title="Export this statement" style={{
+            display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
+            padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.forest}`, background:VM.forest, color:VM.paperWarm, cursor:'pointer' }}>
+            <i className="ti ti-download" style={{ fontSize:12 }}></i>Export
           </button>
         </div>
       </div>
@@ -377,6 +467,169 @@ function DashFinancials({ data }) {
         All figures USD · illustrative mock data · not financial advice{showDelta ? ' · Δ vs prior period' : ''}
       </Mono>
       {legend && <FinLegendModal onClose={()=>setLegend(false)} />}
+      {exportOpen && <FinExportModal ticker={c.ticker} curSheet={sheet}
+        period={period === 'annual' ? 'Annual' : 'Quarterly'}
+        initPct={showPct} initAbs={showAbs} buildGrid={buildGrid} onExport={runExport} onClose={()=>setExportOpen(false)} />}
+    </div>
+  );
+}
+
+// Export wizard — step 1: choose CSV/Excel · step 2: pick sheet + Δ columns,
+// preview the output, then download.
+function FinExportModal({ ticker, curSheet, period, initPct, initAbs, buildGrid, onExport, onClose }) {
+  const SHEET_ORDER = ['income', 'balance', 'cashflow'];
+  const [step, setStep]   = React.useState('format');  // 'format' → 'configure'
+  const [kind, setKind]   = React.useState(null);      // 'csv' | 'excel'
+  const [sheets, setSheets] = React.useState([curSheet]); // multi-select: subset of SHEET_ORDER
+  const [pct, setPct]     = React.useState(initPct);
+  const [abs, setAbs]     = React.useState(initAbs);
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Toggle a statement on/off; always keep canonical order and ≥1 selected.
+  const toggleSheet = (id) => setSheets(prev => {
+    if (prev.includes(id)) return prev.length === 1 ? prev : prev.filter(x => x !== id);
+    return SHEET_ORDER.filter(x => x === id || prev.includes(x));
+  });
+  const allOn = sheets.length === 3;
+
+  const formatOpts = [
+    ['csv',   'ti-file-text',        'CSV',   'Comma-separated values — opens in Excel, Sheets, Numbers or any text editor.'],
+    ['excel', 'ti-file-spreadsheet', 'Excel', 'Formatted workbook (.xls) that opens straight into Microsoft Excel.'],
+  ];
+  const sheetOpts = [['income','Income statement'],['balance','Balance sheet'],['cashflow','Cash flow']];
+  const previewIds = sheets;
+
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:90, background:'rgba(31,29,26,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div onClick={(e)=>e.stopPropagation()} style={{ width:'100%', maxWidth: step==='format' ? 440 : 600, maxHeight:'88vh', display:'flex', flexDirection:'column', background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:14, boxShadow:'0 24px 60px rgba(31,29,26,0.3)' }}>
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:`1px solid ${VM.borderSoft}`, background:VM.paperWarm, borderRadius:'14px 14px 0 0' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+            {step === 'configure' && (
+              <i className="ti ti-arrow-left" onClick={()=>setStep('format')} title="Back" style={{ fontSize:18, color:VM.ink3, cursor:'pointer' }}></i>
+            )}
+            <i className="ti ti-download" style={{ fontSize:16, color:VM.forest }}></i>
+            <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:17 }}>
+              {step === 'format' ? 'Export financials.' : `Export to ${kind === 'csv' ? 'CSV' : 'Excel'}.`}
+            </span>
+          </div>
+          <i className="ti ti-x" onClick={onClose} title="Close" style={{ fontSize:18, color:VM.ink3, cursor:'pointer' }}></i>
+        </div>
+
+        {/* Step 1 — format */}
+        {step === 'format' && (
+          <div style={{ padding:'16px 18px 20px' }}>
+            <Mono size={10} color={VM.faint} style={{ display:'block', marginBottom:14 }}>{ticker} · {period}</Mono>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {formatOpts.map(([id, icon, lbl, desc]) => (
+                <button key={id} onClick={()=>{ setKind(id); setStep('configure'); }} style={{
+                  display:'flex', alignItems:'center', gap:13, textAlign:'left', width:'100%',
+                  padding:'13px 15px', borderRadius:10, border:`1px solid ${VM.border}`, background:VM.paper, cursor:'pointer' }}
+                  onMouseEnter={(e)=>{ e.currentTarget.style.borderColor=VM.forest; e.currentTarget.style.background=VM.paperWarm; }}
+                  onMouseLeave={(e)=>{ e.currentTarget.style.borderColor=VM.border; e.currentTarget.style.background=VM.paper; }}>
+                  <i className={`ti ${icon}`} style={{ fontSize:24, color:VM.forest, flexShrink:0 }}></i>
+                  <span style={{ display:'block' }}>
+                    <span style={{ display:'block', fontFamily:VM.serif, fontWeight:700, fontSize:15, color:VM.ink }}>{lbl}</span>
+                    <span style={{ display:'block', fontFamily:VM.serif, fontSize:12.5, color:VM.ink3, lineHeight:1.4, marginTop:2 }}>{desc}</span>
+                  </span>
+                  <i className="ti ti-chevron-right" style={{ fontSize:16, color:VM.ink3, marginLeft:'auto' }}></i>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — configure + preview */}
+        {step === 'configure' && (
+          <div style={{ padding:'14px 18px 4px', overflowY:'auto' }}>
+            {/* Sheet selector — multi-select */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:7 }}>
+              <Label style={{ color:VM.ink3 }}>Statements <span style={{ color:VM.faint, textTransform:'none', letterSpacing:0 }}>— pick one or more</span></Label>
+              <span onClick={()=>setSheets(allOn ? [curSheet] : [...SHEET_ORDER])} style={{
+                fontFamily:VM.mono, fontSize:10, color:VM.teal, cursor:'pointer', textTransform:'uppercase', letterSpacing:'0.04em' }}>
+                {allOn ? 'Clear' : 'Select all'}
+              </span>
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:14 }}>
+              {sheetOpts.map(([id, lbl]) => {
+                const on = sheets.includes(id);
+                return (
+                  <button key={id} onClick={()=>toggleSheet(id)} style={{
+                    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10.5, padding:'5px 11px', borderRadius:5, cursor:'pointer',
+                    border:`1px solid ${on ? VM.forest : VM.border}`,
+                    background: on ? VM.forest : VM.paper, color: on ? VM.paperWarm : VM.ink2 }}>
+                    <i className={`ti ${on ? 'ti-square-check-filled' : 'ti-square'}`} style={{ fontSize:13 }}></i>{lbl}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Δ columns */}
+            <Label style={{ display:'block', marginBottom:7, color:VM.ink3 }}>Change columns (vs prior period)</Label>
+            <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+              {[['%Δ', pct, setPct, 'Percentage change'],['$Δ', abs, setAbs, 'Absolute change']].map(([lbl, on, set, title]) => (
+                <button key={lbl} onClick={()=>set(v=>!v)} title={title} style={{
+                  fontFamily:VM.mono, fontSize:11, fontWeight:700, padding:'4px 13px', borderRadius:5, cursor:'pointer',
+                  border:`1px solid ${on ? VM.forest : VM.border}`,
+                  background: on ? VM.forest : VM.paper, color: on ? VM.paperWarm : VM.ink3 }}>{lbl}</button>
+              ))}
+            </div>
+
+            {/* Preview */}
+            <Label style={{ display:'block', marginBottom:7, color:VM.ink3 }}>
+              Preview {sheets.length > 1 && <span style={{ color:VM.faint, textTransform:'none', letterSpacing:0 }}>— {kind === 'csv' ? 'stacked into one file' : 'one tab per statement'}</span>}
+            </Label>
+            <div style={{ border:`1px solid ${VM.borderSoft}`, borderRadius:8, overflow:'auto', maxHeight:240, background:VM.paperWarm }}>
+              {previewIds.map((sid, idx) => {
+                const { header, body } = buildGrid(sid, pct, abs);
+                const isPctCol = header.map(h => typeof h === 'string' && h.startsWith('%Δ'));
+                // %Δ is stored as a fraction; show it as a percent in the preview.
+                const showCell = (cell, ci) => cell === '' ? '—' : (isPctCol[ci] ? `${(cell * 100).toFixed(1)}%` : cell);
+                return (
+                  <div key={sid} style={{ padding:'10px 12px', borderTop: idx ? `1px solid ${VM.border}` : 'none' }}>
+                    <Mono size={9.5} weight={700} color={VM.teal} style={{ display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>{SHEET_LABELS[sid]}</Mono>
+                    <table style={{ borderCollapse:'collapse', fontFamily:VM.mono, fontSize:10, whiteSpace:'nowrap' }}>
+                      <thead>
+                        <tr>{header.map((h, i) => (
+                          <th key={i} style={{ textAlign: i ? 'right' : 'left', padding:'3px 8px', color:VM.ink3, fontWeight:600, borderBottom:`1px solid ${VM.border}` }}>{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody>
+                        {body.slice(0, 5).map((r, ri) => (
+                          <tr key={ri}>{r.map((cell, ci) => (
+                            <td key={ci} style={{ textAlign: ci ? 'right' : 'left', padding:'3px 8px', color: ci ? VM.ink2 : VM.ink, borderBottom:`1px solid ${VM.borderHair}` }}>{showCell(cell, ci)}</td>
+                          ))}</tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {body.length > 5 && <Mono size={9} color={VM.faint} style={{ display:'block', marginTop:4 }}>+ {body.length - 5} more rows</Mono>}
+                  </div>
+                );
+              })}
+            </div>
+            <Mono size={9.5} color={VM.faint} style={{ display:'block', margin:'8px 0 0' }}>USD millions, except per-share · {period}{pct ? ' · %Δ exported as a fraction (e.g. 1.5% → 0.015), pre-formatted as % in Excel' : ''}</Mono>
+          </div>
+        )}
+
+        {/* Footer (step 2 only) */}
+        {step === 'configure' && (
+          <div style={{ display:'flex', justifyContent:'flex-end', gap:9, padding:'12px 18px', borderTop:`1px solid ${VM.borderSoft}`, background:VM.paperWarm, borderRadius:'0 0 14px 14px' }}>
+            <button onClick={()=>setStep('format')} style={{
+              fontFamily:VM.mono, fontSize:11, padding:'7px 14px', borderRadius:6, cursor:'pointer',
+              border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink2 }}>Back</button>
+            <button onClick={()=>onExport(kind, sheets, pct, abs)} style={{
+              display:'inline-flex', alignItems:'center', gap:7, fontFamily:VM.mono, fontSize:11, fontWeight:700, padding:'7px 16px', borderRadius:6, cursor:'pointer',
+              border:`1px solid ${VM.forest}`, background:VM.forest, color:VM.paperWarm }}>
+              <i className="ti ti-download" style={{ fontSize:13 }}></i>
+              Download {kind === 'csv' ? 'CSV' : 'Excel'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

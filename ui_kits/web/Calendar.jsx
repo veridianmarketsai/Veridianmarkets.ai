@@ -47,12 +47,98 @@ const CAL_EVENTS = [
   { d: 27, time: '13:30', title: 'US PCE inflation',        type: 'econ', region: 'USD', impact: 'high', forecast: '2.7%',      previous: '2.8%' },
 ];
 
+// Plain-English education for each kind of event: what it is, how it moves
+// markets, and what a bullish vs bearish reading looks like. Keyed by a kind
+// resolved from the event (see calEduFor). Mechanical events use `note` instead
+// of good/bad. Illustrative — not financial advice.
+const CAL_EDU = {
+  fomcdec: {
+    what: "The Federal Reserve sets the federal-funds target rate — the base interest rate that ripples out into every mortgage, loan and bond yield in the economy.",
+    moves: "Rates are the single biggest macro lever. Cheaper money pushes investors toward stocks and lifts bond prices; pricier money does the opposite and strengthens the dollar. Markets react less to the move itself than to whether the Fed sounds more hawkish (rate-supportive) or dovish (cut-leaning) than expected.",
+    good: { label: 'Dovish — a cut or softer tone', text: 'Cheaper money ahead. Equities, bonds and gold tend to rally and the dollar weakens. Bullish for risk assets.' },
+    bad:  { label: 'Hawkish — a hike or "higher for longer"', text: 'Tighter conditions. Equities and bonds usually fall and the dollar firms. A headwind for risk assets.' },
+  },
+  fomcmin: {
+    what: "The detailed minutes of the Fed's most recent meeting, published three weeks after the decision. They expose the debate behind the move and how individual members lean.",
+    moves: "Traders comb the wording for clues to the next move. A hawkish tone (focused on inflation) lifts yields and the dollar; a dovish tone (open to cuts) supports stocks and bonds.",
+    good: { label: 'Dovish tilt', text: 'Hints at easing ahead — supportive for equities and bonds, softer dollar.' },
+    bad:  { label: 'Hawkish tilt', text: 'Signals rates stay high — pressure on equities, firmer yields and dollar.' },
+  },
+  cpi: {
+    what: "The Consumer Price Index — the headline inflation gauge, tracking the change in prices across a basket of everyday goods and services.",
+    moves: "Inflation dictates Fed policy. Hot CPI forces the Fed to keep rates high, which weighs on stocks and bonds; cooling CPI opens the door to cuts and fuels rallies. What matters is the surprise versus the forecast.",
+    good: { label: 'Cooler than forecast', text: 'Eases rate-hike pressure — stocks and bonds rally, yields fall. Risk-on.' },
+    bad:  { label: 'Hotter than forecast', text: 'Keeps rates higher for longer — stocks and bonds sell off, yields and the dollar rise. Risk-off.' },
+  },
+  pce: {
+    what: "The Personal Consumption Expenditures price index — the Fed's preferred inflation measure, and the number it actually targets at 2%. Broader than CPI.",
+    moves: "Because it's the Fed's chosen gauge, a surprise carries extra weight for the rate outlook. The market reaction mirrors CPI.",
+    good: { label: 'Cooler than forecast', text: 'Strengthens the case for rate cuts — bullish for stocks and bonds, softer dollar.' },
+    bad:  { label: 'Hotter than forecast', text: 'Argues for tighter policy — bearish for stocks and bonds, firmer dollar.' },
+  },
+  nfp: {
+    what: "Non-farm payrolls — the monthly change in US jobs outside farming, released the first Friday of each month. The marquee read on the labour market.",
+    moves: "It's a two-sided number. A strong jobs market is good for growth and earnings, but if it runs too hot it can push the Fed to hold rates higher for longer. Markets weigh 'strong economy' against 'higher rates' depending on the inflation backdrop.",
+    good: { label: 'In-line, moderate growth', text: 'A healthy but not overheating jobs market — the "Goldilocks" zone. Generally supportive for stocks.' },
+    bad:  { label: 'Extreme in either direction', text: 'Far too hot revives rate-hike fears (yields and dollar up, stocks down); far too weak revives recession fears. Both unsettle markets.' },
+  },
+  claims: {
+    what: "Initial jobless claims — the number of people filing for unemployment benefits for the first time each week. A timely, high-frequency pulse on the labour market.",
+    moves: "Being weekly, it's an early-warning signal. Rising claims hint the economy is cooling; falling claims show resilience. It usually moves markets only on a sharp deviation from trend.",
+    good: { label: 'Low / falling claims', text: 'Tight labour market and economic strength — broadly supportive, though very low can feed rate worries.' },
+    bad:  { label: 'High / rising claims', text: 'Labour market softening — raises slowdown risk, but can also lift rate-cut hopes.' },
+  },
+  gdp: {
+    what: "Gross Domestic Product — the total value of everything an economy produces, reported as an annualised growth rate. The broadest scorecard of economic health.",
+    moves: "Strong growth supports corporate earnings and risk appetite; weak or negative growth signals a slowdown or recession. Revisions to earlier estimates can move markets too.",
+    good: { label: 'Above forecast', text: 'A robust economy — supportive for equities, though very strong prints can lift rate expectations.' },
+    bad:  { label: 'Below forecast', text: 'A slowing economy — weighs on cyclical stocks; two negative quarters mark a recession.' },
+  },
+  earnings: {
+    what: "A company's quarterly results — revenue, earnings per share (EPS) and forward guidance, all measured against analyst estimates.",
+    moves: "Earnings drive the individual stock and often ripple out to its sector, suppliers and customers. The reaction hinges on the surprise versus consensus and — crucially — the guidance for the quarters ahead.",
+    good: { label: 'Beat + strong guidance', text: 'Results top estimates and the outlook is raised — shares typically jump, lifting peers.' },
+    bad:  { label: 'Miss + weak guidance', text: 'Results fall short or guidance is cut — shares usually drop, dragging the sector.' },
+  },
+  exdiv: {
+    what: "The ex-dividend date — the first day a stock trades without the right to the upcoming dividend. To receive the payout you must own the shares before this date.",
+    moves: "This is a mechanical event, not a signal. On the ex-date the share price typically opens lower by roughly the dividend amount, because new buyers no longer collect that payment.",
+    note: "Not bullish or bearish in itself — it simply marks the cut-off for dividend eligibility. A steady, growing dividend is a sign of company health.",
+  },
+  witching: {
+    what: "Quadruple witching — the quarterly moment (third Friday of Mar/Jun/Sep/Dec) when stock-index futures, index options, single-stock options and single-stock futures all expire together.",
+    moves: "The simultaneous expiry forces traders to roll or close huge positions, spiking volume and volatility — especially in the final hour. The moves are often technical and short-lived rather than driven by fundamentals.",
+    note: "Expect choppier prices and heavier volume; the swings usually fade afterwards. Not a directional good/bad signal.",
+  },
+};
+// Resolve an event to its educational entry, falling back to a generic note.
+function calEduFor(e) {
+  const t = (e.title || '').toLowerCase();
+  let key = null;
+  if (e.type === 'earn') key = 'earnings';
+  else if (e.type === 'div') key = 'exdiv';
+  else if (t.includes('payroll') || t.includes('non-farm')) key = 'nfp';
+  else if (t.includes('jobless') || t.includes('claims')) key = 'claims';
+  else if (t.includes('cpi')) key = 'cpi';
+  else if (t.includes('pce')) key = 'pce';
+  else if (t.includes('gdp')) key = 'gdp';
+  else if (t.includes('rate decision')) key = 'fomcdec';
+  else if (t.includes('minutes')) key = 'fomcmin';
+  else if (t.includes('witching')) key = 'witching';
+  if (key) return CAL_EDU[key];
+  return { what: (CAL_TYPES[e.type] || {}).desc || 'A scheduled market event.',
+    moves: 'Watch the Actual against the Forecast — a surprise versus consensus is what tends to move markets.',
+    note: 'See the Legend for what each column and impact level means.' };
+}
+
 function Calendar({ go, isMobile }) {
   const [filter, setFilter] = useStateCal('all');
   const [ym, setYm] = useStateCal({ y: CAL_YEAR, m: CAL_MONTH });   // month being viewed
   const [sel, setSel] = useStateCal(CAL_TODAY);
   const [view, setView] = useStateCal('month');   // 'month' grid | 'list' table
   const [legend, setLegend] = useStateCal(false); // legend / how-to-read popup
+  const [eduEvent, setEduEvent] = useStateCal(null); // event whose "what is this?" info popup is open
+  const [hoverRow, setHoverRow] = useStateCal(null);  // list row index under the cursor (reveals the ⓘ)
   const [listAnchor, setListAnchor] = useStateCal(() => new Date(CAL_YEAR, CAL_MONTH, CAL_TODAY));
   const [range, setRange] = useStateCal('month'); // list view window: 'week' | 'month'
 
@@ -182,7 +268,11 @@ function Calendar({ go, isMobile }) {
                 <div key={i} style={{ display: 'flex', gap: 11, padding: '11px 0', borderBottom: i < selEvents.length - 1 ? `1px dotted ${VM.border}` : 'none' }}>
                   <span style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, background: t.color, flexShrink: 0 }}></span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink }}>{e.title}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink }}>{e.title}</span>
+                      <i className="ti ti-info-circle" title="What is this event?" onClick={() => setEduEvent(e)}
+                        style={{ fontSize: 15, color: VM.teal, cursor: 'pointer', flexShrink: 0 }}></i>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
                       <Mono size={10} color={VM.ink3}>{e.time}</Mono>
                       <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, color: t.color, border: `1px solid ${t.color}`, borderRadius: 4, padding: '1px 5px' }}>{t.label}</span>
@@ -244,8 +334,9 @@ function Calendar({ go, isMobile }) {
                   const imp = CAL_IMPACT[e.impact] || CAL_IMPACT.low;
                   const wd = e.date.toLocaleDateString('en-GB', { weekday: 'short' });
                   return (
-                    <tr key={i} style={{ borderTop: `1px solid ${firstOfDay ? VM.borderSoft : VM.borderHair}`,
-                      background: e.d === CAL_TODAY ? VM.tealTint : 'transparent' }}>
+                    <tr key={i} onMouseEnter={() => setHoverRow(i)} onMouseLeave={() => setHoverRow(h => h === i ? null : h)}
+                      style={{ borderTop: `1px solid ${firstOfDay ? VM.borderSoft : VM.borderHair}`,
+                      background: e.d === CAL_TODAY ? VM.tealTint : (hoverRow === i ? VM.paperWarm : 'transparent') }}>
                       <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontFamily: VM.mono, fontSize: 11.5, fontWeight: 600, color: firstOfDay ? VM.ink : 'transparent' }}>{firstOfDay ? `${wd} · ${e.d}` : ''}</td>
                       <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontFamily: VM.mono, fontSize: 11.5, color: VM.ink2 }}>{e.time}</td>
                       <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontFamily: VM.mono, fontSize: 11, color: VM.ink3 }}>{e.region || '—'}</td>
@@ -260,6 +351,9 @@ function Calendar({ go, isMobile }) {
                           <span style={{ width: 6, height: 6, borderRadius: 999, background: t.color, flexShrink: 0 }}></span>
                           <span style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink }}>{e.title}</span>
                           {e.ticker && <Mono size={10} color={VM.teal} style={{ cursor: 'pointer' }} onClick={() => { const c = VM_COMPANIES.find(x => x.ticker === e.ticker); if (c) go('dashboard', c); }}>{e.ticker} →</Mono>}
+                          <i className="ti ti-info-circle" title="What is this event?" onClick={() => setEduEvent(e)}
+                            style={{ fontSize: 15, color: VM.teal, cursor: 'pointer', flexShrink: 0,
+                              opacity: (isMobile || hoverRow === i) ? 1 : 0, transition: 'opacity .12s' }}></i>
                         </span>
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap', fontFamily: VM.mono, fontSize: 12, color: VM.ink3 }}>—</td>
@@ -278,6 +372,95 @@ function Calendar({ go, isMobile }) {
       )}
 
       {legend && <CalLegendModal onClose={() => setLegend(false)} />}
+      {eduEvent && <CalEduModal e={eduEvent} onClose={() => setEduEvent(null)} />}
+    </div>
+  );
+}
+
+// "What is this event?" — an educational popup explaining the event, how it
+// moves markets, and what a bullish vs bearish reading looks like.
+function CalEduModal({ e, onClose }) {
+  React.useEffect(() => {
+    const onKey = (ev) => { if (ev.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const edu = calEduFor(e);
+  const t = CAL_TYPES[e.type] || {};
+  const imp = CAL_IMPACT[e.impact] || CAL_IMPACT.low;
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(31,29,26,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(ev) => ev.stopPropagation()} style={{ width: '100%', maxWidth: 540, maxHeight: '85vh', overflowY: 'auto',
+        background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 14, boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
+        {/* header */}
+        <div style={{ position: 'sticky', top: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          padding: '14px 18px', borderBottom: `1px solid ${VM.borderSoft}`, background: VM.paperWarm }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <i className="ti ti-info-circle" style={{ fontSize: 17, color: VM.teal, marginTop: 2 }}></i>
+            <div>
+              <span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 17, lineHeight: 1.2 }}>{e.title}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 5 }}>
+                <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, color: t.color, border: `1px solid ${t.color}`, borderRadius: 4, padding: '1px 5px' }}>{t.label}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: imp.color }}></span>
+                  <Mono size={9.5} weight={700} color={imp.color} style={{ textTransform: 'uppercase' }}>{imp.label} impact</Mono>
+                </span>
+                {e.region && <Mono size={10} color={VM.ink3}>{e.region}</Mono>}
+              </div>
+            </div>
+          </div>
+          <i className="ti ti-x" onClick={onClose} title="Close" style={{ fontSize: 18, color: VM.ink3, cursor: 'pointer', flexShrink: 0 }}></i>
+        </div>
+
+        <div style={{ padding: '16px 18px 20px' }}>
+          {/* what it is */}
+          <Label style={{ display: 'block', marginBottom: 6, color: VM.terra }}>What it is</Label>
+          <p style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.5, margin: 0 }}>{edu.what}</p>
+
+          {/* how it moves markets */}
+          <Label style={{ display: 'block', margin: '16px 0 6px', color: VM.terra }}>How it moves markets</Label>
+          <p style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.5, margin: 0 }}>{edu.moves}</p>
+
+          {/* impact level explainer */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 14, padding: '10px 12px', background: VM.paperWarm, border: `1px solid ${VM.borderSoft}`, borderRadius: 8 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 999, background: imp.color, marginTop: 4, flexShrink: 0 }}></span>
+            <span style={{ fontFamily: VM.serif, fontSize: 13, color: VM.ink2, lineHeight: 1.45 }}>
+              <b style={{ color: imp.color }}>{imp.label} impact.</b> {imp.desc}
+            </span>
+          </div>
+
+          {/* bullish vs bearish, or a neutral note for mechanical events */}
+          {edu.good && edu.bad ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginTop: 16 }}>
+              <div style={{ padding: '11px 13px', background: VM.tealTint, border: `1px solid ${VM.tealTint2}`, borderRadius: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                  <i className="ti ti-trending-up" style={{ fontSize: 15, color: VM.upInk }}></i>
+                  <Mono size={10.5} weight={700} color={VM.upInk} style={{ textTransform: 'uppercase', letterSpacing: '0.03em' }}>Supportive · {edu.good.label}</Mono>
+                </div>
+                <span style={{ fontFamily: VM.serif, fontSize: 13.5, color: VM.ink2, lineHeight: 1.5 }}>{edu.good.text}</span>
+              </div>
+              <div style={{ padding: '11px 13px', background: 'rgba(192,86,59,0.08)', border: '1px solid rgba(192,86,59,0.22)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                  <i className="ti ti-trending-down" style={{ fontSize: 15, color: VM.downInk }}></i>
+                  <Mono size={10.5} weight={700} color={VM.downInk} style={{ textTransform: 'uppercase', letterSpacing: '0.03em' }}>Pressure · {edu.bad.label}</Mono>
+                </div>
+                <span style={{ fontFamily: VM.serif, fontSize: 13.5, color: VM.ink2, lineHeight: 1.5 }}>{edu.bad.text}</span>
+              </div>
+            </div>
+          ) : edu.note ? (
+            <div style={{ marginTop: 16, padding: '11px 13px', background: VM.tealTint, border: `1px solid ${VM.tealTint2}`, borderRadius: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                <i className="ti ti-bulb" style={{ fontSize: 15, color: VM.teal }}></i>
+                <Mono size={10.5} weight={700} color={VM.teal} style={{ textTransform: 'uppercase', letterSpacing: '0.03em' }}>What to watch</Mono>
+              </div>
+              <span style={{ fontFamily: VM.serif, fontSize: 13.5, color: VM.ink2, lineHeight: 1.5 }}>{edu.note}</span>
+            </div>
+          ) : null}
+
+          <Mono size={9.5} color={VM.faint} style={{ display: 'block', marginTop: 16 }}>Educational summary · illustrative, not financial advice</Mono>
+        </div>
+      </div>
     </div>
   );
 }

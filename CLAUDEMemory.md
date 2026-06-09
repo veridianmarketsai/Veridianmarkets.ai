@@ -60,6 +60,25 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-06-09
+
+- **Started `financials-2.7`.** New branch (from main) for financials work. (User
+  said "financials.2.*" → numbered 2.7 per the running counter; 2.1–2.6 already
+  used.)
+- **Financials export + educational Calendar events (`financials-2.7`). Merged to main + live.**
+  - **Financials Export** (`Dashboard.jsx`): green **Export** button by the Legend on
+    the Financials tab → two-step popup (`FinExportModal`). Step 1 picks **CSV/Excel**;
+    step 2 **multi-selects** statements (Income/Balance/Cash flow, Select-all), toggles
+    **%Δ/$Δ** columns, and shows a live **preview**. Multi-sheet → Excel **separate
+    tabs** (Office `x:ExcelWorksheets` HTML-workbook, dependency-free `.xls`), CSV
+    **stacked sections**. **%Δ stored as a fraction** + `mso-number-format:'0.0%'` so
+    Excel shows `1.5%` not `150%`. `downloadBlob` helper does client-side download.
+  - **Calendar event education** (`Calendar.jsx`): each event has an **ⓘ** (list view:
+    reveal on row hover / always on mobile; month day-panel: always shown) → `CalEduModal`
+    explaining what it is, how it moves markets, and **bullish vs bearish** (or a
+    neutral "what to watch" note). Content in `CAL_EDU` registry; `calEduFor()` maps
+    events by type + title keywords with a generic fallback. All mock.
+
 ### 2026-06-08
 
 - **Started `indices-2.6`.** New branch (from main) for indices work (the index
@@ -451,7 +470,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `indices-2.6` (indices/commodities/forex in search + asset-class maps + S&P family tree + constituent preview + breadcrumb drill trail + connector-arrow fix; **merged to main + live**). Previous: `dependency-map-2.5` (map tabs + News filters + Financials deltas + legend + AI assistant; merged + live). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `financials-2.7` (Financials export popup → CSV/Excel, multi-sheet tabs/sections, %Δ-as-fraction; + Calendar event ⓘ educational popups; **merged to main + live**). Previous: `indices-2.6` (indices/commodities/forex in search + asset-class maps + S&P family tree + constituent preview + breadcrumb drill trail + connector-arrow fix; **merged to main + live**). Previous: `dependency-map-2.5` (map tabs + News filters + Financials deltas + legend + AI assistant; merged + live). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -459,7 +478,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.7`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `indices-2.6` merged to main.
+**Next free iteration: `<code-name>-2.8`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `financials-2.7` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
