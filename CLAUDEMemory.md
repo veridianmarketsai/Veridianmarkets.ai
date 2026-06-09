@@ -41,6 +41,7 @@ belongs to the Toolbar Menu.
 |--------------------------------|----------------------|------------|-------|
 | *logo — "Veridian Markets"*    | **Home Page**        | `front`    | The top-left wordmark **is** the Home button. There is no "Front page" text item. |
 | Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Now wired to a **placeholder client-side auth** (`VM_ACCOUNTS` in `app.jsx`; admin account; SHA-256 hash; session in `localStorage`). **Not real security** — to be replaced by AWS Cognito. |
+| My Business *(business mode)*  | **My Business Page** | `mybusiness` | **NEW (`business-page-2.8`, merged to main + live).** Signed-in-only **dependency-map builder** (`MyBusiness.jsx`): the firm at the centre, draggable supplier/external/customer nodes with live curved connectors, a right-hand editor panel (name/ticker/role/note/type + delete), add/clear/reset, **Save** to `localStorage` (`vm_business_map`). Reached via the rail **Personal ⇄ Business** toggle (top of rail) or the **My Business** rail item, which show per `accountMode` (persisted). Mobile = list editor fallback. Mock until backend. |
 | My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated (`signedIn` from `localStorage`). Now a **customisable widget dashboard** (`MyPortfolio.jsx`): Connect-accounts bar (Trading 212 + IBKR/Robinhood/Coinbase/Vanguard/Binance, mock connect), then Summary KPIs, Performance area chart (range toggles), Allocation donut, Holdings table, Watchlist, Analogue alerts. **Customise mode** = show/hide + reorder + resize widgets; layout & connections persist to `localStorage`. Mock data. |
 | Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
 | Search                         | **Main Search Page** | `screener` | Renamed from "Company search". Rows hover/pop-out + eye-preview exactly like the home list; filter chips are now dropdowns (`FILTER_DEFS` mock → DB later) with add/remove + Clear all. |
@@ -66,6 +67,17 @@ placeholders until their page exists.
   account switcher (a toggle up top) and a new **My Business** page (`mybusiness`) where
   companies build their **own dependency map**. (User said "business page 2.2" → numbered
   **2.8** per the running counter; 2.2 already used by `supply-chain-live-2.2`.)
+- **Personal⇄Business switcher + My Business map builder (`business-page-2.8`). Merged to main + live.**
+  - **Switcher** (`chrome.jsx`/`app.jsx`): segmented **Personal/Business** toggle at the top
+    of the rail; `accountMode` persisted to `localStorage` (`vm_account_mode`). Switching
+    navigates to that mode's home (My Account / My Business). The You group shows the
+    account item matching the mode; **My Business** also a rail item (briefcase icon).
+  - **My Business** (`MyBusiness.jsx`, route `/my-business`, signed-in gated): interactive
+    **dependency-map builder** — centre company node (editable), draggable supplier/external/
+    customer nodes, live curved SVG connectors, right-hand editor panel, add/clear/reset, Save
+    to `localStorage` (`vm_business_map`), seeded starter map, mobile list-editor fallback.
+    Registered in `index.html`. Design Qs still open: optional link-node-to-real-company,
+    multi-map/team storage (AWS later), draggable centre node. Mock.
 
 - **Started `financials-2.7`.** New branch (from main) for financials work. (User
   said "financials.2.*" → numbered 2.7 per the running counter; 2.1–2.6 already
@@ -475,7 +487,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `financials-2.7` (Financials export popup → CSV/Excel, multi-sheet tabs/sections, %Δ-as-fraction; + Calendar event ⓘ educational popups; **merged to main + live**). Previous: `indices-2.6` (indices/commodities/forex in search + asset-class maps + S&P family tree + constituent preview + breadcrumb drill trail + connector-arrow fix; **merged to main + live**). Previous: `dependency-map-2.5` (map tabs + News filters + Financials deltas + legend + AI assistant; merged + live). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `business-page-2.8` (Personal⇄Business rail switcher + My Business dependency-map builder page; **merged to main + live**). Previous: `financials-2.7` (Financials export popup → CSV/Excel, multi-sheet tabs/sections, %Δ-as-fraction; + Calendar event ⓘ educational popups; merged + live). Previous: `indices-2.6` (indices/commodities/forex in search + asset-class maps + S&P family tree + constituent preview + breadcrumb drill trail + connector-arrow fix; **merged to main + live**). Previous: `dependency-map-2.5` (map tabs + News filters + Financials deltas + legend + AI assistant; merged + live). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -483,7 +495,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.9`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: `business-page-2.8` (Personal⇄Business switcher + My Business dependency-map page).
+**Next free iteration: `<code-name>-2.9`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `business-page-2.8` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)

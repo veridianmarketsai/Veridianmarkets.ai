@@ -9,6 +9,7 @@ const ROUTE_PATHS = {
   front:       '/',
   signin:      '/sign-in',
   myportfolio: '/portfolio',
+  mybusiness:  '/my-business',
   supply:      '/supply-chain',
   screener:    '/search',
   history:     '/history',
@@ -22,7 +23,8 @@ const ROUTE_PATHS = {
 const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
 const ROUTE_TITLES = {
   front:'Veridian Markets · history-led finance', signin:'Sign in · Veridian Markets',
-  myportfolio:'My Account · Veridian Markets', supply:'Supply chain network · Veridian Markets',
+  myportfolio:'My Account · Veridian Markets', mybusiness:'My Business · Veridian Markets',
+  supply:'Supply chain network · Veridian Markets',
   screener:'Search · Veridian Markets', history:'History · Veridian Markets',
   learn:'Learn · Veridian Markets', memoir:'Read memoir · Veridian Markets',
   admin:'Admin · Veridian Markets', settings:'Settings · Veridian Markets',
@@ -234,15 +236,28 @@ function App() {
   const signOut = () => {
     setUser(null);
     try { localStorage.removeItem(VM_SESSION_KEY); } catch {}
+    setAccountMode('personal');
     go('front');
   };
+
+  // Account mode — Personal ⇄ Business. A persisted preference that the rail
+  // toggles; switching jumps to that mode's home (My Account / My Business).
+  const [accountMode, setAccountMode] = useStateApp(() => { try { return localStorage.getItem('vm_account_mode') || 'personal'; } catch { return 'personal'; } });
+  useEffectApp(() => { try { localStorage.setItem('vm_account_mode', accountMode); } catch {} }, [accountMode]);
+  const switchMode = (mode) => { setAccountMode(mode); go(mode === 'business' ? 'mybusiness' : 'myportfolio'); };
+  // Keep the rail toggle in step when navigating straight to either page.
+  useEffectApp(() => {
+    if (route === 'mybusiness' && accountMode !== 'business') setAccountMode('business');
+    if (route === 'myportfolio' && accountMode !== 'personal') setAccountMode('personal');
+  }, [route]);
 
   // Protected routes. Portfolio sign-in guard is temporarily disabled (laptop:
   // learn-1.14 "sign-in guard bypass"); Admin still needs the admin role.
   const isAdmin = !!(user && user.role === 'admin');
   const gatedFromPortfolio = false; // temporarily disabled — restore: route==='myportfolio' && !signedIn
+  const gatedFromBusiness = route==='mybusiness' && !signedIn;   // My Business is signed-in only
   const gatedFromAdmin = route==='admin' && !isAdmin;            // signed-out → sign in; signed-in non-admin → home
-  const effRoute = gatedFromPortfolio ? 'signin'
+  const effRoute = gatedFromPortfolio || gatedFromBusiness ? 'signin'
     : gatedFromAdmin ? (signedIn ? 'front' : 'signin')
     : (route==='signin' && signedIn) ? 'front'   // already signed in → never show the sign-in page (temporary)
     : route;
@@ -259,11 +274,12 @@ function App() {
   else if(effRoute==='memoir') screen = <Memoir go={go} isMobile={isMobile} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
+  else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
-  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : 'myportfolio'} isMobile={isMobile} />;
+  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : gatedFromBusiness ? 'mybusiness' : 'myportfolio'} isMobile={isMobile} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
 
@@ -277,7 +293,7 @@ function App() {
         </main>
       ) : (
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
-          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} isAdmin={isAdmin} />
+          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} isAdmin={isAdmin} accountMode={accountMode} onModeChange={switchMode} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
             {/* Ticker runs along the very top of every page, just under the green header. */}
             <IndexStrip />

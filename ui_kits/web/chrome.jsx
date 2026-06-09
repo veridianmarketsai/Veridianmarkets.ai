@@ -39,18 +39,21 @@ function Masthead({ go }) {
 
 const RAIL_GROUPS = [
   { head:null, items:[ {id:'search', label:'Search', icon:'search', isSearch:true } ] },
-  { head:'You', items:[ {id:'signin', label:'Sign in'}, {id:'myportfolio', label:'My Account'}, {id:'settings', label:'Settings', icon:'settings'} ] },
+  { head:'You', items:[ {id:'signin', label:'Sign in'}, {id:'myportfolio', label:'My Account'}, {id:'mybusiness', label:'My Business', icon:'briefcase'}, {id:'settings', label:'Settings', icon:'settings'} ] },
   { head:'Explore', items:[ {id:'front', label:'Home'}, {id:'screener', label:'Search'}, {id:'news', label:'News'}, {id:'calendar', label:'Calendar'}, {id:'supply', label:'Dependency map', badge:'Live Demo'} ] },
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
-function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isAdmin }) {
+function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isAdmin, accountMode, onModeChange }) {
   // The You group is personalised. When signed in, Sign-out + Settings drop to a
   // pinned bottom group; admins get an "Admin" item. Signed out: keep Sign in,
-  // hide Settings.
+  // hide Settings. The You account item follows the Personal/Business mode.
   const groups = RAIL_GROUPS.slice(1).map(g => {
     if (g.head !== 'You') return g;
     let items = g.items.filter(it => it.id !== 'settings' && (!signedIn || it.id !== 'signin'));
+    // Show the account page that matches the current mode (the other is a tap on
+    // the toggle away), so the You group stays focused.
+    items = items.filter(it => !(it.id === 'myportfolio' && accountMode === 'business') && !(it.id === 'mybusiness' && accountMode !== 'business'));
     if (isAdmin) items = [...items, { id:'admin', label:'Admin', tone:'teal', icon:'shield-half' }];
     return { ...g, items };
   });
@@ -85,6 +88,26 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isA
           </div>
         )}
       </div>
+
+      {/* Personal ⇄ Business account switcher */}
+      {onModeChange && (
+        <div style={{ padding:'8px 16px 2px' }}>
+          <div style={{ display:'flex', background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:999, padding:3 }}>
+            {[['personal','Personal','user'],['business','Business','briefcase']].map(([m, lbl, icon]) => {
+              const on = (accountMode||'personal') === m;
+              return (
+                <button key={m} onClick={()=>onModeChange(m)} title={`${lbl} account`} style={{
+                  flex:1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:5,
+                  fontFamily:VM.mono, fontSize:10, letterSpacing:'0.03em', textTransform:'uppercase', fontWeight:700,
+                  padding:'6px 8px', borderRadius:999, border:'none', cursor:'pointer',
+                  background: on ? VM.forest : 'transparent', color: on ? VM.paperWarm : VM.ink3 }}>
+                  <i className={'ti ti-'+icon} style={{ fontSize:12 }}></i>{lbl}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <nav style={{ padding:'8px 8px 14px', display:'flex', flexDirection:'column', gap:2, flex:1 }}>
         {groups.map((g,gi)=>(
           <div key={gi} style={{ marginBottom:10, ...(g.bottom ? { marginTop:'auto', marginBottom:0 } : null) }}>
