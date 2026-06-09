@@ -243,6 +243,8 @@ function DashFinancials({ data, c }) {
   const [showAbs, setShowAbs] = React.useState(false);   // $Δ — absolute change vs prior period
   const [legend, setLegend]   = React.useState(false);   // "reading the financials" popup
   const [exportOpen, setExportOpen] = React.useState(false); // CSV/Excel export popup
+  const [analysisOpen, setAnalysisOpen] = React.useState(false);
+  const analysisBtnRef = React.useRef(null);
   const rows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheet];
   const periods = data.periods;
   const showDelta = showPct || showAbs;
@@ -394,6 +396,11 @@ function DashFinancials({ data, c }) {
             padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.forest}`, background:VM.forest, color:VM.paperWarm, cursor:'pointer' }}>
             <i className="ti ti-download" style={{ fontSize:12 }}></i>Export
           </button>
+          <button ref={analysisBtnRef} onClick={()=>setAnalysisOpen(true)} title="Open chart analysis" style={{
+            display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
+            padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.teal}`, background:VM.tealTint, color:VM.tealInk, cursor:'pointer' }}>
+            <i className="ti ti-chart-bar" style={{ fontSize:12 }}></i>Analysis
+          </button>
         </div>
       </div>
       <div ref={scrollRef} onPointerDown={onDragDown} onPointerMove={onDragMove} onPointerUp={onDragUp} onPointerLeave={onDragUp} onPointerCancel={onDragUp}
@@ -470,6 +477,7 @@ function DashFinancials({ data, c }) {
       {exportOpen && <FinExportModal ticker={c.ticker} curSheet={sheet}
         period={period === 'annual' ? 'Annual' : 'Quarterly'}
         initPct={showPct} initAbs={showAbs} buildGrid={buildGrid} onExport={runExport} onClose={()=>setExportOpen(false)} />}
+      {analysisOpen && <AnalysisModal open={analysisOpen} onClose={()=>setAnalysisOpen(false)} data={data} c={c} analysisButtonRef={analysisBtnRef} />}
     </div>
   );
 }
