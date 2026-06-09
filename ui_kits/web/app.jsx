@@ -175,6 +175,9 @@ function App() {
   // Seed route + company from the current URL so deep links / refreshes land on
   // the right page (front | screener | supply | dashboard | history | memoir |
   // learn | signin | myportfolio).
+  const [theme, setTheme] = useStateApp(() => { try { return localStorage.getItem('vm_theme') || 'light'; } catch(e) { return 'light'; } });
+  useEffectApp(() => { window.__vmThemeUpdate = setTheme; }, [setTheme]);
+
   const initial = pathToState(window.location.pathname);
   const [route, setRoute] = useStateApp(initial.route);
   const [company, setCompany] = useStateApp(initial.company || VM_COMPANIES[0]);
@@ -276,7 +279,7 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : gatedFromBusiness ? 'mybusiness' : 'myportfolio'} isMobile={isMobile} />;
