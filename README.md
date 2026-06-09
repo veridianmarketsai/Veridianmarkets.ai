@@ -315,6 +315,20 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-09 (financials)
+
+- **Financials export + educational Calendar events.** The company **Financials**
+  tab gains an **Export** button → a two-step popup: pick **CSV** or **Excel**, then
+  choose which statement(s) — Income / Balance sheet / Cash flow, **multi-select**
+  with Select-all — toggle the **%Δ / $Δ** change columns, and see a live **preview**
+  of the output. Exporting multiple statements writes **separate tabs** in Excel and
+  **stacked sections** in CSV; **%Δ** is stored as a fraction (pre-formatted as `%`
+  in Excel) so a "%" cell format reads `1.5%`, not `150%`. On the **Calendar** (List
+  + Month views) each event now has an **ⓘ** button that opens a plain-English
+  explainer: what the event is, how it moves markets, and a **bullish vs bearish**
+  (or "what to watch") breakdown with the impact level. All mock data.
+  _(branch: `financials-2.7`)_
+
 ### 2026-06-08 (indices)
 
 - **Indices, commodities & forex — asset-class-aware maps + search.** Added the S&P
