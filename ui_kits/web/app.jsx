@@ -288,7 +288,7 @@ function App() {
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
+    <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
         <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: showAppCta ? 76 : 0 }}>
@@ -299,7 +299,6 @@ function App() {
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
           <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} isAdmin={isAdmin} accountMode={accountMode} onModeChange={switchMode} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-            {/* Ticker runs along the very top of every page, just under the green header. */}
             <IndexStrip />
             <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm, paddingBottom: showAppCta ? 76 : 0 }}>
               {screen}

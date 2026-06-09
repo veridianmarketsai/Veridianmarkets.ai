@@ -10,15 +10,15 @@ function GlobalHeader({ go, isMobile, menuOpen, onToggleMenu, hideMenuButton }) 
       gap:12, padding:'0 14px', borderBottom:'1px solid rgba(0,0,0,0.20)', zIndex:50 }}>
       {isMobile && !hideMenuButton && (
         <button onClick={onToggleMenu} aria-label="Toggle menu" title="Menu" style={{ width:34, height:34, borderRadius:8,
-          border:'1px solid rgba(255,255,255,0.25)', background:'rgba(255,255,255,0.08)', color:VM.paper,
+          border:'1px solid rgba(255,255,255,0.25)', background:'rgba(255,255,255,0.08)', color:'#F2EFE8',
           display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', padding:0, flexShrink:0 }}>
           <i className={'ti ti-'+(menuOpen?'x':'menu-2')} style={{ fontSize:18 }}></i>
         </button>
       )}
       <div onClick={()=>go&&go('front')} title="Home page" style={{ display:'flex', alignItems:'baseline', gap:6,
         cursor:'pointer', whiteSpace:'nowrap', lineHeight:1 }}>
-        <span style={{ fontFamily:VM.serif, fontStyle:'italic', fontWeight:700, fontSize:20, color:VM.tealTint2, letterSpacing:'-0.01em' }}>Veridian</span>
-        <span style={{ fontFamily:VM.serif, fontWeight:500, fontSize:20, color:VM.paper }}>Markets</span>
+        <span style={{ fontFamily:VM.serif, fontStyle:'italic', fontWeight:700, fontSize:20, color:'#B8DDD0', letterSpacing:'-0.01em' }}>Veridian</span>
+        <span style={{ fontFamily:VM.serif, fontWeight:500, fontSize:20, color:'#F2EFE8' }}>Markets</span>
       </div>
       <span style={{ marginLeft:'auto', fontFamily:VM.mono, fontSize:9.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(225,241,236,0.78)' }}>history-led finance</span>
     </header>
@@ -100,7 +100,7 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isA
                   flex:1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:5,
                   fontFamily:VM.mono, fontSize:10, letterSpacing:'0.03em', textTransform:'uppercase', fontWeight:700,
                   padding:'6px 8px', borderRadius:999, border:'none', cursor:'pointer',
-                  background: on ? VM.forest : 'transparent', color: on ? VM.paperWarm : VM.ink3 }}>
+                  background: on ? VM.forest : 'transparent', color: on ? '#F2EFE8' : VM.ink3 }}>
                   <i className={'ti ti-'+icon} style={{ fontSize:12 }}></i>{lbl}
                 </button>
               );
