@@ -111,6 +111,24 @@ function MyBusiness({ go, user, isMobile }) {
   const save  = () => { try { localStorage.setItem(VM_BIZ_KEY, JSON.stringify(map)); setSavedAt(Date.now()); setDirty(false); } catch {} };
   const reset = () => { if (window.confirm('Reset the map to the starter example? Your current map will be lost.')) { const d = bizDefault(); setMap(d); setSelId(null); mark(); } };
   const clear = () => { if (window.confirm('Remove all nodes? The centre company stays.')) { setMap(m => ({ ...m, nodes: [] })); setSelId(null); mark(); } };
+  const tidy  = () => {
+    const PAD_TOP = 48, PAD_BOT = 24;
+    const inNodes  = map.nodes.filter(n => BIZ_KINDS[n.kind].side === 'in');
+    const outNodes = map.nodes.filter(n => BIZ_KINDS[n.kind].side === 'out');
+    const arrange  = (nodes, xPos) => {
+      const count = nodes.length;
+      if (count === 0) return [];
+      const usable = BIZ_H - PAD_TOP - PAD_BOT - BIZ_NH;
+      return nodes.map((n, i) => ({
+        ...n, x: xPos,
+        y: count === 1 ? Math.round(BIZ_H / 2 - BIZ_NH / 2) : Math.round(PAD_TOP + i * usable / (count - 1)),
+      }));
+    };
+    const xIn  = Math.max(16, cw * 0.10);
+    const xOut = Math.min(cw - BIZ_NW - 16, cw * 0.72);
+    setMap(m => ({ ...m, nodes: [...arrange(inNodes, xIn), ...arrange(outNodes, xOut)] }));
+    mark();
+  };
 
   // ── Drag (desktop canvas) ──────────────────────────────────────────────────
   const onNodeDown = (e, n) => {
@@ -159,6 +177,7 @@ function MyBusiness({ go, user, isMobile }) {
         <BizBtn icon="plus" onClick={()=>addNode('external')}>External</BizBtn>
         <BizBtn icon="plus" onClick={()=>addNode('customer')}>Customer</BizBtn>
         <span style={{ width:1, height:20, background:VM.border, margin:'0 2px' }}></span>
+        <BizBtn icon="layout-distribute-vertical" onClick={tidy} tone="muted">Tidy</BizBtn>
         <BizBtn icon="trash" onClick={clear} tone="muted">Clear</BizBtn>
         <BizBtn icon="refresh" onClick={reset} tone="muted">Reset</BizBtn>
         <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:10 }}>
