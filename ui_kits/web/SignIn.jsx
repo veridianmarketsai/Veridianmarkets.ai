@@ -47,7 +47,7 @@ function SignIn({ go, signIn, redirectTo, isMobile }) {
         </div>
 
         <form onSubmit={submit}>
-          <SignInField label="Email" type="email" placeholder="you@example.com" autoComplete="email"
+          <SignInField label="Username" type="text" placeholder="Username" autoComplete="username"
             value={email} onChange={e=>{ setEmail(e.target.value); if(error) setError(''); }} />
           <SignInField label="Password" type="password" placeholder="••••••••" autoComplete="current-password"
             value={password} onChange={e=>{ setPassword(e.target.value); if(error) setError(''); }} />

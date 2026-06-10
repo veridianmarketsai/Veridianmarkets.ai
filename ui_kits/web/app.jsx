@@ -56,8 +56,8 @@ function stateToPath(route, company) {
 // isn't in the repo, but anyone could still read this and sign in. Replace the
 // whole block with real AWS Cognito auth before this matters. See README.
 const VM_ACCOUNTS = [
-  { email:'veridianmarkets.ai@gmail.com', name:'Admin', role:'admin',
-    passHash:'0b63006babadddf7c11b2cb9ec1d614931b2ed266413717b7b7dc601d0bda2fa' }, // VDMAI123
+  { email:'Admin', name:'Admin', role:'admin',
+    passHash:'60fe74406e7f353ed979f350f2fbb6a2e8690a5fa7d1b0c32983d1d8b3f95f67' }, // Admin1234
 ];
 async function sha256Hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
