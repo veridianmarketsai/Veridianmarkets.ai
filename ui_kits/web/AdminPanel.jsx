@@ -15,9 +15,28 @@ const aMoney = (n) => '$' + Number(n).toLocaleString('en-US');
 const aDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 const aRel = (d) => { const days = Math.round((VM_NOW - d) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
 
+const ADMIN_STEPS = [
+  { sel:'[data-tour="vm-admin-header"]',
+    title:'Control panel.',
+    body:'This is the admin view — only accounts with the admin role can access it. You can see platform-wide metrics, browse and manage users, and edit the course catalogue from here.' },
+  { sel:'[data-tour="vm-admin-tabs"]',
+    title:'Three tabs.',
+    body:'Overview shows the headline KPIs and charts. Users lets you search, filter, and access any account on the platform. Courses lets you add, edit, or remove courses from the learn catalogue in real time.' },
+  { sel:'[data-tour="vm-admin-kpis"]',
+    title:'Key metrics at a glance.',
+    body:'Total users, new signups, paying accounts, estimated MRR, churn count, and live course count — all updated from the temporary dataset. Green is good, red warrants attention.' },
+  { sel:'[data-tour="vm-admin-charts"]',
+    title:'Signups and plan distribution.',
+    body:'The bar chart shows monthly signup volume for the last 12 months. The donut breaks down Free, Plus, and Pro seats. Together they tell you whether you are growing and how revenue is distributed across tiers.' },
+  { sel:'[data-tour="vm-admin-countries"]',
+    title:'Top countries.',
+    body:'User count by country, shown as a ranked bar list. Useful for prioritising localisation, compliance, and marketing spend.' },
+];
+
 function AdminPanel({ go, user, isMobile }) {
   const [tab, setTab] = useStateAdmin('overview');
   const [accessing, setAccessing] = useStateAdmin(null);   // simulated "access account" target
+  const [tutorialOpen, setTutorialOpen] = useStateAdmin(false);
   const stats = React.useMemo(() => vmUserStats(), []);
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'layout-dashboard' },
@@ -26,7 +45,7 @@ function AdminPanel({ go, user, isMobile }) {
   ];
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div data-tour="vm-admin-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <Kicker>Control panel</Kicker>
@@ -35,6 +54,12 @@ function AdminPanel({ go, user, isMobile }) {
           <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 26 : 32, lineHeight: 1.05, margin: '8px 0 0' }}>Admin.</h1>
           <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink3, marginTop: 4 }}>Signed in as <strong style={{ color: VM.ink2 }}>{user ? (user.name || user.email) : 'admin'}</strong> · temporary data</div>
         </div>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this panel"
+          style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
+            letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5, flexShrink:0, marginTop:8,
+            border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer' }}>
+          <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
+        </button>
       </div>
 
       {/* impersonation banner */}
@@ -47,7 +72,7 @@ function AdminPanel({ go, user, isMobile }) {
       )}
 
       {/* tabs */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 20, borderBottom: `1px solid ${VM.borderSoft}` }}>
+      <div data-tour="vm-admin-tabs" style={{ display: 'flex', gap: 6, marginTop: 20, borderBottom: `1px solid ${VM.borderSoft}` }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: VM.serif, fontSize: 15,
             padding: '9px 14px', cursor: 'pointer', background: 'transparent', border: 'none', color: tab === t.id ? VM.ink : VM.ink3,
@@ -62,6 +87,8 @@ function AdminPanel({ go, user, isMobile }) {
         {tab === 'users' && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
         {tab === 'courses' && <CoursesTab go={go} isMobile={isMobile} />}
       </div>
+
+      {tutorialOpen && <TutorialOverlay steps={ADMIN_STEPS} label="Admin panel tutorial" onClose={()=>setTutorialOpen(false)} />}
     </div>
   );
 }
@@ -85,10 +112,10 @@ function OverviewTab({ stats, isMobile }) {
   const maxC = Math.max(...stats.topCountries.map(c => c.n), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+      <div data-tour="vm-admin-kpis" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         {kpis.map((k, i) => <AdminKpi key={i} {...k} />)}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+      <div data-tour="vm-admin-charts" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
         <AdminCard title="Signups · last 12 months"><AdminBars data={stats.months} /></AdminCard>
         <AdminCard title="Plan distribution">
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
@@ -105,7 +132,7 @@ function OverviewTab({ stats, isMobile }) {
           </div>
         </AdminCard>
       </div>
-      <AdminCard title="Top countries">
+      <AdminCard title="Top countries" dataTour="vm-admin-countries">
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
           {stats.topCountries.map(c => (
             <div key={c.c} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -128,9 +155,9 @@ function AdminKpi({ label, value, foot, tone }) {
     </div>
   );
 }
-function AdminCard({ title, children }) {
+function AdminCard({ title, children, dataTour }) {
   return (
-    <section style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
+    <section data-tour={dataTour} style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
       <header style={{ padding: '12px 16px', borderBottom: `1px solid ${VM.borderHair}` }}>
         <span style={{ fontFamily: VM.mono, fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: VM.ink3, fontWeight: 700 }}>{title}</span>
       </header>
