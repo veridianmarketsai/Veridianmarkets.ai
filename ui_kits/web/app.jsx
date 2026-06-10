@@ -189,6 +189,9 @@ function App() {
   const isMobile = useIsMobile(768);
   useEffectApp(()=>{ if(!isMobile) setMenuOpen(false); }, [isMobile]);
 
+  const [activeTourId, setActiveTourId] = useStateApp(null);
+  const goRef = useRefApp(null);
+
   // Keep the trail in step with navigation: drilling into a new company appends a
   // crumb (fresh on Overview); revisiting an earlier crumb truncates back to it
   // (restoring the tab it was on); leaving the dashboard flow clears the trail.
@@ -214,8 +217,14 @@ function App() {
     setRoute(r); setMenuOpen(false);
     const path = stateToPath(r, nextCompany);
     if (path !== window.location.pathname) window.history.pushState({}, '', path);
+
     scrollTop();
   };
+  goRef.current = go;
+  useEffectApp(() => {
+    window.__vmStartTour = (id) => setActiveTourId(id);
+    window.__vmGoForTour = (r, c) => goRef.current && goRef.current(r, c);
+  }, []);
   // Back/forward buttons → sync state from the URL (no new history entry).
   useEffectApp(() => {
     const onPop = () => { const s = pathToState(window.location.pathname); setRoute(s.route); if (s.company) setCompany(s.company); syncTrail(s.route, s.company); scrollTop(); };
@@ -309,6 +318,7 @@ function App() {
       )}
       {showAppCta && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={showAppCta ? 86 : (isMobile ? 16 : 24)} />
+      {activeTourId && <TourEngine key={activeTourId} tourId={activeTourId} onDone={() => setActiveTourId(null)} />}
     </div>
   );
 }

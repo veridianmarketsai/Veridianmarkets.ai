@@ -67,8 +67,30 @@ const LEARN_PROGRESS = {
 
 const PF_RANGES = { '1W':7,'1M':24,'3M':36,'1Y':52,'5Y':60,'MAX':72 };
 
+const PF_STEPS = [
+  { sel:'[data-tour="vm-pf-connect"]',
+    title:'Connect a broker.',
+    body:'Link a brokerage account to import your holdings automatically. Click any card to connect or disconnect. Veridian requests read-only access only — it cannot place trades or move funds on your behalf.' },
+  { sel:'[data-tour="vm-pf-learning"]',
+    title:'Your learning progress.',
+    body:'Picks up where you left off. The progress bar tracks your current module; the streak counter shows consecutive days of activity. Hit Continue to go straight back in, or go to the Learn page to browse all courses.' },
+  { sel:'[data-tour="vm-pf-overview"]',
+    title:'Portfolio summary.',
+    body:'Total value, today\'s change, total return since cost basis, and available cash on the left. The performance chart on the right shows the full portfolio trajectory — switch time ranges to zoom into a specific period.' },
+  { sel:'[data-tour="vm-pf-risk"]',
+    title:'Risk and trajectory.',
+    body:'Holdings are bucketed into Low, Medium, and High risk tiers. The donut shows concentration by position value — a large slice in High means your biggest positions carry the most risk. The notes column explains the specific exposure for each holding.' },
+  { sel:'[data-tour="vm-pf-holdings"]',
+    title:'Holdings.',
+    body:'Each row shows shares, current price, position value, today\'s move, portfolio weight, and risk tier. Click any row to open that company\'s full dashboard — financials, supply chain, patents, and history.' },
+  { sel:'[data-tour="vm-pf-scn"]',
+    title:'Portfolio supply chain.',
+    body:'Select any holding to load its dependency map. See who it buys from and who it sells to — and how that overlaps across your other positions. Add any ticker to the view even if it\'s not in your portfolio.' },
+];
+
 // ── main component ────────────────────────────────────────────────────────────
 function MyPortfolio({ go, user, isMobile }) {
+  const [tutorialOpen, setTutorialOpen] = useStateMP(false);
   const [connected, setConnected] = useStateMP(() => {
     try { return new Set(JSON.parse(localStorage.getItem(PF_BROKERS_KEY))||[]); } catch { return new Set(); }
   });
@@ -98,12 +120,22 @@ function MyPortfolio({ go, user, isMobile }) {
     <div style={{ padding: isMobile?'16px 16px 88px':'26px 32px 72px', maxWidth:1180, margin:'0 auto' }}>
 
       {/* header */}
-      <Kicker>Your account</Kicker>
-      <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:isMobile?27:32, lineHeight:1.05, margin:'8px 0 0' }}>My Account.</h1>
-      {user && <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, marginTop:4 }}>Signed in as <strong style={{color:VM.ink2}}>{user.name||user.email}</strong></div>}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+        <div>
+          <Kicker>Your account</Kicker>
+          <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:isMobile?27:32, lineHeight:1.05, margin:'8px 0 0' }}>My Account.</h1>
+          {user && <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, marginTop:4 }}>Signed in as <strong style={{color:VM.ink2}}>{user.name||user.email}</strong></div>}
+        </div>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this page"
+          style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
+            letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5, flexShrink:0, marginTop:8,
+            border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer' }}>
+          <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
+        </button>
+      </div>
 
       {/* ── 1. Connect accounts ─────────────────────────────────────────── */}
-      <PfSection title="Connect accounts" icon="plug-connected" style={{ marginTop:24 }}>
+      <PfSection title="Connect accounts" icon="plug-connected" dataTour="vm-pf-connect" style={{ marginTop:24 }}>
         <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill, minmax(${isMobile?'100%':'200px'},1fr))`, gap:10 }}>
           {PF_BROKERS.map(b=><BrokerButton key={b.id} b={b} on={connected.has(b.id)} onToggle={()=>toggleBroker(b.id)} />)}
           <button onClick={()=>alert('Additional broker connections arrive with the backend.')}
@@ -122,7 +154,7 @@ function MyPortfolio({ go, user, isMobile }) {
       </PfSection>
 
       {/* ── 2. Learn progress ───────────────────────────────────────────── */}
-      <PfSection title="Learning" icon="school" style={{ marginTop:18 }}>
+      <PfSection title="Learning" icon="school" dataTour="vm-pf-learning" style={{ marginTop:18 }}>
         <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
           <div style={{ flex:1, minWidth:240 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
@@ -153,7 +185,7 @@ function MyPortfolio({ go, user, isMobile }) {
       </PfSection>
 
       {/* ── 3. Portfolio summary ────────────────────────────────────────── */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'1fr 1.6fr', gap:18, marginTop:18 }}>
+      <div data-tour="vm-pf-overview" style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'1fr 1.6fr', gap:18, marginTop:18 }}>
         <PfSection title="Summary" icon="wallet">
           <PfKPIs pf={pf} />
         </PfSection>
@@ -163,7 +195,7 @@ function MyPortfolio({ go, user, isMobile }) {
       </div>
 
       {/* ── 4. Risk & trajectory ────────────────────────────────────────── */}
-      <PfSection title="Risk & trajectory" icon="shield-half" style={{ marginTop:18 }}>
+      <PfSection title="Risk & trajectory" icon="shield-half" dataTour="vm-pf-risk" style={{ marginTop:18 }}>
         <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'200px 1fr', gap:24, alignItems:'start' }}>
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
             <RiskDonut slices={pf.riskSlices} />
@@ -211,23 +243,25 @@ function MyPortfolio({ go, user, isMobile }) {
       </PfSection>
 
       {/* ── 5. Holdings ─────────────────────────────────────────────────── */}
-      <PfSection title="Holdings" icon="list" style={{ marginTop:18 }}>
+      <PfSection title="Holdings" icon="list" dataTour="vm-pf-holdings" style={{ marginTop:18 }}>
         <PfHoldings pf={pf} go={go} isMobile={isMobile} />
       </PfSection>
 
       {/* ── 6. Portfolio supply chain ────────────────────────────────────── */}
-      <PfSection title="Portfolio supply chain" icon="affiliate" style={{ marginTop:18 }}>
+      <PfSection title="Portfolio supply chain" icon="affiliate" dataTour="vm-pf-scn" style={{ marginTop:18 }}>
         <PortfolioScn pf={pf} />
       </PfSection>
+
+      {tutorialOpen && <TutorialOverlay steps={PF_STEPS} label="My Account tutorial" onClose={()=>setTutorialOpen(false)} />}
 
     </div>
   );
 }
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
-function PfSection({ title, icon, children, style }) {
+function PfSection({ title, icon, children, style, dataTour }) {
   return (
-    <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:14, overflow:'hidden', ...style }}>
+    <div data-tour={dataTour} style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:14, overflow:'hidden', ...style }}>
       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'11px 16px', borderBottom:`1px solid ${VM.borderHair}` }}>
         {icon && <i className={`ti ti-${icon}`} style={{ fontSize:14, color:VM.teal }}></i>}
         <Mono size={9.5} weight={700} color={VM.ink3} style={{ letterSpacing:'0.1em', textTransform:'uppercase' }}>{title}</Mono>

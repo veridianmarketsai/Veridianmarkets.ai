@@ -6,7 +6,7 @@ const VM_HEADER_H = 52; // height of the green global top bar
 // Full-width green top bar: branding (= home button) + hamburger on mobile.
 function GlobalHeader({ go, isMobile, menuOpen, onToggleMenu, hideMenuButton }) {
   return (
-    <header style={{ height:VM_HEADER_H, flexShrink:0, background:VM.forest, display:'flex', alignItems:'center',
+    <header data-tour="vm-header" style={{ height:VM_HEADER_H, flexShrink:0, background:VM.forest, display:'flex', alignItems:'center',
       gap:12, padding:'0 14px', borderBottom:'1px solid rgba(0,0,0,0.20)', zIndex:50 }}>
       {isMobile && !hideMenuButton && (
         <button onClick={onToggleMenu} aria-label="Toggle menu" title="Menu" style={{ width:34, height:34, borderRadius:8,
@@ -77,7 +77,7 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isA
       {mobile && open && (
         <div onClick={onClose} style={{ position:'fixed', top:VM_HEADER_H, left:0, right:0, bottom:0, background:'rgba(31,29,26,0.34)', zIndex:39 }}></div>
       )}
-      <aside style={style}>
+      <aside data-tour="vm-nav-rail" style={style}>
       {/* Time-of-day greeting, pinned above the 'You' group. */}
       <div style={{ padding:'16px 16px 4px' }}>
         <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, lineHeight:1.18 }}>{greeting}</span>
@@ -207,7 +207,7 @@ function IndexStrip() {
   );
 
   return (
-    <div ref={wrapRef} style={{ overflow:'hidden', background:VM.tealTint, borderTop:`1px solid ${VM.borderSoft}`, borderBottom:`1px solid ${VM.borderSoft}`, cursor:'grab', userSelect:'none', touchAction:'pan-y' }}>
+    <div data-tour="vm-market-strip" ref={wrapRef} style={{ overflow:'hidden', background:VM.tealTint, borderTop:`1px solid ${VM.borderSoft}`, borderBottom:`1px solid ${VM.borderSoft}`, cursor:'grab', userSelect:'none', touchAction:'pan-y' }}>
       <div ref={trackRef} style={{ display:'flex', width:'max-content', willChange:'transform' }}>
         {set('a')}
         {set('b')}
