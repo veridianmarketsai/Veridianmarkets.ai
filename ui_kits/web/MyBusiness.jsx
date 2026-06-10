@@ -40,11 +40,30 @@ function loadBizMap() {
   return bizDefault();
 }
 
+const BIZ_STEPS = [
+  { sel:'[data-tour="vm-biz-toolbar"]',
+    title:'Build your map.',
+    body:'Use + Supplier, + External, and + Customer to add nodes. Clear wipes all nodes; Reset restores the starter example. Save map writes to localStorage so your map persists across sessions.' },
+  { sel:'[data-tour="vm-biz-canvas"]',
+    title:'The drag canvas.',
+    body:'Nodes live here. Drag any node to reposition it — the curved connectors redraw live. Click a node to select it and edit it in the panel on the right. Click empty space to deselect.' },
+  { sel:'[data-tour="vm-biz-centre"]',
+    title:'Your company — the principle.',
+    body:'The green square is your business. Click it to set your company name, ticker, and a short description. Every connector radiates from here: inputs on the left, outputs on the right.' },
+  { sel:'[data-tour="vm-biz-editor"]',
+    title:'The editor panel.',
+    body:'Selecting any node opens its fields here — label, role, and a short note. You can also delete a node from this panel. The counts at the top show how many inputs and customers you have mapped.' },
+  { sel:'[data-tour="vm-biz-legend"]',
+    title:'Reading the colours.',
+    body:'Blue left-border = supplier or input company. Coral left-border = external factor (macro, regulation, energy). Teal right-border = customer or channel. Green box = your principle.' },
+];
+
 function MyBusiness({ go, user, isMobile }) {
   const [map, setMap]   = React.useState(loadBizMap);
   const [selId, setSelId] = React.useState(null);   // node id | 'company' | null
   const [savedAt, setSavedAt] = React.useState(null);
   const [dirty, setDirty] = React.useState(false);
+  const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const canvasRef = React.useRef(null);
   const [cw, setCw] = React.useState(900);          // measured canvas width
   const dragRef = React.useRef(null);               // { id, dx, dy, moved }
@@ -135,7 +154,7 @@ function MyBusiness({ go, user, isMobile }) {
       </p>
 
       {/* toolbar */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:18 }}>
+      <div data-tour="vm-biz-toolbar" style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:18 }}>
         <BizBtn icon="plus" onClick={()=>addNode('supplier')}>Supplier</BizBtn>
         <BizBtn icon="plus" onClick={()=>addNode('external')}>External</BizBtn>
         <BizBtn icon="plus" onClick={()=>addNode('customer')}>Customer</BizBtn>
@@ -145,6 +164,12 @@ function MyBusiness({ go, user, isMobile }) {
         <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:10 }}>
           {savedAt && !dirty && <Mono size={10} color={VM.upInk}><i className="ti ti-circle-check-filled" style={{ fontSize:12, verticalAlign:'-2px', marginRight:4 }}></i>Saved</Mono>}
           {dirty && <Mono size={10} color={VM.terra}>Unsaved changes</Mono>}
+          <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this page"
+            style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
+              letterSpacing:'0.04em', textTransform:'uppercase', padding:'7px 12px', borderRadius:8, flexShrink:0,
+              border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer' }}>
+            <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
+          </button>
           <button onClick={save} style={{ display:'inline-flex', alignItems:'center', gap:7, fontFamily:VM.mono, fontSize:11, fontWeight:700,
             letterSpacing:'0.04em', textTransform:'uppercase', padding:'8px 16px', borderRadius:8, cursor:'pointer',
             border:`1px solid ${VM.forest}`, background:VM.forest, color:VM.paperWarm }}>
@@ -158,7 +183,7 @@ function MyBusiness({ go, user, isMobile }) {
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:16, marginTop:16, alignItems:'start' }}>
           {/* ── canvas ── */}
-          <div ref={canvasRef} onPointerMove={onNodeMove} onPointerUp={onNodeUp} onClick={()=>setSelId(null)}
+          <div data-tour="vm-biz-canvas" ref={canvasRef} onPointerMove={onNodeMove} onPointerUp={onNodeUp} onClick={()=>setSelId(null)}
             style={{ position:'relative', height:BIZ_H, background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:14, overflow:'hidden',
               backgroundImage:`radial-gradient(${VM.borderHair} 1px, transparent 1px)`, backgroundSize:'22px 22px' }}>
             {/* connectors */}
@@ -176,7 +201,7 @@ function MyBusiness({ go, user, isMobile }) {
             </svg>
 
             {/* centre — your company */}
-            <div onClick={(e)=>{ e.stopPropagation(); setSelId('company'); }}
+            <div data-tour="vm-biz-centre" onClick={(e)=>{ e.stopPropagation(); setSelId('company'); }}
               style={{ position:'absolute', left:cx, top:cy, transform:'translate(-50%,-50%)', width:158, minHeight:158,
                 borderRadius:14, background:VM.forest, cursor:'pointer', zIndex:3,
                 boxShadow: selId === 'company' ? `0 0 0 3px ${VM.tealTint2}, 0 10px 26px rgba(31,29,26,0.22)` : '0 8px 22px rgba(31,29,26,0.18)',
@@ -217,13 +242,15 @@ function MyBusiness({ go, user, isMobile }) {
           </div>
 
           {/* ── editor panel ── */}
-          <BizEditor sel={sel} company={map.company} patchNode={patchNode} patchCompany={patchCompany}
-            removeNode={removeNode} counts={counts} onClose={()=>setSelId(null)} />
+          <div data-tour="vm-biz-editor">
+            <BizEditor sel={sel} company={map.company} patchNode={patchNode} patchCompany={patchCompany}
+              removeNode={removeNode} counts={counts} onClose={()=>setSelId(null)} />
+          </div>
         </div>
       )}
 
       {/* legend */}
-      <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:14 }}>
+      <div data-tour="vm-biz-legend" style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:14 }}>
         {[['Supplier (company)', BIZ.blue, 'left'],['External factor', BIZ.coral, 'left'],['The principle', VM.forest, 'box'],['Customer / channel', BIZ.cust, 'right']].map(([lbl, c, kind]) => (
           <div key={lbl} style={{ display:'flex', alignItems:'center', gap:6, fontFamily:VM.serif, fontSize:11, color:VM.ink3 }}>
             <span style={{ width:11, height:11, border:`1px solid ${VM.border}`, background: kind==='box' ? c : VM.paper, borderRadius: kind==='box'?3:0,
@@ -232,6 +259,8 @@ function MyBusiness({ go, user, isMobile }) {
         ))}
         <span style={{ marginLeft:'auto', fontFamily:VM.mono, fontSize:9.5, color:VM.faint }}>saved locally · mock — your real map will sync to your account</span>
       </div>
+
+      {tutorialOpen && <TutorialOverlay steps={BIZ_STEPS} label="Dependency map tutorial" onClose={()=>setTutorialOpen(false)} />}
     </div>
   );
 }
