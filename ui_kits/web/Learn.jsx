@@ -49,7 +49,27 @@ const LEARN_COURSES = [
 
   { id:2,  title:'Veridian in 10 Minutes',            cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'10 min',      tag:'App tutorial', route:'front',
     description:'A guided walkthrough of Veridian Markets. In ten minutes you\'ll read the live market strip, find a company, trace its supply chain, and save a watchlist.',
-    highlights:['Navigate the market strip and front page','Search for and open a company profile','Read a supply chain dependency map','Build a portfolio watchlist'] },
+    highlights:['Navigate the market strip and front page','Search for and open a company profile','Read a supply chain dependency map','Build a portfolio watchlist'],
+    tour:[
+      { icon:'layout-navbar', title:'The global header',
+        body:'The dark green bar pinned to the top of every page is your constant anchor. The Veridian Markets logo on the left is always a home button — click it from anywhere to return to the front page. On mobile the hamburger icon (☰) opens the full navigation menu.',
+        tryIt:'Click the Veridian Markets logo in the top-left corner to confirm it takes you home.' },
+      { icon:'chart-line', title:'The market strip',
+        body:'Just below the header, a scrolling strip shows live index prices — S&P 500, Nasdaq 100, FTSE 100, and more. Each chip shows the index name, its current level, a mini sparkline of recent direction, and the day\'s change in green (up) or terracotta (down). Drag the strip left or right to scroll manually.',
+        tryIt:'Try dragging the market strip sideways to reveal more indices.' },
+      { icon:'layout-sidebar', title:'The navigation rail',
+        body:'On desktop, the left sidebar is your map of Veridian. It groups pages into: You (account and settings), Explore (home, screener, news, calendar, supply chain), and utilities (learn, memoir). The active page is highlighted. On mobile the same links appear behind the hamburger menu.',
+        tryIt:'Click each section in the left nav to get a feel for what\'s available.' },
+      { icon:'home', title:'The front page',
+        body:'The front page shows a curated feed of companies matched to the current moment by Veridian\'s analogue engine. Each card shows a company whose situation today structurally resembles a documented historical period — giving you not just what is happening, but context for what often follows.',
+        tryIt:'Scroll the front page to see the full feed of analogue-matched company cards.' },
+      { icon:'building-store', title:'Company cards',
+        body:'Each company card shows the ticker, company name, current price, and day\'s change. Below that is the analogue tag — a brief label of the historical period this company\'s situation resembles. A small sparkline shows recent price trend. Click any card to open the full company dashboard.',
+        tryIt:'Click any company card on the front page to open its full profile.' },
+      { icon:'search', title:'Finding any company',
+        body:'To look up a specific company, click Search in the navigation rail. The screener accepts company names and ticker symbols and lets you apply filters. From any result you can jump straight to the full company dashboard with financials, supply chain, patents, and history.',
+        tryIt:'Click "Search" in the left nav and type a company name or ticker.' },
+    ] },
 
   { id:3,  title:'Reading a Company’s Financials', cat:'finance',   provider:'Veridian Academy', level:'Intermediate', format:'Course',      length:'8 lessons',   tag:'Most read',
     lessons:[{n:1,title:'The income statement',dur:'10 min'},{n:2,title:'The balance sheet',dur:'10 min'},{n:3,title:'Cash flow statement',dur:'9 min'},{n:4,title:'Key ratios: P/E, EV/EBITDA',dur:'11 min'},{n:5,title:'Gross margin and what it reveals',dur:'8 min'},{n:6,title:'Spotting red flags',dur:'9 min'},{n:7,title:'Comparing across peers',dur:'10 min'},{n:8,title:"Practice: reading AAPL's 10-K",dur:'12 min'}] },
@@ -62,7 +82,22 @@ const LEARN_COURSES = [
 
   { id:6,  title:'Mapping a Company’s Network',  cat:'using-vm',  provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'12 min',      tag:'App tutorial', route:'supply',
     description:'An interactive guide to the Supply Chain Network tool. Navigate the dependency map, drill from principle to supplier, and understand what relationship types mean for risk.',
-    highlights:['Read the supply chain canvas','Drill down from principle to tier-2 supplier','Interpret inputs vs customers columns','Understand concentration and geopolitical risk'] },
+    highlights:['Read the supply chain canvas','Drill down from principle to tier-2 supplier','Interpret inputs vs customers columns','Understand concentration and geopolitical risk'],
+    tour:[
+      { icon:'affiliate', title:'What is the Dependency Map?',
+        body:'The Dependency Map visualises a company\'s full supply chain as an interactive network. It answers two questions at once: where does this company\'s inputs come from, and who buys from it? Understanding this network helps you spot concentration risk and geopolitical exposure before they hit the share price.' },
+      { icon:'layout-columns', title:'The three-column layout',
+        body:'The map is divided into three columns. Left: Inputs — the suppliers and materials this company depends on. Centre: the company itself (the "principle"). Right: Customers — who they sell to. Reading left-to-right traces the full flow of value through the business from raw material to end buyer.',
+        tryIt:'Open the Dependency Map and identify the principle company node in the centre column.' },
+      { icon:'circles-relation', title:'Tier 1 and Tier 2 suppliers',
+        body:'Tier-1 suppliers sell directly to the company. Tier-2 suppliers sell to the Tier-1 suppliers — they never touch the principle company but a failure cascades upwards. Click any node to make it the new centre and see its own sub-network. This is how you trace a disruption back to its source.',
+        tryIt:'Click a supplier node in the Inputs column to see its own supply chain.' },
+      { icon:'alert-triangle', title:'Concentration and geopolitical risk',
+        body:'Some nodes carry risk badges. A concentration badge means a high percentage of this input comes from a single source — dangerous if that source fails. A geopolitical badge flags exposure to countries with trade friction or instability. These are early-warning signals worth monitoring.' },
+      { icon:'hand-finger', title:'Navigating the map',
+        body:'Type any ticker in the search field at the top to switch the principle company. Hover over any node to see a tooltip with details. Drag the canvas to pan. Use the ticker search to compare the supply networks of competitors side-by-side — e.g. AAPL vs QCOM in semiconductors.',
+        tryIt:'Type "AAPL" in the ticker search at the top of the map.' },
+    ] },
 
   { id:7,  title:'Cash Flow for Managers',            cat:'business',  provider:'Bretton House',    level:'Intermediate', format:'Guide',       length:'30 min read', tag:null,
     description:'A practical guide to reading and using cash flow statements — written for managers who need to understand financial health without an accounting background.',
@@ -74,7 +109,26 @@ const LEARN_COURSES = [
 
   { id:9,  title:'The Screener, End to End',          cat:'using-vm',  provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'15 min',      tag:'App tutorial', route:'screener',
     description:'A complete walkthrough of the company screener. Covers search, filters, the inline preview panel, and navigating from screener to full company dashboard.',
-    highlights:['Filter by sector, market cap, and fundamentals','Read the inline company preview tabs','Understand the analogue match score','Move from screener to dashboard to supply chain'] },
+    highlights:['Filter by sector, market cap, and fundamentals','Read the inline company preview tabs','Understand the analogue match score','Move from screener to dashboard to supply chain'],
+    tour:[
+      { icon:'search', title:'The search bar',
+        body:'The screener search bar accepts company names and ticker symbols. As you type it matches against thousands of companies in real time — no need to press Enter. This is your starting point whenever you want to find a company you\'re not already tracking.',
+        tryIt:'Type "Microsoft" or "MSFT" and watch results appear instantly.' },
+      { icon:'filter', title:'Applying filters',
+        body:'Filter chips below the search bar narrow results by sector (Technology, Healthcare, Energy…), market cap tier, and fundamental metrics like revenue growth or margin direction. Filters combine — you can ask for large-cap technology companies with expanding margins in one step.',
+        tryIt:'Click the Technology sector chip and watch the results list update.' },
+      { icon:'list', title:'Reading the results',
+        body:'Each result row shows: ticker, company name, sector, market cap, and a brief tagline. On the right, a subtle analogue match indicator shows whether Veridian has found a strong historical parallel for this company. Click any row to open the preview panel on the right.',
+        tryIt:'Click any company row to open its preview panel.' },
+      { icon:'layout-columns', title:'The preview panel',
+        body:'The right-hand panel gives you a snapshot without leaving the screener. Three tabs: Overview (key metrics and a brief description), Supply Chain (a mini dependency map), and History (the analogue match and its historical context). This is usually enough to decide whether to go deeper.',
+        tryIt:'Click through the Overview, Supply Chain, and History tabs in the preview panel.' },
+      { icon:'trophy', title:'The analogue match score',
+        body:'Veridian\'s engine compares each company\'s current revenue growth, margin trajectory, and competitive position against every historical analogue in its database. The score (0–100) reflects how closely the current situation resembles a documented period. A high score means a strong, well-evidenced parallel.' },
+      { icon:'arrow-right', title:'Going to the full dashboard',
+        body:'From the preview panel, click the company name or "Open full profile" to navigate to the complete dashboard. There you\'ll find the full financial tables, detailed supply chain map, patent analysis, history timeline, and news feed — all in one place.',
+        tryIt:'Click "Open full profile" in the preview panel to open a company\'s full dashboard.' },
+    ] },
 
   { id:10, title:'Macro for Investors',               cat:'economics', provider:'Bretton House',    level:'Intermediate', format:'Course',      length:'9 lessons',   tag:null,
     lessons:[{n:1,title:'GDP: what it tells you',dur:'8 min'},{n:2,title:'Inflation and the CPI',dur:'9 min'},{n:3,title:'Central banks and rates',dur:'10 min'},{n:4,title:'The yield curve',dur:'9 min'},{n:5,title:'Currency markets',dur:'8 min'},{n:6,title:'Commodity cycles',dur:'9 min'},{n:7,title:'Credit spreads',dur:'8 min'},{n:8,title:'Leading vs lagging indicators',dur:'9 min'},{n:9,title:'Putting it all together',dur:'10 min'}] },
@@ -101,9 +155,181 @@ const LEARN_COURSES = [
   { id:17, title:'From Idea to Business Plan',        cat:'business',  provider:'Veridian Academy', level:'Beginner',     format:'Path',        length:'6 modules',   tag:'New',
     lessons:[{n:1,title:'Idea validation',dur:'8 min'},{n:2,title:'Market sizing: TAM, SAM, SOM',dur:'10 min'},{n:3,title:'Business model design',dur:'9 min'},{n:4,title:'Financial projections',dur:'11 min'},{n:5,title:'The pitch deck',dur:'8 min'},{n:6,title:'Feedback and iteration',dur:'7 min'}] },
 
+  { id:19, title:'The News Feed', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'5 min', tag:'App tutorial', route:'news',
+    description:'A walkthrough of the Veridian news feed — how to read, filter, and act on market news in context.',
+    highlights:['Read article cards and understand source signals','Filter news by company ticker or sector','Open full articles without leaving Veridian','Jump from a news event directly to the company dashboard'],
+    tour:[
+      { icon:'news', title:'The news feed',
+        body:'The News page aggregates financial and market news across hundreds of sources, sorted by recency and relevance. Unlike a generic news app, Veridian tags each article with the companies it mentions — so you can filter to any ticker or sector in one click.' },
+      { icon:'article', title:'Reading an article card',
+        body:'Each card shows the headline, the source publication, the time since publication, and a one-sentence summary. A ticker chip at the bottom identifies the primary company the article covers. Cards with a bold border have been flagged as potentially market-moving based on their content.',
+        tryIt:'Find an article card — note the source, publication time, and ticker chip at the bottom.' },
+      { icon:'filter', title:'Filtering by company or topic',
+        body:'The filter bar at the top of the news page narrows results by company ticker or sector. Type "AAPL" to see only Apple news. Select a sector chip to filter to Energy, Technology, Healthcare, or any other. Filters combine — you can ask for Technology news mentioning TSMC.',
+        tryIt:'Type a ticker like "AAPL" into the filter bar to see only articles for that company.' },
+      { icon:'external-link', title:'Opening full articles',
+        body:'Click any article card to open it in an inline reader within Veridian. The reader shows the full article text, publication source and date, and related company chips at the bottom. Close the reader to return exactly where you were — no page navigation lost.',
+        tryIt:'Click an article to open the full reader, then press the X to close and return.' },
+      { icon:'building-store', title:'News to company in one click',
+        body:'At the bottom of every article, chips show all the companies mentioned. Click any chip to jump straight to that company\'s full dashboard — financials, supply chain, history — giving you the context to understand what the news actually means for the business.',
+        tryIt:'Open an article and click one of the company chips to navigate to its dashboard.' },
+    ] },
+
+  { id:20, title:'The Earnings Calendar', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'6 min', tag:'App tutorial', route:'calendar',
+    description:'How to use the Veridian calendar to track earnings releases, dividend dates, and key economic events.',
+    highlights:['Find upcoming earnings and when they are expected','Understand ex-dividend vs payment dates','Track high-impact economic releases','Navigate forward and backward through time'],
+    tour:[
+      { icon:'calendar', title:'What the calendar tracks',
+        body:'The Veridian calendar is your forward view of the market. It shows three types of events: earnings releases (quarterly and annual results), dividend events (ex-dividend and payment dates), and economic releases (central bank decisions, CPI, employment data). All in one place, by date.' },
+      { icon:'report-money', title:'Earnings entries',
+        body:'Each earnings entry shows the company ticker, name, expected reporting date, and — where available — analyst consensus estimates for revenue and EPS. "Before Open" means the report lands before trading starts that day. "After Close" means it arrives after 4 PM, so the price reaction plays out the next morning.',
+        tryIt:'Find an upcoming earnings entry and check whether it\'s Before Open or After Close.' },
+      { icon:'coin', title:'Dividend dates',
+        body:'For dividend-paying companies, two dates matter: the ex-dividend date (you must own shares before this day to qualify for the payment) and the payment date (when the cash lands in your account). Miss the ex-div date by a single day and you receive nothing for that period.',
+        tryIt:'Find a dividend event and identify its ex-dividend date and payment date.' },
+      { icon:'world', title:'Economic releases',
+        body:'Major data releases — CPI inflation, non-farm payrolls, Fed rate decisions, GDP — appear flagged by their historical market impact. High-impact releases are the ones that most often move equity and bond markets significantly. Watch for them when you have open positions or are planning entries.',
+        tryIt:'Scroll through the calendar and find a high-impact economic release.' },
+      { icon:'arrows-left-right', title:'Navigating time',
+        body:'Use the arrow buttons at the top to move forward or backward by week or month. The "Today" button snaps back to the current date. Looking ahead is particularly useful — you can plan around earnings seasons, spot dividend payment clusters, and prepare for economic data weeks in advance.',
+        tryIt:'Use the forward arrow to skip ahead two weeks and see what events are coming up.' },
+    ] },
+
+  { id:21, title:'Using the Learn Hub', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'5 min', tag:'App tutorial', route:'learn',
+    description:'A guide to the Veridian Learn hub — courses, guides, interactive tutorials, and how to navigate them all.',
+    highlights:['Filter by category, level, and format','Know the difference between Courses, Guides, and Interactives','Open and navigate a lesson','Find app tutorials for every section of Veridian'],
+    tour:[
+      { icon:'school', title:'What is the Learn hub?',
+        body:'Learn is Veridian\'s built-in education centre. It hosts short courses, practical guides, and interactive app tutorials across finance, markets, economics, and investing. Everything is written to be readable in a single sitting — no registration required, no paywalls, no ads.' },
+      { icon:'apps', title:'Category filter chips',
+        body:'The coloured chips below the search bar filter by subject: Markets 101, Finance, Investing, Supply Chains, Economics, Trading, Personal Finance, and more. "Using Veridian" shows only App tutorials — interactive walkthroughs of specific features of the platform itself, exactly like this one.',
+        tryIt:'Click the "Using Veridian" chip to see all available app tutorials.' },
+      { icon:'adjustments', title:'Level and format filters',
+        body:'Two filter rows let you narrow by difficulty (Beginner, Intermediate, Advanced) and format. Courses have structured lessons with a full lesson viewer. Guides are long-form reads. Paths are multi-module learning journeys. Interactive tutorials walk you through the app step-by-step.',
+        tryIt:'Select "Beginner" from the Level filter to see entry-level content only.' },
+      { icon:'cards', title:'Reading a course card',
+        body:'Each card shows the category (colour-coded top strip), the provider name, the title, format, difficulty, and estimated time. A tag in the corner — "Start here", "Most read", "New" — helps prioritise. Click any card to open its full detail overlay with description and lessons.',
+        tryIt:'Click any course card to open its detail overlay and read the full description.' },
+      { icon:'book-open', title:'The lesson viewer',
+        body:'Structured courses open in a full-screen lesson viewer. A progress bar at the top shows completion. Each lesson has a title, a reading time, several short sections, and a Key Takeaways box. Navigate with Next / Back or jump to any lesson from the course overview list.',
+        tryIt:'Open the course "The Anatomy of a Market" and start Lesson 1.' },
+      { icon:'compass', title:'App tutorials — this format',
+        body:'The "App tutorial" entries in Using Veridian are interactive walkthroughs — step-by-step guided tours like this one. Each covers a different section of the platform: screener, supply chain, news feed, calendar, settings, company dashboard, and more. Work through them to get confident with every part of Veridian.',
+        tryIt:'Filter by "Using Veridian" and pick a tutorial for a page you haven\'t explored yet.' },
+    ] },
+
+  { id:22, title:'Reading the Memoir', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'7 min', tag:'App tutorial', route:'memoir',
+    description:'An introduction to the Memoir section — Veridian\'s history-led approach and how to use the timeline and analogue engine.',
+    highlights:['Understand the "history-led" philosophy','Navigate a company\'s event timeline','Read and interpret an analogue match','Use historical parallels as base rates, not forecasts'],
+    tour:[
+      { icon:'history', title:'What is the Memoir?',
+        body:'The Memoir is Veridian\'s signature feature. It presents company history as a readable narrative — events, decisions, and turning points told in sequence, not just tables of numbers. The name reflects the idea that every company has a story, and understanding that story is the foundation of serious analysis.' },
+      { icon:'timeline', title:'The event timeline',
+        body:'The timeline shows key moments in a company\'s history arranged chronologically — product launches, acquisitions, management changes, financial milestones, regulatory events. Scroll left and right to move through time. Click any event to expand its context and read what happened and why it mattered.',
+        tryIt:'Open the Memoir section, find a company, and click an event on its timeline to expand it.' },
+      { icon:'circles-relation', title:'Analogues — what they are',
+        body:'An analogue is a historical period from a different company that looks structurally similar to where your company is today. Veridian\'s engine matches on revenue growth trajectories, margin patterns, competitive position, and market context. A strong analogue is a base rate — "this is what tended to happen next in situations like this."' },
+      { icon:'chart-line', title:'Using analogues wisely',
+        body:'The most powerful use of an analogue is stress-testing your assumptions. If you believe a company is about to re-accelerate growth, and the analogue shows that companies in this position historically plateaued for 3 years before recovering, that\'s useful context. It doesn\'t tell you what will happen — it tells you what you\'re betting against.',
+        tryIt:'Read the analogue section for a company and note the historical period it has matched.' },
+      { icon:'book', title:'The extended memoir narrative',
+        body:'For featured companies, Veridian provides a long-form memoir — a readable account of the company\'s full history, written like a well-researched business case study: the founding story, early pivots, key decisions, failures, and recoveries. This is the context that makes the numbers meaningful.',
+        tryIt:'Click "Read full memoir" on any featured company to open the extended narrative.' },
+    ] },
+
+  { id:23, title:'My Business Dashboard', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'6 min', tag:'App tutorial', route:'mybusiness',
+    description:'A tour of the My Business section — tracking and benchmarking your own company alongside public market data.',
+    highlights:['Set up your business profile','Understand the financial overview panels','Benchmark your metrics against public peers','Switch between Personal and Business account modes'],
+    tour:[
+      { icon:'briefcase', title:'What is My Business?',
+        body:'My Business is a separate account mode for business owners and managers. It lets you track your company\'s own financial metrics alongside public company data — benchmarking your revenue growth, margins, and cash position against peers of similar size, sector, and stage.' },
+      { icon:'user-circle', title:'Your business profile',
+        body:'At the top of My Business is your company profile: name, sector, business stage (early / growth / mature), and a short description. This context is used to surface relevant peer companies for benchmarking. Update it as your business evolves — the peers recalculate automatically.',
+        tryIt:'Open My Business and check that your business profile details are filled in and accurate.' },
+      { icon:'chart-bar', title:'The financial overview',
+        body:'The financial overview shows your key metrics: revenue, gross margin, operating expenses, and cash position. Enter figures manually each month or quarter. Over time the trend charts build up, giving you a visual history of how your business has grown — a quick reality check before any pitch or board meeting.',
+        tryIt:'Find the financial overview section and see what metrics are tracked.' },
+      { icon:'arrows-diff', title:'Benchmarking against public peers',
+        body:'Veridian automatically finds listed companies in a similar sector at a comparable revenue stage. The benchmark panel shows where your growth rate and margins sit relative to this peer group. Being above or below the median is context — but the most valuable signal is always your own trajectory over time.',
+        tryIt:'Look at the benchmark section to see which public companies Veridian has matched to your profile.' },
+      { icon:'arrows-exchange', title:'Personal ↔ Business switcher',
+        body:'The toggle at the top of the navigation rail switches between Personal and Business modes. Personal shows your investment portfolio and watchlist. Business shows your company dashboard. Data in each mode is kept separate. Switching is instant — you can move between the two as many times as you like.',
+        tryIt:'Find the Personal / Business toggle at the top of the left navigation bar and try switching modes.' },
+    ] },
+
+  { id:24, title:'Settings & Your Account', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'8 min', tag:'App tutorial', route:'settings',
+    description:'A complete walkthrough of every Settings section — profile, security, appearance, notifications, and privacy.',
+    highlights:['Update your profile name and email','Set up two-factor authentication (2FA)','Switch between light and dark theme','Manage notification preferences and privacy controls'],
+    tour:[
+      { icon:'settings', title:'Finding Settings',
+        body:'Settings is accessible from the bottom of the navigation rail when you\'re signed in — look for the gear icon. Click any section in the left-hand menu to jump directly: Profile, Security, Appearance, Notifications, Privacy & data, Help centre, Terms & policies, and About Veridian.',
+        tryIt:'Open Settings from the bottom of the left navigation rail.' },
+      { icon:'user', title:'Profile settings',
+        body:'The Profile section lets you update your display name and email address. Your display name appears in the time-of-day greeting in the navigation rail ("Good morning, Carlos."). Changes to your email will require re-verification once backend auth is active.',
+        tryIt:'Open the Profile section and check what your current display name is set to.' },
+      { icon:'shield-lock', title:'Security — two-factor authentication',
+        body:'The Security section lets you set up 2FA — a second check beyond your password every time you sign in. Choose between an authenticator app (Google Authenticator, Authy, 1Password) or SMS to your phone. Enabling 2FA is strongly recommended for any account linked to financial data.',
+        tryIt:'Open Security in Settings and explore the 2FA options available.' },
+      { icon:'palette', title:'Appearance — light and dark theme',
+        body:'The Appearance section has one toggle: light or dark theme. Dark mode uses deep brown-black backgrounds with warm cream text — easier on the eyes at night and in low-light. Light mode uses the classic warm off-white. Your preference saves instantly and applies across the entire app.',
+        tryIt:'Go to Appearance and toggle the theme — notice the whole app switches immediately.' },
+      { icon:'bell', title:'Notification preferences',
+        body:'The Notifications section controls what Veridian tells you about. Toggle categories on or off: analogue alerts (when a strong match is found for a watchlist company), earnings reminders (24h before a tracked company reports), and weekly digest (a summary of your watchlist and market highlights).',
+        tryIt:'Open Notifications and check which alert types are currently active.' },
+      { icon:'lock', title:'Privacy & data',
+        body:'Privacy settings control who can find your profile, whether your online status is visible, and whether you\'re searchable by email. You can also download a full export of your data or permanently delete your account. Your data belongs to you — these controls are always available.',
+        tryIt:'Open Privacy & data and review your current visibility and searchability settings.' },
+    ] },
+
+  { id:25, title:'The Company Dashboard', cat:'using-vm', provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'10 min', tag:'App tutorial', route:'screener',
+    description:'A complete walkthrough of every tab on the company dashboard — Overview, Financials, Supply Chain, Patents, History, and News.',
+    highlights:['Read the company header and key metrics','Use the Financials tab and Analysis charts','Explore the supply chain map','Read patents, history timeline, and company news'],
+    tour:[
+      { icon:'building-store', title:'Opening a company dashboard',
+        body:'Every company on Veridian has a full dashboard. Get there by clicking a card on the front page, selecting a screener result, or typing a ticker in Search. The URL updates to /company/TICKER — you can bookmark or share any company page. Dashboard tabs: Overview, Supply Chain, Financials, Patents, History, News.',
+        tryIt:'Search for "AAPL" in the screener and click through to the Apple dashboard.' },
+      { icon:'id-badge', title:'The company header',
+        body:'At the top: logo, ticker, full company name, current share price, day\'s change, and a one-line business description. Below it, the tab row gives access to every section of the dashboard. The breadcrumb trail at the top shows how you got here — click any step to navigate back.',
+        tryIt:'Look at the company header and identify the ticker, price, and day\'s change.' },
+      { icon:'layout-dashboard', title:'Overview tab',
+        body:'The Overview tab is your 30-second summary: key financial metrics (revenue, market cap, P/E ratio, margins), a brief business description, the top analogue match with its historical context, and the most recent news headline. This is always the first tab to check when you open a new company.',
+        tryIt:'Click the Overview tab and find the company\'s current P/E ratio and market cap.' },
+      { icon:'table', title:'Financials tab — the statements',
+        body:'Three financial statements switchable by the tabs at the top: Income Statement, Balance Sheet, Cash Flow. Toggle Annual or Quarterly. Turn on %Δ to add a percentage-change column between periods, or $Δ for the absolute dollar change. Drag the table sideways to scroll on narrow screens.',
+        tryIt:'Go to Financials, switch to Quarterly view, and turn on the %Δ toggle.' },
+      { icon:'chart-bar', title:'Financials — the Analysis charts',
+        body:'The teal Analysis button in the Financials toolbar opens the chart explorer. Revenue & gross profit bars, Margin trend lines, and EPS charts are live. The sidebar lists 50+ chart types on the roadmap. Use "Explain this" on any active chart to get an AI interpretation of what the data shows.',
+        tryIt:'Click the Analysis button, open the Margin Trends chart, then click "Explain this".' },
+      { icon:'affiliate', title:'Supply Chain tab',
+        body:'The Supply Chain tab shows the dependency map pre-loaded for this company as the principle node. Inputs on the left, the company in the centre, customers on the right. Watch for concentration risk badges (single-source dependency) and geopolitical flags on supplier nodes.',
+        tryIt:'Click the Supply Chain tab and identify the company\'s top 3 input suppliers.' },
+      { icon:'certificate', title:'Patents tab',
+        body:'The Patents tab shows patent filing activity as a bar chart by year — a proxy for R&D intensity and innovation direction. Click any bar to see the patents filed that year, their technology categories, and brief descriptions. Accelerating filings often precede new product cycles.',
+        tryIt:'Click the Patents tab and find which year had the highest number of filings.' },
+      { icon:'history', title:'History and News tabs',
+        body:'History shows the full company event timeline — key moments in Memoir format: founding, pivots, milestones, crises, and recoveries. News shows only articles about this company, filtered automatically from the global feed. Together these tabs give you the qualitative context that financial numbers alone can\'t provide.',
+        tryIt:'Open the History tab and find the company\'s founding date or a major turning point in its story.' },
+    ] },
+
   { id:18, title:'Building Watchlists That Work',     cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'8 min',       tag:'App tutorial', route:'myportfolio',
     description:'How to build and maintain a watchlist in Veridian. Covers connecting a broker account, customising the dashboard layout, and reading the analogue alerts.',
-    highlights:['Connect a broker account','Add and remove companies from your watchlist','Customise the dashboard layout','Read and act on analogue alert signals'] },
+    highlights:['Connect a broker account','Add and remove companies from your watchlist','Customise the dashboard layout','Read and act on analogue alert signals'],
+    tour:[
+      { icon:'user', title:'Your account overview',
+        body:'My Account is your personal home on Veridian — watchlist, portfolio holdings, and analogue alerts all in one view. Everything is stored locally on your device for now; full cloud sync comes with the backend launch. Sign in to access it from any browser session.' },
+      { icon:'bookmarks', title:'Your watchlist',
+        body:'The watchlist is a curated list of companies you\'re monitoring. Unlike a portfolio, watchlist entries don\'t require a position or a price — they\'re just companies you want to follow. Add any company from its dashboard page using the bookmark icon in the company header.',
+        tryIt:'Navigate to any company dashboard and look for the bookmark / watchlist button in the header.' },
+      { icon:'briefcase', title:'Portfolio holdings',
+        body:'If you\'ve connected a broker, your real holdings appear here with current values, unrealised gain/loss, and position size as a percentage of your total portfolio. Without a broker connection, you can enter holdings manually. The view helps you spot concentration and coverage gaps.',
+        tryIt:'Look for the "Add holding" or broker connection option in My Account.' },
+      { icon:'plug', title:'Connecting a broker',
+        body:'Veridian can import your actual portfolio positions from a connected brokerage account. Click "Connect a broker" to see supported integrations. Once connected, holdings sync automatically. This is in early access — more broker integrations are being added in each release.',
+        tryIt:'Tap "Connect a broker" and explore which integrations are available.' },
+      { icon:'bell', title:'Analogue alerts',
+        body:'When Veridian\'s engine finds a strong historical match for a company on your watchlist, it logs an analogue alert. The alert shows which period the current situation resembles and what happened to companies in that position over the following 12–24 months. These are informational context — not buy or sell signals.',
+        tryIt:'Check the analogue alerts section and tap an alert to read the full historical parallel.' },
+    ] },
 ];
 
 // ── Course store ──────────────────────────────────────────────────────────
@@ -419,8 +645,112 @@ function LessonRow({ lesson, first, last, onStart }) {
   );
 }
 
+// ── Tour viewer (step-by-step interactive walkthrough) ────────────────────────
+function TourViewer({ course, onClose, go }) {
+  const [step, setStep] = useStateLearn(0);
+  const steps = course.tour || [];
+  const curr  = steps[step];
+  if (!curr) return null;
+  const isFirst = step === 0;
+  const isLast  = step === steps.length - 1;
+  const pct     = Math.round(((step + 1) / steps.length) * 100);
+  const t       = catTint(course.cat);
+
+  React.useEffect(() => {
+    const h = e => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && !isLast) setStep(s => s + 1);
+      if (e.key === 'ArrowLeft'  && !isFirst) setStep(s => s - 1);
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [isFirst, isLast]);
+
+  function handleDone() {
+    onClose();
+    if (course.route && go) go(course.route);
+  }
+
+  return ReactDOM.createPortal(
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:500,
+      background:'rgba(20,18,15,0.62)', display:'flex', alignItems:'center',
+      justifyContent:'center', padding:20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:VM.paperWarm,
+        borderRadius:18, border:`1px solid ${VM.borderSoft}`, width:'100%', maxWidth:480,
+        boxShadow:'0 32px 72px rgba(31,29,26,0.28)', display:'flex', flexDirection:'column',
+        overflow:'hidden' }}>
+
+        {/* green progress bar */}
+        <div style={{ height:3, background:VM.paperDeep, flexShrink:0 }}>
+          <div style={{ height:'100%', width:`${pct}%`, background:VM.teal, transition:'width .3s ease' }}></div>
+        </div>
+
+        {/* header */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+          padding:'13px 18px 11px', borderBottom:`1px solid ${VM.borderHair}` }}>
+          <Mono size={10} color={VM.ink3}>Step {step + 1} of {steps.length} · {course.title}</Mono>
+          <button onClick={onClose} style={{ width:28, height:28, borderRadius:999,
+            border:`1px solid ${VM.border}`, background:VM.paper, cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center', color:VM.ink2, padding:0 }}>
+            <i className="ti ti-x" style={{ fontSize:14 }}></i>
+          </button>
+        </div>
+
+        {/* body */}
+        <div style={{ padding:'24px 24px 16px' }}>
+          <div style={{ width:48, height:48, borderRadius:14, background:t.bg, display:'flex',
+            alignItems:'center', justifyContent:'center', marginBottom:18 }}>
+            <i className={`ti ti-${curr.icon || t.icon}`} style={{ fontSize:24, color:t.fg }}></i>
+          </div>
+          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, margin:'0 0 12px',
+            lineHeight:1.2, color:VM.ink }}>{curr.title}</h2>
+          <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink2, lineHeight:1.68, margin:0 }}>{curr.body}</p>
+          {curr.tryIt && (
+            <div style={{ marginTop:18, background:VM.tealTint, border:`1px solid ${VM.tealTint2}`,
+              borderRadius:10, padding:'11px 14px', display:'flex', gap:10, alignItems:'flex-start' }}>
+              <i className="ti ti-hand-finger" style={{ fontSize:15, color:VM.tealInk, flexShrink:0, marginTop:1 }}></i>
+              <span style={{ fontFamily:VM.mono, fontSize:11, color:VM.tealInk, lineHeight:1.6 }}>{curr.tryIt}</span>
+            </div>
+          )}
+        </div>
+
+        {/* step dots */}
+        <div style={{ display:'flex', justifyContent:'center', gap:5, padding:'4px 0' }}>
+          {steps.map((_,i) => (
+            <div key={i} onClick={() => setStep(i)} style={{ cursor:'pointer', transition:'all .2s ease',
+              width: i === step ? 18 : 6, height:6, borderRadius:3,
+              background: i === step ? VM.teal : (i < step ? VM.tealTint2 : VM.border) }}></div>
+          ))}
+        </div>
+
+        {/* footer nav */}
+        <div style={{ display:'flex', gap:10, padding:'12px 24px 20px', justifyContent:'space-between', alignItems:'center' }}>
+          {!isFirst
+            ? <Btn onClick={() => setStep(s => s - 1)} style={{ fontSize:13, padding:'9px 16px' }}>
+                <i className="ti ti-arrow-left" style={{ fontSize:13 }}></i> Back
+              </Btn>
+            : <span></span>}
+          {isLast
+            ? <Btn solid onClick={handleDone} style={{ fontSize:13, padding:'9px 20px' }}>
+                {course.route ? 'Try it yourself' : 'Done'}
+                <i className={`ti ti-${course.route ? 'arrow-right' : 'check'}`} style={{ fontSize:13 }}></i>
+              </Btn>
+            : <Btn solid onClick={() => setStep(s => s + 1)} style={{ fontSize:13, padding:'9px 20px' }}>
+                Next <i className="ti ti-arrow-right" style={{ fontSize:13 }}></i>
+              </Btn>}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Start modal ───────────────────────────────────────────────────────────────
 function StartModal({ course, lesson, go, onClose }) {
+  // Courses with tour steps → full interactive tour viewer
+  if (!lesson && course.tour && course.tour.length > 0) {
+    return <TourViewer course={course} onClose={onClose} go={go} />;
+  }
   const t    = catTint(course.cat);
   const isAppTutorial = course.route && !lesson;
   const title = lesson ? lesson.title : course.title;
