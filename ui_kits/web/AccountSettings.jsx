@@ -127,7 +127,7 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }
   };
 
   return (
-    <div style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
+    <div data-tour="vm-settings-nav" style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
         ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange })}</StSubPage>
         : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} />}
@@ -137,16 +137,41 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }
   );
 }
 
+const ACCT_STEPS = [
+  { sel:'[data-tour="vm-settings-profile"]',
+    title:'Your profile.',
+    body:'Your name, email, and current plan tier at a glance. Click anywhere on this card to go straight into Personal details — change your name, email, username, or profile photo.' },
+  { sel:'[data-tour="vm-settings-groups"]',
+    title:'Settings sections.',
+    body:'Tap any row to drill into that section. Your account covers password, 2FA, subscription, and broker connections. The second group handles notifications, appearance, learning progress, and privacy. Each sub-page has a back arrow to return here.' },
+  { sel:'[data-tour="vm-settings-danger"]',
+    title:'Log out and account deletion.',
+    body:'Log out ends your current session. Delete account permanently removes your profile, saved companies, activity history, and all connected brokers — it requires you to type DELETE to confirm and cannot be undone.' },
+];
+
 // ── the main list ───────────────────────────────────────────────────────────
 function StList({ u, onRow, go, isMobile }) {
+  const [tutorialOpen, setTutorialOpen] = useStateSettings(false);
   const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+  const tutBtn = {
+    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
+    letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
+    border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
+  };
   return (
     <React.Fragment>
-      <Kicker>Account</Kicker>
-      <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 26 : 30, lineHeight: 1.05, margin: '8px 0 18px' }}>Settings.</h1>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+        <div>
+          <Kicker>Account</Kicker>
+          <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 26 : 30, lineHeight: 1.05, margin: '8px 0 18px' }}>Settings.</h1>
+        </div>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this page" style={{...tutBtn, flexShrink:0, marginTop:8}}>
+          <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
+        </button>
+      </div>
 
       {/* profile summary → personal details */}
-      <div onClick={() => onRow({ id: 'profile' })} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', cursor: 'pointer',
+      <div data-tour="vm-settings-profile" onClick={() => onRow({ id: 'profile' })} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', cursor: 'pointer',
         background: `linear-gradient(100deg, ${VM.tealTint} 0%, ${VM.paper} 75%)`, border: `1px solid ${VM.borderSoft}`, borderRadius: 14 }}>
         <span style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 20 }}>{initials}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -157,15 +182,27 @@ function StList({ u, onRow, go, isMobile }) {
         <i className="ti ti-chevron-right" style={{ fontSize: 18, color: VM.ink3 }}></i>
       </div>
 
-      {SETTINGS_GROUPS.map((g, gi) => (
-        <div key={gi} style={{ marginTop: 22 }}>
-          {g.head && <Label style={{ display: 'block', marginBottom: 9, paddingLeft: 4 }}>{g.head}</Label>}
-          <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
-            {g.items.map((it, i) => <StRow key={it.id} item={it} last={i === g.items.length - 1} onClick={() => onRow(it)} />)}
+      <div data-tour="vm-settings-groups">
+        {SETTINGS_GROUPS.slice(0, -1).map((g, gi) => (
+          <div key={gi} style={{ marginTop: 22 }}>
+            {g.head && <Label style={{ display: 'block', marginBottom: 9, paddingLeft: 4 }}>{g.head}</Label>}
+            <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
+              {g.items.map((it, i) => <StRow key={it.id} item={it} last={i === g.items.length - 1} onClick={() => onRow(it)} />)}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+      <div data-tour="vm-settings-danger">
+        {SETTINGS_GROUPS.slice(-1).map((g, gi) => (
+          <div key={gi} style={{ marginTop: 22 }}>
+            <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
+              {g.items.map((it, i) => <StRow key={it.id} item={it} last={i === g.items.length - 1} onClick={() => onRow(it)} />)}
+            </div>
+          </div>
+        ))}
+      </div>
       <Mono size={10} color={VM.faint} style={{ display: 'block', textAlign: 'center', marginTop: 26 }}>Veridian Markets · v0.9 (prototype)</Mono>
+      {tutorialOpen && <TutorialOverlay steps={ACCT_STEPS} label="Settings tutorial" onClose={()=>setTutorialOpen(false)} />}
     </React.Fragment>
   );
 }

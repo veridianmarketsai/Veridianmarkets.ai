@@ -1,5 +1,28 @@
 // Veridian Markets — Supply chain network ("the principle").
+
+const SC_STEPS = [
+  { sel:'[data-tour="vm-sc-intro"]',
+    title:'The supply chain in one view.',
+    body:'This tab maps the full chain: who a company depends on (inputs, left), the company itself (principle, centre), and who it sells to (customers, right). Read it left to right like a flow of value.' },
+  { sel:'[data-tour="vm-sc-legend"]',
+    title:'Reading the nodes.',
+    body:'Blue border = direct company supplier. Dashed terra border = external macro factor (oil, FX, shipping). Green = the principle. Blue fill = customer or channel. Stroke width signals dependency strength — thicker means more critical.' },
+  { sel:'[data-tour="vm-sc-filters"]',
+    title:'Filter what you see.',
+    body:'Switch between All, Companies only, External factors only, or the 5Y Lens which overlays historical stress events on the network. Useful for isolating geopolitical exposure or macro sensitivity.' },
+  { sel:'[data-tour="vm-sc-network"]',
+    title:'The network diagram.',
+    body:'Bezier curves connect each node to the principle. Click any node to explore that company or factor in detail. The curve routing groups inputs on the left and customers on the right so you can trace a single relationship end-to-end.' },
+  { sel:'[data-tour="vm-sc-competitors"]',
+    title:'Competitors — same wallet.',
+    body:'These companies compete for the same customer spend. They often share overlapping supply chains too, meaning a disruption upstream hits all of them. Use this section to think about relative exposure.' },
+  { sel:'[data-tour="vm-sc-summary"]',
+    title:'Chain summary.',
+    body:'A plain-English read on what the structure implies — concentration risk, customer diversity, and the historical analogue match. The tags at the bottom are the dimensions scored behind the scenes.' },
+];
+
 function SupplyChain({ company, go }) {
+  const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const c = company || VM_COMPANIES[0];
   const inputs = c.inputs || VM_COMPANIES[0].inputs;
   const external = c.external || VM_COMPANIES[0].external;
@@ -15,31 +38,44 @@ function SupplyChain({ company, go }) {
   const prL = NW/2 - PR/2, prR = NW/2 + PR/2;
   const yFor = (n,i) => (NH - n*ROW)/2 + ROW/2 + i*ROW;
 
+  const tutBtn = {
+    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
+    letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
+    border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
+  };
+
   return (
     <div style={{ padding:'22px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       <CompanyHead c={c} tab="Supply chain" go={go} />
-      <div style={{ marginTop:18 }}>
-        <Mono size={11} color={VM.terra} weight={700} style={{letterSpacing:'0.1em'}}>HERO · INPUTS → PRINCIPLE → CUSTOMERS</Mono>
-        <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:34, margin:'8px 0 6px', textWrap:'balance' }}>Who {c.name.split(' ')[0]} buys from — and who they sell to.</h1>
-        <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 16px' }}>Click any node to open that side of the chain. Toggle external factors to see fragility from oil, FX, and shipping.</p>
+      <div data-tour="vm-sc-intro" style={{ marginTop:18 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+          <div>
+            <Mono size={11} color={VM.terra} weight={700} style={{letterSpacing:'0.1em'}}>HERO · INPUTS → PRINCIPLE → CUSTOMERS</Mono>
+            <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:34, margin:'8px 0 6px', textWrap:'balance' }}>Who {c.name.split(' ')[0]} buys from — and who they sell to.</h1>
+            <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 16px' }}>Click any node to open that side of the chain. Toggle external factors to see fragility from oil, FX, and shipping.</p>
+          </div>
+          <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={{...tutBtn, flexShrink:0, marginTop:8}}>
+            <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
+          </button>
+        </div>
       </div>
 
       {/* legend + filters */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:14 }}>
-        <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
+        <div data-tour="vm-sc-legend" style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
           <Leg swatch={<span style={{width:14,height:14,border:`1px solid ${VM.border}`,borderLeft:'3px solid #185FA5',display:'inline-block',background:VM.paper}}/>}>Company (direct)</Leg>
           <Leg swatch={<span style={{width:14,height:14,border:`1.4px dashed ${VM.terra}`,display:'inline-block'}}/>}>External factor</Leg>
           <Leg swatch={<span style={{width:14,height:14,background:VM.forest,borderRadius:3,display:'inline-block'}}/>}>The principle</Leg>
           <Leg swatch={<span style={{width:14,height:14,border:`1px solid #B5D4F4`,background:'#E6F1FB',display:'inline-block'}}/>}>Customer / channel</Leg>
         </div>
-        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+        <div data-tour="vm-sc-filters" style={{ display:'flex', gap:6, alignItems:'center' }}>
           <Label>Filters:</Label>
           {['All','Companies','External','5Y Lens'].map((f,i)=>(<Pill key={f} active={i===0}>{f}</Pill>))}
         </div>
       </div>
 
       {/* network */}
-      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:14, padding:'24px 20px', overflowX:'auto' }}>
+      <div data-tour="vm-sc-network" style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:14, padding:'24px 20px', overflowX:'auto' }}>
         <div style={{ position:'relative', width:NW, height:NH, margin:'0 auto' }}>
           {/* connectors — colored to match each node */}
           <svg style={{ position:'absolute', inset:0, pointerEvents:'none' }} width={NW} height={NH} viewBox={`0 0 ${NW} ${NH}`}>
@@ -79,14 +115,14 @@ function SupplyChain({ company, go }) {
 
       {/* competitors + summary */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1.4fr', gap:24, marginTop:24 }}>
-        <div>
+        <div data-tour="vm-sc-competitors">
           <Mono size={10} color={VM.terra} weight={700} style={{display:'block',marginBottom:10}}>COMPETITORS · SAME WALLET SHARE</Mono>
           <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
             {competitors.map(n=>(<div key={n.t} style={{ padding:'7px 12px', border:`1.2px dotted ${VM.border}`, borderRadius:6 }}>
               <Mono size={11} weight={700}>{n.t}</Mono><div><Label>{n.d}</Label></div></div>))}
           </div>
         </div>
-        <div>
+        <div data-tour="vm-sc-summary">
           <Mono size={10} color={VM.ink3} weight={700} style={{display:'block',marginBottom:8}}>SUMMARY · WHAT THIS CHAIN TELLS US</Mono>
           <h3 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, margin:'0 0 8px' }}>What this chain tells us</h3>
           <p style={{ fontFamily:VM.serif, fontSize:14.5, lineHeight:1.5, color:VM.ink2, margin:0 }}>
@@ -97,6 +133,8 @@ function SupplyChain({ company, go }) {
           </div>
         </div>
       </div>
+
+      {tutorialOpen && <TutorialOverlay steps={SC_STEPS} label="Supply chain tutorial" onClose={()=>setTutorialOpen(false)} />}
     </div>
   );
 }

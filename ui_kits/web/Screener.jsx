@@ -17,7 +17,7 @@ function Screener({ go, isMobile }) {
       <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 38, margin:'8px 0 6px' }}>Search.</h1>
       <p style={{ fontFamily:VM.serif, fontSize: isMobile ? 14 : 16, color:VM.ink3, margin:'0 0 18px' }}>Search by ticker, name, or person. Filter by sector, size, fundamentals, or which 5-year historical analogue matches today.</p>
 
-      <div style={{ display:'flex', gap:9, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
+      <div data-tour="vm-screener-search" style={{ display:'flex', gap:9, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
         <div style={{ flex:1, display:'flex', alignItems:'center', gap:9, border:`1px solid ${VM.border}`, borderRadius:999, padding:'9px 16px', background:VM.paper }}>
           <i className="ti ti-search" style={{ color:VM.ink3 }}></i>
           <input placeholder="search ticker, company, person, era" style={{ border:0, background:'transparent', outline:0, fontFamily:VM.serif, fontSize:14, color:VM.ink, flex:1 }} />
@@ -27,7 +27,7 @@ function Screener({ go, isMobile }) {
         <IconBtn icon="lock" round size={38} title="Saved" />
       </div>
 
-      <div style={{ display:'flex', gap:7, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
+      <div data-tour="vm-screener-filters" style={{ display:'flex', gap:7, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
         <Label style={{marginRight:2}}>Filters:</Label>
         {filters.map((f,i)=>(
           <FilterPill key={f.k} k={f.k} v={f.v} options={FILTER_DEFS[f.k] || []}
@@ -43,7 +43,7 @@ function Screener({ go, isMobile }) {
       </div>
       <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {VM_COMPANIES.length} of 487 matches · sort: 5Y analogue match</Mono>
 
-      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
+      <div data-tour="vm-screener-results" style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
         {!isMobile && (
           <div style={{ display:'grid', gridTemplateColumns:GRID, padding:'7px 18px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
             <Label>Ticker</Label><Label>Company</Label><Label style={{textAlign:'right'}}>Price</Label>

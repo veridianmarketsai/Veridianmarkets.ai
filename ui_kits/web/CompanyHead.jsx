@@ -18,7 +18,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
   const [hoverTab, setHoverTab] = React.useState(null);
 
   return (
-    <div>
+    <div data-tour="vm-company-head">
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>
         <span onClick={()=>go&&go('screener')} style={{ color:VM.teal, cursor: go?'pointer':'default' }}>Search</span>
         {crumbs.map((cr, i) => {
@@ -45,7 +45,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
         </div>
       </div>
       {/* tabs — drag-scroll horizontally (no scrollbar) when they don't fit */}
-      <div ref={tabsRef} className="vm-noscroll"
+      <div data-tour="vm-company-tabs" ref={tabsRef} className="vm-noscroll"
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
         style={{ display:'flex', gap: isMobile?18:22, marginTop:16, borderBottom:`1px solid ${VM.borderSoft}`,
           overflowX:'auto', overflowY:'hidden', touchAction:'pan-y', userSelect:'none', cursor:'grab' }}>

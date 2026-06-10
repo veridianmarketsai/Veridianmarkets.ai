@@ -37,7 +37,7 @@ function FrontPage({ go, isMobile }) {
           <Kicker>Global News</Kicker>
           {/* One page of 9 tiles, in an overflow-visible area so hover pop-outs are never clipped.
               Changing page remounts StoryPage (via key), which slides + fades the new tiles in. */}
-          <div style={{ marginTop:10 }}>
+          <div data-tour="vm-story-tiles" style={{ marginTop:10 }}>
             <StoryScroller page={page} tileTitles={tileTitles} cols={cols} perPage={perPage} />
           </div>
           {/* Pager — 'More' stays centered; 'Back to top' eases in to its left once you've paged in. */}
@@ -81,7 +81,7 @@ function FrontPage({ go, isMobile }) {
             "Global News" kicker so Market recap lines up with the first news tiles. */}
         <div>
           {!isMobile && <Kicker style={{ visibility:'hidden' }}>Global News</Kicker>}
-          <div style={{ marginTop: isMobile ? 0 : 10, display:'flex', flexDirection:'column', gap:14 }}>
+          <div data-tour="vm-market-recap" style={{ marginTop: isMobile ? 0 : 10, display:'flex', flexDirection:'column', gap:14 }}>
           <CollapsibleCard letter="A" title="Market recap" open={openCard==='recap'} onToggle={()=>toggleCard('recap')}>
             {recap.map((r,i)=>(
               <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 60px 60px', alignItems:'center', gap:8, padding:'7px 0', borderBottom: i<recap.length-1?`1px dotted ${VM.border}`:'none' }}>
@@ -100,7 +100,7 @@ function FrontPage({ go, isMobile }) {
       </div>
 
       {/* TOP COMPANIES PREVIEW */}
-      <div style={{ marginTop:44 }}>
+      <div data-tour="vm-company-list" style={{ marginTop:44 }}>
         <Kicker>4,904 PUBLIC COMPANIES</Kicker>
         <div style={{ display:'flex', flexDirection: isMobile?'column':'row', justifyContent:'space-between', alignItems: isMobile?'flex-start':'baseline', gap: isMobile?10:0, margin:'8px 0 16px' }}>
           <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:0 }}>Search.</h2>

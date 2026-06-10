@@ -591,19 +591,19 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
       </>}
 
       {/* breadcrumb (drill trail) */}
-      <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:14, minHeight:26 }}>
+      <div data-tour="vm-supply-crumbs" style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:14, minHeight:26 }}>
         {renderCrumbs()}
       </div>
 
       {/* filters */}
-      <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginBottom:6 }}>
+      <div data-tour="vm-supply-filters" style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginBottom:6 }}>
         <Label style={{ marginRight:2 }}>Filters:</Label>
         {tab('all','All')}{tab('companies','Companies')}{tab('external','External')}
       </div>
 
       {/* desktop canvas — 3-column map + SVG connectors (full-screen lives here) */}
       {!isMobile && (
-      <div ref={canvasRef} style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`,
+      <div data-tour="vm-supply-canvas" ref={canvasRef} style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`,
         ...(isFull && fullRect
           ? { position:'fixed', top:fullRect.top, left:fullRect.left, width:fullRect.width, height:fullRect.height, zIndex:30, borderRadius:0, minWidth:0, overflowY:'auto', overflowX:'hidden' }
           : { position:'relative', height: isMobile ? 560 : 500, minWidth:640, marginTop:14, borderRadius:14, overflow:'hidden' }) }}>
@@ -653,7 +653,7 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
         </svg>
 
         {/* left column — inputs / dependencies */}
-        <div style={{ position:'absolute', left:18, width:colW, ...colInset, display:'flex', flexDirection:'column', justifyContent:'center', gap:5 }}>
+        <div data-tour="vm-supply-inputs" style={{ position:'absolute', left:18, width:colW, ...colInset, display:'flex', flexDirection:'column', justifyContent:'center', gap:5 }}>
           <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase' }}>{leftLabel}</div>
           {supGroups.map((g, gi) => {
             const ns = inputs.filter(n => (n.group || (n.cat === 'a' ? 'company' : 'manufacturing')) === g.id);
@@ -669,7 +669,7 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
 
         {/* centre — the principle */}
         <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', ...colInset, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div ref={principleRef} style={{ width:152, height:152, borderRadius:13, background:VM.forest,
+          <div data-tour="vm-supply-principle" ref={principleRef} style={{ width:152, height:152, borderRadius:13, background:VM.forest,
             display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:14, zIndex:2 }}>
             <div style={{ fontFamily:VM.mono, fontSize:8, color:'#9FE1CB', letterSpacing:'1px', textTransform:'uppercase', marginBottom:5 }}>{data.meta}</div>
             <div style={{ fontFamily:VM.serif, fontSize:19, fontWeight:600, color:'#E1F5EE', lineHeight:1.2 }}>{data.name}</div>
@@ -678,7 +678,7 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
         </div>
 
         {/* right column — customers / channels */}
-        <div style={{ position:'absolute', right:18, width:colW, ...colInset, display:'flex', flexDirection:'column', justifyContent:'center', gap:5 }}>
+        <div data-tour="vm-supply-customers" style={{ position:'absolute', right:18, width:colW, ...colInset, display:'flex', flexDirection:'column', justifyContent:'center', gap:5 }}>
           <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.5px', textTransform:'uppercase', textAlign:'right' }}>{rightLabel}</div>
           {custGroups.map((g, gi) => {
             const ns = customers.filter(n => n.group === g.id);
@@ -766,7 +766,7 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
       )}
 
       {/* legend */}
-      <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10 }}>
+      <div data-tour="vm-supply-legend" style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10 }}>
         {[['Company (direct)', { borderLeft:`3px solid ${SCN.blue}`, background:VM.paper }],
           ['External factor', { borderLeft:`3px solid ${SCN.coral}`, background:VM.paper }],
           ['The principle', { background:VM.forest, borderRadius:3 }],

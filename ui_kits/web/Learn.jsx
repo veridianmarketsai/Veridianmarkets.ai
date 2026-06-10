@@ -47,7 +47,7 @@ const LEARN_COURSES = [
   { id:1,  title:'The Anatomy of a Market',           cat:'markets',   provider:'Veridian Academy', level:'Beginner',     format:'Course',      length:'6 lessons',   tag:'Start here',
     lessons:[{n:1,title:'What is a market?',dur:'8 min'},{n:2,title:'Buyers, sellers and the spread',dur:'7 min'},{n:3,title:'Price discovery and information',dur:'9 min'},{n:4,title:'Market types: equities, bonds, commodities',dur:'10 min'},{n:5,title:'How indices are built',dur:'8 min'},{n:6,title:'Reading a market day',dur:'6 min'}] },
 
-  { id:2,  title:'Veridian in 10 Minutes',            cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'10 min',      tag:'App tutorial', route:'front',
+  { id:2,  title:'Veridian in 10 Minutes',            cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'10 min',      tag:'App tutorial', route:'front',    tourId:'front',
     description:'A guided walkthrough of Veridian Markets. In ten minutes you\'ll read the live market strip, find a company, trace its supply chain, and save a watchlist.',
     highlights:['Navigate the market strip and front page','Search for and open a company profile','Read a supply chain dependency map','Build a portfolio watchlist'],
     tour:[
@@ -71,7 +71,7 @@ const LEARN_COURSES = [
         tryIt:'Click "Search" in the left nav and type a company name or ticker.' },
     ] },
 
-  { id:3,  title:'Reading a Company’s Financials', cat:'finance',   provider:'Veridian Academy', level:'Intermediate', format:'Course',      length:'8 lessons',   tag:'Most read',
+  { id:3,  title:"Reading a Company's Financials", cat:'finance',   provider:'Veridian Academy', level:'Intermediate', format:'Course',      length:'8 lessons',   tag:'Most read',
     lessons:[{n:1,title:'The income statement',dur:'10 min'},{n:2,title:'The balance sheet',dur:'10 min'},{n:3,title:'Cash flow statement',dur:'9 min'},{n:4,title:'Key ratios: P/E, EV/EBITDA',dur:'11 min'},{n:5,title:'Gross margin and what it reveals',dur:'8 min'},{n:6,title:'Spotting red flags',dur:'9 min'},{n:7,title:'Comparing across peers',dur:'10 min'},{n:8,title:"Practice: reading AAPL's 10-K",dur:'12 min'}] },
 
   { id:4,  title:'Building Your First Portfolio',     cat:'investing', provider:'Veridian Academy', level:'Beginner',     format:'Path',        length:'5 modules',   tag:'Popular',
@@ -80,7 +80,7 @@ const LEARN_COURSES = [
   { id:5,  title:'How Supply Chains Move Prices',     cat:'supply',    provider:'Veridian Academy', level:'Intermediate', format:'Course',      length:'7 lessons',   tag:'New',
     lessons:[{n:1,title:'What is a supply chain?',dur:'7 min'},{n:2,title:'Tier-1 vs Tier-2 suppliers',dur:'8 min'},{n:3,title:'Concentration risk',dur:'9 min'},{n:4,title:'Geopolitical dependencies',dur:'10 min'},{n:5,title:'How disruptions propagate',dur:'8 min'},{n:6,title:'Reading a dependency map',dur:'9 min'},{n:7,title:'Supply chains and equity prices',dur:'10 min'}] },
 
-  { id:6,  title:'Mapping a Company’s Network',  cat:'using-vm',  provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'12 min',      tag:'App tutorial', route:'supply',
+  { id:6,  title:"Mapping a Company's Network",  cat:'using-vm',  provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'12 min',      tag:'App tutorial', route:'supply',   tourId:'supply',
     description:'An interactive guide to the Supply Chain Network tool. Navigate the dependency map, drill from principle to supplier, and understand what relationship types mean for risk.',
     highlights:['Read the supply chain canvas','Drill down from principle to tier-2 supplier','Interpret inputs vs customers columns','Understand concentration and geopolitical risk'],
     tour:[
@@ -107,7 +107,7 @@ const LEARN_COURSES = [
     description:'A clear-eyed guide to charts and technical analysis: what they can and cannot tell you, the patterns worth knowing, and the cognitive traps that burn most readers.',
     highlights:['Support, resistance and what they actually mean','Volume as confirmation','The five patterns worth knowing','How to avoid over-fitting your read'] },
 
-  { id:9,  title:'The Screener, End to End',          cat:'using-vm',  provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'15 min',      tag:'App tutorial', route:'screener',
+  { id:9,  title:'The Screener, End to End',          cat:'using-vm',  provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'15 min',      tag:'App tutorial', route:'screener',  tourId:'screener',
     description:'A complete walkthrough of the company screener. Covers search, filters, the inline preview panel, and navigating from screener to full company dashboard.',
     highlights:['Filter by sector, market cap, and fundamentals','Read the inline company preview tabs','Understand the analogue match score','Move from screener to dashboard to supply chain'],
     tour:[
@@ -155,7 +155,7 @@ const LEARN_COURSES = [
   { id:17, title:'From Idea to Business Plan',        cat:'business',  provider:'Veridian Academy', level:'Beginner',     format:'Path',        length:'6 modules',   tag:'New',
     lessons:[{n:1,title:'Idea validation',dur:'8 min'},{n:2,title:'Market sizing: TAM, SAM, SOM',dur:'10 min'},{n:3,title:'Business model design',dur:'9 min'},{n:4,title:'Financial projections',dur:'11 min'},{n:5,title:'The pitch deck',dur:'8 min'},{n:6,title:'Feedback and iteration',dur:'7 min'}] },
 
-  { id:19, title:'The News Feed', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'5 min', tag:'App tutorial', route:'news',
+  { id:19, title:'The News Feed', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'5 min', tag:'App tutorial', route:'news', tourId:'news',
     description:'A walkthrough of the Veridian news feed — how to read, filter, and act on market news in context.',
     highlights:['Read article cards and understand source signals','Filter news by company ticker or sector','Open full articles without leaving Veridian','Jump from a news event directly to the company dashboard'],
     tour:[
@@ -175,7 +175,7 @@ const LEARN_COURSES = [
         tryIt:'Open an article and click one of the company chips to navigate to its dashboard.' },
     ] },
 
-  { id:20, title:'The Earnings Calendar', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'6 min', tag:'App tutorial', route:'calendar',
+  { id:20, title:'The Earnings Calendar', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'6 min', tag:'App tutorial', route:'calendar', tourId:'calendar',
     description:'How to use the Veridian calendar to track earnings releases, dividend dates, and key economic events.',
     highlights:['Find upcoming earnings and when they are expected','Understand ex-dividend vs payment dates','Track high-impact economic releases','Navigate forward and backward through time'],
     tour:[
@@ -195,7 +195,7 @@ const LEARN_COURSES = [
         tryIt:'Use the forward arrow to skip ahead two weeks and see what events are coming up.' },
     ] },
 
-  { id:21, title:'Using the Learn Hub', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'5 min', tag:'App tutorial', route:'learn',
+  { id:21, title:'Using the Learn Hub', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'5 min', tag:'App tutorial', route:'learn', tourId:'learn',
     description:'A guide to the Veridian Learn hub — courses, guides, interactive tutorials, and how to navigate them all.',
     highlights:['Filter by category, level, and format','Know the difference between Courses, Guides, and Interactives','Open and navigate a lesson','Find app tutorials for every section of Veridian'],
     tour:[
@@ -218,7 +218,7 @@ const LEARN_COURSES = [
         tryIt:'Filter by "Using Veridian" and pick a tutorial for a page you haven\'t explored yet.' },
     ] },
 
-  { id:22, title:'Reading the Memoir', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'7 min', tag:'App tutorial', route:'memoir',
+  { id:22, title:'Reading the Memoir', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'7 min', tag:'App tutorial', route:'memoir', tourId:'memoir',
     description:'An introduction to the Memoir section — Veridian\'s history-led approach and how to use the timeline and analogue engine.',
     highlights:['Understand the "history-led" philosophy','Navigate a company\'s event timeline','Read and interpret an analogue match','Use historical parallels as base rates, not forecasts'],
     tour:[
@@ -237,7 +237,7 @@ const LEARN_COURSES = [
         tryIt:'Click "Read full memoir" on any featured company to open the extended narrative.' },
     ] },
 
-  { id:23, title:'My Business Dashboard', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'6 min', tag:'App tutorial', route:'mybusiness',
+  { id:23, title:'My Business Dashboard', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'6 min', tag:'App tutorial', route:'mybusiness', tourId:'mybusiness',
     description:'A tour of the My Business section — tracking and benchmarking your own company alongside public market data.',
     highlights:['Set up your business profile','Understand the financial overview panels','Benchmark your metrics against public peers','Switch between Personal and Business account modes'],
     tour:[
@@ -257,7 +257,7 @@ const LEARN_COURSES = [
         tryIt:'Find the Personal / Business toggle at the top of the left navigation bar and try switching modes.' },
     ] },
 
-  { id:24, title:'Settings & Your Account', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'8 min', tag:'App tutorial', route:'settings',
+  { id:24, title:'Settings & Your Account', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'8 min', tag:'App tutorial', route:'settings', tourId:'settings',
     description:'A complete walkthrough of every Settings section — profile, security, appearance, notifications, and privacy.',
     highlights:['Update your profile name and email','Set up two-factor authentication (2FA)','Switch between light and dark theme','Manage notification preferences and privacy controls'],
     tour:[
@@ -281,7 +281,7 @@ const LEARN_COURSES = [
         tryIt:'Open Privacy & data and review your current visibility and searchability settings.' },
     ] },
 
-  { id:25, title:'The Company Dashboard', cat:'using-vm', provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'10 min', tag:'App tutorial', route:'screener',
+  { id:25, title:'The Company Dashboard', cat:'using-vm', provider:'Veridian Markets', level:'Intermediate', format:'Interactive', length:'10 min', tag:'App tutorial', route:'screener', tourId:'dashboard',
     description:'A complete walkthrough of every tab on the company dashboard — Overview, Financials, Supply Chain, Patents, History, and News.',
     highlights:['Read the company header and key metrics','Use the Financials tab and Analysis charts','Explore the supply chain map','Read patents, history timeline, and company news'],
     tour:[
@@ -311,7 +311,7 @@ const LEARN_COURSES = [
         tryIt:'Open the History tab and find the company\'s founding date or a major turning point in its story.' },
     ] },
 
-  { id:18, title:'Building Watchlists That Work',     cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'8 min',       tag:'App tutorial', route:'myportfolio',
+  { id:18, title:'Building Watchlists That Work',     cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'8 min',       tag:'App tutorial', route:'myportfolio',  tourId:'myportfolio',
     description:'How to build and maintain a watchlist in Veridian. Covers connecting a broker account, customising the dashboard layout, and reading the analogue alerts.',
     highlights:['Connect a broker account','Add and remove companies from your watchlist','Customise the dashboard layout','Read and act on analogue alert signals'],
     tour:[
@@ -398,7 +398,7 @@ function Learn({ go, isMobile }) {
         {query && <i onClick={()=>reset(()=>setQuery(''))} className="ti ti-x" style={{ fontSize:14, color:VM.ink3, cursor:'pointer' }}></i>}
       </div>
 
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:16 }}>
+      <div data-tour="vm-learn-filter" style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:16 }}>
         {LEARN_CATS.map(c=>(
           <Pill key={c.id} active={cat===c.id} onClick={()=>reset(()=>setCat(c.id))}>
             {c.icon && <i className={'ti ti-'+c.icon} style={{ fontSize:13 }}></i>}{c.label}
@@ -430,7 +430,7 @@ function Learn({ go, isMobile }) {
           <div style={{ fontFamily:VM.serif, fontSize:16, color:VM.ink2, marginTop:10 }}>Nothing matches those filters yet.</div>
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill, minmax(${isMobile?'100%':'250px'},1fr))`, gap:isMobile?14:18 }}>
+        <div data-tour="vm-learn-cards" style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill, minmax(${isMobile?'100%':'250px'},1fr))`, gap:isMobile?14:18 }}>
           {visible.map(c=><CourseCard key={c.id} c={c} onOpen={()=>setOpenCourse(c)} />)}
         </div>
       )}
@@ -452,8 +452,13 @@ function Learn({ go, isMobile }) {
           isMobile={isMobile}
           onClose={()=>setOpenCourse(null)}
           onStart={lesson=>{
-            if (lesson) setLessonView({ course:openCourse, lesson });          // lesson row → viewer
-            else setStartLesson({ course:openCourse, lesson:null });            // interactive/guide CTA → modal
+            if (lesson) { setLessonView({ course:openCourse, lesson }); return; }
+            if (openCourse.tourId && window.__vmStartTour) {
+              setOpenCourse(null);                                              // close overlay
+              window.__vmStartTour(openCourse.tourId);                         // launch real tour
+              return;
+            }
+            setStartLesson({ course:openCourse, lesson:null });                // interactive/guide CTA → modal
           }}
         />
       )}
@@ -747,7 +752,7 @@ function TourViewer({ course, onClose, go }) {
 
 // ── Start modal ───────────────────────────────────────────────────────────────
 function StartModal({ course, lesson, go, onClose }) {
-  // Courses with tour steps → full interactive tour viewer
+  // Courses with slide-deck tour steps → TourViewer fallback
   if (!lesson && course.tour && course.tour.length > 0) {
     return <TourViewer course={course} onClose={onClose} go={go} />;
   }

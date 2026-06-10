@@ -131,6 +131,21 @@ function calEduFor(e) {
     note: 'See the Legend for what each column and impact level means.' };
 }
 
+const CAL_STEPS = [
+  { sel:'[data-tour="vm-cal-header"]',
+    title:'Earnings, rates, and macro in one place.',
+    body:'The Calendar surfaces every market-moving event for the week or month ahead — earnings releases, central-bank decisions, economic data, dividend dates, and structural market events. Each one is read against its historical context.' },
+  { sel:'[data-tour="vm-cal-filters"]',
+    title:'Filter by event type.',
+    body:'Narrow to Earnings, Economic, Central bank, Dividend, or Markets. The colour-coded dots on the grid update instantly. Switch between Month and List views from the right side. Legend explains every column and impact level.' },
+  { sel:'[data-tour="vm-cal-grid"]',
+    title:'The month grid.',
+    body:'Each day with events shows one coloured dot per event — the colour matches the type filter. Today is highlighted in teal. Navigate months with the arrows. Click any day to load its events in the panel on the right.' },
+  { sel:'[data-tour="vm-cal-day-panel"]',
+    title:'Day panel — and the ⓘ button.',
+    body:'Click a day to see its events here. Each event shows time, type badge, and a ticker link if it belongs to a company. Tap the ⓘ circle to open a full explainer: what the release is, how it moves markets, and what a bullish or bearish reading looks like.' },
+];
+
 function Calendar({ go, isMobile }) {
   const [filter, setFilter] = useStateCal('all');
   const [ym, setYm] = useStateCal({ y: CAL_YEAR, m: CAL_MONTH });   // month being viewed
@@ -141,6 +156,7 @@ function Calendar({ go, isMobile }) {
   const [hoverRow, setHoverRow] = useStateCal(null);  // list row index under the cursor (reveals the ⓘ)
   const [listAnchor, setListAnchor] = useStateCal(() => new Date(CAL_YEAR, CAL_MONTH, CAL_TODAY));
   const [range, setRange] = useStateCal('month'); // list view window: 'week' | 'month'
+  const [tutorialOpen, setTutorialOpen] = useStateCal(false);
 
   // Mock events are keyed by day only, so they belong to the seed month (June 2026).
   const isEventsMonth = ym.y === CAL_YEAR && ym.m === CAL_MONTH;
@@ -179,16 +195,29 @@ function Calendar({ go, isMobile }) {
     setSel(null);
   };
 
+  const tutBtn = {
+    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
+    letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
+    border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
+  };
+
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 60px', maxWidth: 1120, margin: '0 auto' }}>
-      <Kicker>Calendar · {CAL_EVENTS.length} events</Kicker>
-      <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 27 : 32, lineHeight: 1.05, margin: '8px 0 0' }}>Calendar.</h1>
-      <p style={{ fontFamily: VM.serif, fontSize: isMobile ? 15 : 16, color: VM.ink2, maxWidth: 620, margin: '8px 0 0' }}>
-        Earnings, economic releases and central-bank decisions — the week ahead, read against history.
-      </p>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+        <div data-tour="vm-cal-header">
+          <Kicker>Calendar · {CAL_EVENTS.length} events</Kicker>
+          <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 27 : 32, lineHeight: 1.05, margin: '8px 0 0' }}>Calendar.</h1>
+          <p style={{ fontFamily: VM.serif, fontSize: isMobile ? 15 : 16, color: VM.ink2, maxWidth: 620, margin: '8px 0 0' }}>
+            Earnings, economic releases and central-bank decisions — the week ahead, read against history.
+          </p>
+        </div>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this page" style={{...tutBtn, flexShrink:0, marginTop:8}}>
+          <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
+        </button>
+      </div>
 
       {/* type filter + view toggle */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
+      <div data-tour="vm-cal-filters" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
         <Pill active={filter === 'all'} onClick={() => setFilter('all')}>All</Pill>
         {Object.entries(CAL_TYPES).map(([k, t]) => (
           <Pill key={k} active={filter === k} onClick={() => setFilter(k)}>
@@ -216,7 +245,7 @@ function Calendar({ go, isMobile }) {
       {view === 'month' && (
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: isMobile ? 16 : 20, marginTop: 20, alignItems: 'start' }}>
         {/* month grid */}
-        <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, padding: isMobile ? '14px' : '16px 18px' }}>
+        <div data-tour="vm-cal-grid" style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, padding: isMobile ? '14px' : '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{monthLabel}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -254,7 +283,7 @@ function Calendar({ go, isMobile }) {
         </div>
 
         {/* selected-day panel */}
-        <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
+        <div data-tour="vm-cal-day-panel" style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ padding: '13px 16px', borderBottom: `1px solid ${VM.borderHair}`, background: VM.paperWarm }}>
             <Label>{sel == null ? 'Select a day' : (isEventsMonth && sel === CAL_TODAY ? 'Today' : 'Selected')}</Label>
             <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 17, marginTop: 2 }}>{sel == null ? monthLabel : `${sel} ${monthLabel}`}</div>
@@ -373,6 +402,7 @@ function Calendar({ go, isMobile }) {
 
       {legend && <CalLegendModal onClose={() => setLegend(false)} />}
       {eduEvent && <CalEduModal e={eduEvent} onClose={() => setEduEvent(null)} />}
+      {tutorialOpen && <TutorialOverlay steps={CAL_STEPS} label="Calendar tutorial" onClose={() => setTutorialOpen(false)} />}
     </div>
   );
 }
