@@ -1,5 +1,4 @@
 // Veridian Markets — "Read memoir" page (the founding note).
-// Centered editorial statement; lives inside <main> so the rail + index strip stay.
 function Memoir({ go, isMobile }) {
   // Green highlight, matching the editorial accent used across the brand.
   const hi = { fontStyle:'normal', color:VM.teal, fontWeight:600 };
@@ -11,11 +10,9 @@ function Memoir({ go, isMobile }) {
     <div style={{ minHeight:'100%', display:'flex', flexDirection:'column', alignItems:'center',
       padding: isMobile ? '40px 16px 80px' : '72px 24px 96px', maxWidth:920, margin:'0 auto' }}>
 
-      {/* kicker */}
       <div style={{ fontFamily:VM.mono, fontSize:12, letterSpacing:'0.42em', textTransform:'uppercase',
         color:VM.teal, marginBottom:30, paddingLeft:'0.42em' }}>Founder&rsquo;s Memoir</div>
 
-      {/* the letter */}
       <article style={{ maxWidth:680, width:'100%', textAlign:'left' }}>
         <p style={{ ...p, fontStyle:'italic', fontSize: isMobile ? 18 : 21, color:VM.ink }}>Dear reader,</p>
 
@@ -51,21 +48,18 @@ function Memoir({ go, isMobile }) {
         <p style={{ ...p, marginBottom:0 }}>&lsquo;Till next time,</p>
       </article>
 
-      {/* ornamental divider */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, alignSelf:'center', margin: isMobile ? '32px 0 24px' : '40px 0 28px' }}>
         <span style={{ width:64, height:1, background:`linear-gradient(90deg, transparent, ${VM.faint})` }}></span>
         <span style={{ width:5, height:5, transform:'rotate(45deg)', background:VM.terra }}></span>
         <span style={{ width:64, height:1, background:`linear-gradient(90deg, ${VM.faint}, transparent)` }}></span>
       </div>
 
-      {/* byline */}
       <p style={{ fontFamily:VM.serif, fontStyle:'italic', fontSize:18, color:VM.ink2, margin:0, textAlign:'center' }}>
         <span style={{ fontStyle:'normal', fontWeight:600, color:VM.ink }}>Carlos</span>
         <span style={{ display:'block', fontFamily:VM.mono, fontStyle:'normal', fontSize:10.5, letterSpacing:'0.16em',
           textTransform:'uppercase', color:VM.ink3, marginTop:10 }}>Founder · Veridian Markets AI</span>
       </p>
 
-      {/* return affordance */}
       <button onClick={()=>go('front')} style={{ display:'inline-flex', alignItems:'center', gap:10, marginTop: isMobile ? 38 : 52,
         padding:'12px 24px', border:`1.4px solid ${VM.teal}`, borderRadius:30, background:'transparent',
         color:VM.teal, fontFamily:VM.serif, fontSize:16, cursor:'pointer', transition:'all .2s ease' }}

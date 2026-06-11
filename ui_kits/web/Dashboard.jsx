@@ -24,6 +24,12 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
   );
 }
 
+const TUTORIAL_BTN_STYLE = {
+  display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
+  letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
+  border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
+};
+
 // ── News ──────────────────────────────────────────────────────────────────────
 // Company-specific news; reuses the News page's card + article overlay.
 
@@ -107,7 +113,7 @@ function DashNews({ c, go, isMobile, scn }) {
   if (scn) {
     list = DNEWS_ITEMS;
     if (nkey !== 'all') list = list.filter(n => n.side === nkey);
-    if (nkey !== 'all' && nsub !== 'all') list = list.filter(n => n.sub === nsub);
+    if (nsub !== 'all') list = list.filter(n => n.sub === nsub);
   } else {
     const tagged = NEWS.filter(n => n.ticker === c.ticker);
     list = tagged.length ? tagged : NEWS.slice(0, 4);   // fallback to general market stories
@@ -116,12 +122,6 @@ function DashNews({ c, go, isMobile, scn }) {
   const subChip = (on) => ({ fontFamily: VM.mono, fontSize: 10, letterSpacing: '0.03em', textTransform: 'uppercase',
     padding: '4px 11px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap',
     border: `1px solid ${on ? VM.forest : VM.border}`, background: on ? VM.tealTint : VM.paper, color: on ? VM.forest : VM.ink3 });
-  const tutBtn = {
-    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
-    letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
-    border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
-  };
-
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
@@ -130,7 +130,7 @@ function DashNews({ c, go, isMobile, scn }) {
           <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?22:28, margin:'0 0 4px' }}>What's moving {c.name.split(' ')[0]}.</h2>
           <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 18px' }}>{scn ? 'Filtered by where it sits in the dependency map — upstream supply and downstream demand.' : 'Stories read through the lens of the past.'}</p>
         </div>
-        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={{...tutBtn, flexShrink:0}}>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={{...TUTORIAL_BTN_STYLE, flexShrink:0}}>
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
       </div>
@@ -196,15 +196,10 @@ const OV_STEPS = [
 function DashOverview({ c, data, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
-  const tutBtn = {
-    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
-    letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
-    border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
-  };
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
-        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={tutBtn}>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={TUTORIAL_BTN_STYLE}>
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
       </div>
@@ -314,15 +309,10 @@ const SCN_STEPS = [
 
 function DashScn({ c, go, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
-  const tutBtn = {
-    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
-    letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
-    border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
-  };
   return (
     <div style={{ marginTop:16 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
-        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={tutBtn}>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={TUTORIAL_BTN_STYLE}>
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
       </div>
@@ -474,7 +464,7 @@ function DashFinancials({ data, c, isMobile }) {
   const rows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheet];
   const periods = data.periods;
   const showDelta = showPct || showAbs;
-  const deltaCols = (showPct ? 1 : 0) + (showAbs ? 1 : 0);
+  const deltaCols = showPct + showAbs;
 
   function fmt(v, fmtType) {
     if (fmtType === 'eps') return `$${Math.abs(v).toFixed(2)}`;
@@ -633,9 +623,7 @@ function DashFinancials({ data, c, isMobile }) {
             padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.teal}`, background:VM.tealTint, color:VM.tealInk, cursor:'pointer' }}>
             <i className="ti ti-chart-bar" style={{ fontSize:12 }}></i>Analysis
           </button>
-          <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn to use the financials tab" style={{
-            display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
-            padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer' }}>
+          <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn to use the financials tab" style={TUTORIAL_BTN_STYLE}>
             <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
           </button>
         </div>
@@ -747,7 +735,6 @@ function FinExportModal({ ticker, curSheet, period, initPct, initAbs, buildGrid,
     ['excel', 'ti-file-spreadsheet', 'Excel', 'Formatted workbook (.xls) that opens straight into Microsoft Excel.'],
   ];
   const sheetOpts = [['income','Income statement'],['balance','Balance sheet'],['cashflow','Cash flow']];
-  const previewIds = sheets;
 
   return (
     <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:90, background:'rgba(31,29,26,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
@@ -830,7 +817,7 @@ function FinExportModal({ ticker, curSheet, period, initPct, initAbs, buildGrid,
               Preview {sheets.length > 1 && <span style={{ color:VM.faint, textTransform:'none', letterSpacing:0 }}>— {kind === 'csv' ? 'stacked into one file' : 'one tab per statement'}</span>}
             </Label>
             <div style={{ border:`1px solid ${VM.borderSoft}`, borderRadius:8, overflow:'auto', maxHeight:240, background:VM.paperWarm }}>
-              {previewIds.map((sid, idx) => {
+              {sheets.map((sid, idx) => {
                 const { header, body } = buildGrid(sid, pct, abs);
                 const isPctCol = header.map(h => typeof h === 'string' && h.startsWith('%Δ'));
                 // %Δ is stored as a fraction; show it as a percent in the preview.
@@ -956,15 +943,10 @@ const PAT_STEPS = [
 function DashPatents({ data, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { stats, cats, filings, notable } = data;
-  const tutBtn = {
-    display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
-    letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
-    border:`1px solid ${VM.terra}`, background:'transparent', color:VM.terra, cursor:'pointer',
-  };
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
-        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={tutBtn}>
+        <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={TUTORIAL_BTN_STYLE}>
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
       </div>
@@ -1065,7 +1047,7 @@ function DashHistory({ c, data, isMobile }) {
         ))}
       </div>
 
-      {section === 'past'    && <HistoryPast    data={data} isMobile={isMobile} />}
+      {section === 'past'    && <HistoryPast    data={data} />}
       {section === 'present' && <HistoryPresent data={data} c={c} isMobile={isMobile} />}
       {section === 'future'  && <HistoryFuture  data={data} c={c} isMobile={isMobile} />}
 
@@ -1095,7 +1077,7 @@ function DashHistory({ c, data, isMobile }) {
   );
 }
 
-function HistoryPast({ data, isMobile }) {
+function HistoryPast({ data }) {
   const { timeline } = data;
   return (
     <div>
@@ -1147,7 +1129,7 @@ function HistoryPresent({ data, c, isMobile }) {
             </div>
           ))}
           <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:10 }}>
-            {c.ticker} · {patternMatch[0] && patternMatch[0].note}
+            {c.ticker} · {patternMatch[0]?.note}
           </Mono>
         </div>
       </div>

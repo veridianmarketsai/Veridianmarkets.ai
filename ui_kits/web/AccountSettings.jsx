@@ -35,6 +35,7 @@ const SETTINGS_GROUPS = [
   ]},
 ];
 const SETTINGS_TITLES = SETTINGS_GROUPS.flatMap(g => g.items).reduce((m, i) => (m[i.id] = i.label, m), {});
+const initials = name => (name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
 
 function DeleteAccountModal({ email, onConfirm, onClose }) {
   const [typed, setTyped] = useStateSettings('');
@@ -150,9 +151,8 @@ const ACCT_STEPS = [
 ];
 
 // ── the main list ───────────────────────────────────────────────────────────
-function StList({ u, onRow, go, isMobile }) {
+function StList({ u, onRow, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = useStateSettings(false);
-  const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
   const tutBtn = {
     display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
     letterSpacing:'0.04em', textTransform:'uppercase', padding:'4px 11px', borderRadius:5,
@@ -170,10 +170,9 @@ function StList({ u, onRow, go, isMobile }) {
         </button>
       </div>
 
-      {/* profile summary → personal details */}
       <div data-tour="vm-settings-profile" onClick={() => onRow({ id: 'profile' })} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', cursor: 'pointer',
         background: `linear-gradient(100deg, ${VM.tealTint} 0%, ${VM.paper} 75%)`, border: `1px solid ${VM.borderSoft}`, borderRadius: 14 }}>
-        <span style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 20 }}>{initials}</span>
+        <span style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 20 }}>{initials(u.name)}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{u.name}</div>
           <Mono size={11} color={VM.ink3}>{u.email}</Mono>
@@ -477,7 +476,7 @@ function SessionRow({ s, last, onSignOut }) {
   const isMobile = /iPhone|Android/i.test(s.label);
   return (
     <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
-      style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 0',
+      style={{ display:'flex', alignItems:'center', gap:10,
         borderBottom: last ? 'none' : `1px solid ${VM.borderHair}`,
         background: hover ? VM.paperWarm : 'transparent', transition:'background .12s',
         borderRadius: hover ? 8 : 0, padding:'11px 8px', margin:'0 -8px' }}>
@@ -599,7 +598,6 @@ function StSecuritySection({ u, showToast }) {
   return (
     <React.Fragment>
 
-      {/* ── Change password ── */}
       <StCard title="Change password">
         <label style={{ display:'block', padding:'11px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
           {fieldLabel('Current password')}
@@ -645,7 +643,6 @@ function StSecuritySection({ u, showToast }) {
       }
       <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:6, marginBottom:18 }}>Mock default: "password"</Mono>
 
-      {/* ── Two-factor authentication ── */}
       <StCard title="Two-factor authentication">
         <div style={{ padding:'13px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
@@ -700,7 +697,6 @@ function StSecuritySection({ u, showToast }) {
         </div>
       </StCard>
 
-      {/* ── Active sessions ── */}
       <StCard title="Active sessions">
         <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 0', borderBottom: otherSessions.length ? `1px solid ${VM.borderHair}` : 'none' }}>
           <i className="ti ti-device-laptop" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
@@ -874,7 +870,7 @@ function AboutSection() {
   );
 }
 
-function HelpSection({ showToast }) {
+function HelpSection() {
   const [open, setOpen] = useStateSettings(null);
   return (
     <React.Fragment>
@@ -972,7 +968,7 @@ function renderSection(id, ctx) {
     case 'profile': return (
       <React.Fragment>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <span style={{ width: 64, height: 64, borderRadius: 16, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 24 }}>{(u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()}</span>
+          <span style={{ width: 64, height: 64, borderRadius: 16, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 24 }}>{initials(u.name)}</span>
           <Btn onClick={() => showToast('Photo upload (mock).')}><i className="ti ti-camera" style={{ fontSize: 15 }}></i>Change photo</Btn>
         </div>
         <StCard>

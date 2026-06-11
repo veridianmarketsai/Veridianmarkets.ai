@@ -315,6 +315,62 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-11
+
+- **Code cleanup 2.1.** Multi-file cleanup pass across all 23 JSX source files —
+  no feature changes, only code quality. Highlights: hoisted `TUTORIAL_BTN_STYLE`
+  constant (removed 5 identical inline definitions in Dashboard); extracted `catLabel`
+  and `initials` helpers to module scope in Learn/AccountSettings; added `A_PLAN_PRICE`
+  and `DAY_MS` constants to AdminPanel module scope; fixed `riskTier`/`risk` field name
+  inconsistency in MyBusiness import; fixed import-legend dedup to filter by label not
+  type key; removed `previewIds` alias, several unused parameters, and duplicate JSX
+  comments; simplified `deltaCols` arithmetic and a redundant nested `if` guard; added
+  `patternMatch[0]?.note` optional chain. Data fixes: AAPL patents.cats now sum to 100,
+  AMZN revenueMix sums to 100, NVDA analogue match corrected 64 → 70, "Grovee's" typo
+  fixed to "Grove's", GOOGL/AMZN filings last entries flagged `partial:true`.
+  _(branch: `code-cleanup-2.1`)_
+
+- **Admin refinement 2.1 — clickable KPI/chart cards + CSV download.** The Admin
+  Overview tab's KPI tiles and chart sections are now **clickable**: each opens a
+  focused drill-down modal with the full breakdown (e.g. the "Paying accounts" card
+  opens a modal with revenue by plan, conversion rate, ARPU, ARR, and a list of recent
+  paying signups; the "Est. MRR" card breaks down MRR by plan and country; chart modals
+  show the underlying distribution data). All admin modals now include a **Download CSV**
+  button so the data can be exported. _(branch: `admin-refinement-2.1`)_
+
+- **My Business 2.1 — UX polish, Analysis / Impact / Signals tabs, and Import.**
+  The My Business page received a UX pass and three new editor-panel tabs:
+  **Signals** (mock market signals relevant to each node — news, price, risk flags),
+  **Impact** (how each dependency flows back to your principle — concentration,
+  contract risk, upstream/downstream exposure), and **Analysis** (an AI-ready panel
+  that will call the Claude API to analyse the full map; placeholder text for now).
+  A new **Import** button opens a spreadsheet-import flow: drag a CSV/Excel file, see
+  it parsed into a preview table with inline error highlighting (required-field errors,
+  invalid values, duplicates, format warnings), and confirm to add valid rows as nodes.
+  _(branch: `my-business-2.1`)_
+
+### 2026-06-10
+
+- **My Business 2.1 — Tidy button.** Added a **Tidy** button to the My Business
+  toolbar that auto-arranges all nodes into evenly-spaced columns (suppliers/external
+  on the left, customers on the right) so the canvas snaps to a clean layout in one
+  click. _(branch: `my-business-2.1`)_
+
+- **Learn 2.2 — Tutorial overlays for Dependency Map and Admin panel.** Extended the
+  interactive tutorial system to the **Dependency Map** (supply-chain canvas, node
+  controls, full-screen mode, breadcrumb drill) and the **Admin panel** (Overview KPIs,
+  Users table, Courses tab). Each gains a terracotta "Tutorial" button that steps
+  through the relevant `[data-tour="…"]` targets with highlight boxes and explanatory
+  text. _(branch: `learn-veridian-markets-2.2`)_
+
+- **Learn 2.1 — Tutorial overlays on every major page and tab.** Added interactive
+  **step-by-step tutorial overlays** (`TutorialOverlay`) to every major page: Front
+  page, Search/screener, Company dashboard (all tabs — Overview, Supply chain,
+  Financials, Patents, History), News, Calendar, History, Learn, My Portfolio, Account
+  Settings, and My Business. Each page gets a terracotta "Tutorial" button that walks
+  users through the interface one stop at a time, with a spotlight highlight and a
+  short explanation per step. _(branch: `learn-veridian-markets-2.1`)_
+
 ### 2026-06-09 (business)
 
 - **Personal ⇄ Business mode + My Business map builder.** The left rail gains a

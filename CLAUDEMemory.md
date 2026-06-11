@@ -61,6 +61,39 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-06-11
+
+- **Code cleanup 2.1 (`code-cleanup-2.1`). Merged to main.** Multi-file cleanup
+  across all 23 JSX source files — no feature changes, only code quality. Constant
+  hoisting (`TUTORIAL_BTN_STYLE`, `catLabel`, `initials`, `A_PLAN_PRICE`, `DAY_MS`),
+  dead code removal (unused params, duplicate menu item, `previewIds` alias), JSX
+  comment removal, expression simplifications (`deltaCols`, optional chaining,
+  redundant if guard). Data fixes: AAPL/AMZN sums corrected, NVDA match 64→70,
+  "Grovee's"→"Grove's" typo, GOOGL/AMZN filings `partial:true`. 23 files,
+  −146 net lines.
+
+- **Admin refinement 2.1 (`admin-refinement-2.1`). Merged to main.** Admin Overview
+  KPI tiles and chart sections are now clickable → focused drill-down modals with full
+  breakdowns. All admin modals gained a Download CSV button.
+
+- **My Business 2.1 UX polish + tabs + Import (`my-business-2.1`). Merged to main.**
+  New editor-panel tabs: **Signals** (mock market signals per node), **Impact**
+  (concentration/contract/exposure breakdown), **Analysis** (Claude API placeholder).
+  New **Import** flow: CSV/Excel drag-drop → parsed preview table with inline error
+  highlighting (required/invalid/duplicate/format warnings) → confirm to add nodes.
+
+### 2026-06-10
+
+- **My Business 2.1 Tidy button (`my-business-2.1`).** Auto-arranges nodes into clean
+  columns on click. First commit in `my-business-2.1` before the larger UX pass.
+
+- **Learn 2.2 (`learn-veridian-markets-2.2`). Merged to main.** Tutorial overlays
+  added to the Dependency Map and Admin panel.
+
+- **Learn 2.1 (`learn-veridian-markets-2.1`). Merged to main.** Interactive
+  `TutorialOverlay` (terracotta "Tutorial" button + step-through spotlight) added to
+  every major page and company dashboard tab.
+
 ### 2026-06-09
 
 - **Started `business-page-2.8`.** New branch (from main) for a **Personal ⇄ Business**
@@ -487,7 +520,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `business-page-2.8` (Personal⇄Business rail switcher + My Business dependency-map builder page; **merged to main + live**). Previous: `financials-2.7` (Financials export popup → CSV/Excel, multi-sheet tabs/sections, %Δ-as-fraction; + Calendar event ⓘ educational popups; merged + live). Previous: `indices-2.6` (indices/commodities/forex in search + asset-class maps + S&P family tree + constituent preview + breadcrumb drill trail + connector-arrow fix; **merged to main + live**). Previous: `dependency-map-2.5` (map tabs + News filters + Financials deltas + legend + AI assistant; merged + live). Previous: `calendar-update-2.4` (Calendar List view + Legend + month/week nav; merged + live), `mobile-compatibility-2.3` (every page mobile-compatible; merged + live), `supply-chain-live-2.2` (Dependency map + full-screen + mobile pass; merged + live), `calendar-and-news-pages-1.1` (off-scheme one-off; merged + live), `home-page-2.1` (front page, merged + live). Per the **2026-06-01 decision (restart each foundation)**, Foundation-2 branches are strictly `…-2.<n>`. All Foundation-1 branches (through `account-settings-1.17`) merged.
+**Latest branch (this scheme):** `code-cleanup-2.1` (code quality pass across 23 JSX files; **merged to main**). Recent: `admin-refinement-2.1` (clickable KPI/chart modals + CSV download; merged), `my-business-2.1` (Tidy button + UX polish + Analysis/Impact/Signals tabs + Import; merged), `learn-veridian-markets-2.2` (tutorial overlays for Dependency Map + Admin; merged), `learn-veridian-markets-2.1` (tutorial overlays on every page; merged), `business-page-2.8` (Personal⇄Business rail switcher + My Business map builder; merged), `financials-2.7` (Financials export CSV/Excel + Calendar ⓘ modals; merged), `indices-2.6` (indices/commodities/forex + asset-class maps + breadcrumb drill; merged), `dependency-map-2.5` (map tabs + News filters + Financials deltas + AI assistant; merged). Note: recent branches (`my-business-2.1`, `learn-veridian-markets-2.1/2.2`, `admin-refinement-2.1`, `code-cleanup-2.1`) use **feature-scoped versioning** rather than the global running counter — the per-feature minor number tracks that feature's iteration.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -495,7 +528,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration: `<code-name>-2.9`.**  *(Foundation 2 restarts the iteration counter at `.1`.)*  In progress: none — `business-page-2.8` merged to main.
+**Next free iteration:** For global-counter branches: `<code-name>-2.9`. For feature-scoped branches: use `<feature-name>-2.<n>` where `n` is the next minor for that feature.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)

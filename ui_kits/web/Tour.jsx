@@ -206,12 +206,14 @@ const TOURS = {
   },
 };
 
+const TOUR_PAD = 8;
+const TOOLTIP_H = 230;
+
 // ── Spotlight overlay ─────────────────────────────────────────────────────────
 function TourSpotlight({ rect }) {
   if (!rect) return null;
-  const pad = 8;
-  const x = rect.left - pad, y = rect.top - pad;
-  const w = rect.width + pad * 2, h = rect.height + pad * 2;
+  const x = rect.left - TOUR_PAD, y = rect.top - TOUR_PAD;
+  const w = rect.width + TOUR_PAD * 2, h = rect.height + TOUR_PAD * 2;
   const rx = 10;
   return ReactDOM.createPortal(
     <>
@@ -254,11 +256,10 @@ function TourTooltip({ step, stepIdx, total, onPrev, onNext, onClose, rect }) {
     top = vh / 2 - 120;
     left = vw / 2 - W / 2;
   } else {
-    const pad = 8;
-    const elBottom = rect.top + rect.height + pad;
-    const elTop    = rect.top - pad;
+    const elBottom = rect.top + rect.height + TOUR_PAD;
+    const elTop    = rect.top - TOUR_PAD;
     // prefer below; fall back above
-    if (elBottom + 230 < vh) {
+    if (elBottom + TOOLTIP_H < vh) {
       top = elBottom + GAP;
     } else {
       top = elTop - 230 - GAP;
@@ -277,12 +278,10 @@ function TourTooltip({ step, stepIdx, total, onPrev, onNext, onClose, rect }) {
       background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:14,
       boxShadow:'0 20px 60px rgba(0,0,0,0.36)', padding:'18px 20px 16px',
     }}>
-      {/* progress bar */}
       <div style={{ height:3, borderRadius:999, background:VM.paperDeep, marginBottom:14, overflow:'hidden' }}>
         <div style={{ height:'100%', borderRadius:999, background:VM.teal,
           width:`${((stepIdx + 1) / total) * 100}%`, transition:'width 0.3s ease' }} />
       </div>
-      {/* step counter + close */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
         <span style={{ fontFamily:VM.mono, fontSize:9.5, letterSpacing:'0.08em', textTransform:'uppercase', color:VM.ink3 }}>
           Step {stepIdx + 1} of {total}
@@ -294,15 +293,12 @@ function TourTooltip({ step, stepIdx, total, onPrev, onNext, onClose, rect }) {
           <i className="ti ti-x" style={{ fontSize:14 }}></i>
         </button>
       </div>
-      {/* title */}
       <h3 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, margin:'0 0 7px', color:VM.ink, lineHeight:1.15 }}>
         {step.title}
       </h3>
-      {/* body */}
       <p style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink2, margin:'0 0 16px', lineHeight:1.6 }}>
         {step.body}
       </p>
-      {/* nav */}
       <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
         {!isFirst && (
           <button onClick={onPrev} style={{
@@ -331,10 +327,7 @@ function TourEngine({ tourId, onDone }) {
   const [targetRect, setTargetRect] = useStateTour(null);
   const mountedRef = useRefTour(true);
 
-  useEffectTour(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
+  useEffectTour(() => () => { mountedRef.current = false; }, []);
 
   const resolveStep = useCallbackTour(async (idx) => {
     if (!tour) return;
@@ -357,11 +350,10 @@ function TourEngine({ tourId, onDone }) {
     if (!mountedRef.current) return;
 
     // click a dashboard tab if required
-    if (step.click && step.click.tabText) {
-      const tabs = document.querySelectorAll('[data-tour="vm-company-tabs"] span');
-      for (const el of tabs) {
-        if (el.textContent.trim() === step.click.tabText) { el.click(); break; }
-      }
+    if (step.click?.tabText) {
+      const tab = [...document.querySelectorAll('[data-tour="vm-company-tabs"] span')]
+        .find(el => el.textContent.trim() === step.click.tabText);
+      tab?.click();
       await new Promise(r => setTimeout(r, 500));
       if (!mountedRef.current) return;
     }
@@ -373,12 +365,11 @@ function TourEngine({ tourId, onDone }) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         await new Promise(r => setTimeout(r, 380));
         if (!mountedRef.current) return;
-        const r = el.getBoundingClientRect();
-        setTargetRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+        const { top, left, width, height } = el.getBoundingClientRect();
+        setTargetRect({ top, left, width, height });
         return;
       }
     }
-    // no selector or element not found — centered tooltip, no spotlight
     setTargetRect(null);
   }, [tour]);
 

@@ -29,7 +29,7 @@ function News({ go, isMobile }) {
   const [cat, setCat] = useStateNews('All');
   const [searchOpen, setSearchOpen] = useStateNews(false);
   const [query, setQuery] = useStateNews('');
-  const [article, setArticle] = useStateNews(null);   // open article (overlay) or null
+  const [article, setArticle] = useStateNews(null);
   const q = query.trim().toLowerCase();
   const list = NEWS.filter(n => (cat === 'All' || n.cat === cat) &&
     (!q || (n.headline + ' ' + n.summary + ' ' + n.kicker).toLowerCase().includes(q)));
@@ -82,7 +82,7 @@ function News({ go, isMobile }) {
 
       {/* article grid */}
       <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-        {rest.map((n, i) => <NewsCard key={i} n={n} onOpen={() => setArticle(n)} />)}
+        {rest.map(n => <NewsCard key={n.kicker} n={n} onOpen={() => setArticle(n)} />)}
       </div>
 
       {article && <ArticleModal article={article} onClose={() => setArticle(null)} onTicker={openTicker} isMobile={isMobile} />}
@@ -90,17 +90,14 @@ function News({ go, isMobile }) {
   );
 }
 
-// Full-article overlay (similar to the course viewer).
 function ArticleModal({ article: a, onClose, onTicker, isMobile }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(31,29,26,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: isMobile ? '16px' : '40px 20px', overflowY: 'auto' }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 680, background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
-        {/* banner */}
         <div style={{ height: isMobile ? 130 : 170, background: `linear-gradient(120deg, ${VM.forest}, ${VM.teal})`, position: 'relative', display: 'flex', alignItems: 'flex-end', padding: 18 }}>
           <Mono size={10} color="rgba(255,255,255,0.85)" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>{a.kicker}</Mono>
           <button onClick={onClose} title="Close" style={{ position: 'absolute', top: 14, right: 14, width: 32, height: 32, borderRadius: 999, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><i className="ti ti-x" style={{ fontSize: 16 }}></i></button>
         </div>
-        {/* body */}
         <div style={{ padding: isMobile ? '18px' : '24px 28px 28px' }}>
           <Label>{a.cat}</Label>
           <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 23 : 29, lineHeight: 1.12, margin: '8px 0 0' }}>{a.headline}</h1>

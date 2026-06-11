@@ -31,7 +31,6 @@ const ROUTE_TITLES = {
   calendar:'Calendar · Veridian Markets', news:'News · Veridian Markets', dashboard:'Veridian Markets',
 };
 
-// Turn the current URL into { route, company }.
 function pathToState(pathname) {
   let p = pathname.replace(/\/+$/, '') || '/';   // trim trailing slash(es)
   const m = p.match(/^\/company\/([^/]+)/i);
@@ -43,7 +42,6 @@ function pathToState(pathname) {
   if (p.startsWith('/settings')) return { route: 'settings', company: null };
   return { route: PATH_ROUTES[p] || 'front', company: null };
 }
-// Turn a route (+ company for the dashboard) into a URL.
 function stateToPath(route, company) {
   if (route === 'dashboard') return '/company/' + encodeURIComponent((company && company.ticker) || '').toLowerCase();
   return ROUTE_PATHS[route] || '/';
@@ -63,7 +61,6 @@ async function sha256Hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-// Returns a user object on success, or null. Async because hashing is async.
 async function verifyCredentials(email, password) {
   const acct = VM_ACCOUNTS.find(a => a.email.toLowerCase() === String(email).trim().toLowerCase());
   if (!acct) return null;
@@ -113,7 +110,7 @@ function AiAssistant({ isMobile, bottom }) {
   const [busy, setBusy]     = useStateApp(false);
   const inputRef = React.useRef(null);
 
-  const openIt = () => { setOpen(true); setTimeout(() => inputRef.current && inputRef.current.focus(), 80); };
+  const openIt = () => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 80); };
   const close  = () => setOpen(false);
   const ask = () => {
     const query = q.trim();
@@ -132,7 +129,7 @@ function AiAssistant({ isMobile, bottom }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const hasQ = q.trim().length > 0;
+  const hasQ = !!q.trim();
   const rightAction = () => { if (!open) return openIt(); if (hasQ) return ask(); close(); };
 
   return (
@@ -150,7 +147,6 @@ function AiAssistant({ isMobile, bottom }) {
             : <span style={{ fontFamily:VM.serif, fontSize:13.5, color:VM.ink2, lineHeight:1.5 }}>{answer}</span>}
         </div>
       )}
-      {/* the bubble button → search bar */}
       <div onClick={()=> !open && openIt()} style={{ display:'flex', alignItems:'center', height:52,
         width: open ? (isMobile ? 'min(86vw, 360px)' : 360) : 52, borderRadius:999, background: VM.forest,
         boxShadow:'0 10px 30px rgba(31,29,26,0.28)', overflow:'hidden', cursor: open ? 'default' : 'pointer',
@@ -205,10 +201,7 @@ function App() {
   const setDashTab = (t) => setDashTrail(tr => tr.length ? tr.map((e, i) => i === tr.length - 1 ? { ...e, tab: t } : e) : tr);
   const dashTab = dashTrail.length ? dashTrail[dashTrail.length - 1].tab : 'Overview';
 
-  // Mobile "download the app" CTA — always shown on mobile.
-  const showAppCta = isMobile;
-
-  const scrollTop = () => { window.scrollTo&&window.scrollTo(0,0); const main=document.getElementById('vm-main'); if(main) main.scrollTop=0; };
+  const scrollTop = () => { window.scrollTo(0, 0); const main=document.getElementById('vm-main'); if(main) main.scrollTop=0; };
   // Navigate: update state AND push a real URL so every page is linkable.
   const go = (r, c) => {
     const nextCompany = c || company;
@@ -267,10 +260,9 @@ function App() {
   // Protected routes. Portfolio sign-in guard is temporarily disabled (laptop:
   // learn-1.14 "sign-in guard bypass"); Admin still needs the admin role.
   const isAdmin = !!(user && user.role === 'admin');
-  const gatedFromPortfolio = false; // temporarily disabled — restore: route==='myportfolio' && !signedIn
-  const gatedFromBusiness = route==='mybusiness' && !signedIn;   // My Business is signed-in only
-  const gatedFromAdmin = route==='admin' && !isAdmin;            // signed-out → sign in; signed-in non-admin → home
-  const effRoute = gatedFromPortfolio || gatedFromBusiness ? 'signin'
+  const gatedFromBusiness = route==='mybusiness' && !signedIn;
+  const gatedFromAdmin = route==='admin' && !isAdmin;
+  const effRoute = gatedFromBusiness ? 'signin'
     : gatedFromAdmin ? (signedIn ? 'front' : 'signin')
     : (route==='signin' && signedIn) ? 'front'   // already signed in → never show the sign-in page (temporary)
     : route;
@@ -294,13 +286,13 @@ function App() {
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : gatedFromBusiness ? 'mybusiness' : 'myportfolio'} isMobile={isMobile} />;
 
-  const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
+  const bare = effRoute==='signin';
 
   return (
     <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
-        <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: showAppCta ? 76 : 0 }}>
+        <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
           {screen}
           <Footer />
         </main>
@@ -309,15 +301,15 @@ function App() {
           <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} isAdmin={isAdmin} accountMode={accountMode} onModeChange={switchMode} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
             <IndexStrip />
-            <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm, paddingBottom: showAppCta ? 76 : 0 }}>
+            <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
               {screen}
               <Footer />
             </main>
           </div>
         </div>
       )}
-      {showAppCta && <MobileAppCta />}
-      <AiAssistant isMobile={isMobile} bottom={showAppCta ? 86 : (isMobile ? 16 : 24)} />
+      {isMobile && <MobileAppCta />}
+      <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
       {activeTourId && <TourEngine key={activeTourId} tourId={activeTourId} onDone={() => setActiveTourId(null)} />}
     </div>
   );
