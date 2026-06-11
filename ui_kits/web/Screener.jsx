@@ -1,9 +1,7 @@
 // Veridian Markets — Company search / screener with eye-preview.
-const { useState: useStateScr } = React;
-
 function Screener({ go, isMobile }) {
-  const [open, setOpen] = useStateScr(null);
-  const [filters, setFilters] = useStateScr([
+  const [open, setOpen] = React.useState(null);
+  const [filters, setFilters] = React.useState([
     { k:'SECTOR', v:'Technology' }, { k:'MARKET CAP', v:'> $10B' },
     { k:'P/E', v:'< 40' }, { k:'ANALYST', v:'Buy or better' },
   ]);
@@ -282,36 +280,6 @@ function PreviewScn({ c }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-// ── Financials preview ────────────────────────────────────────────────────────
-function PreviewFinancials({ data }) {
-  function fmt(v, fmtType) {
-    if (fmtType === 'eps') return `$${Math.abs(v).toFixed(2)}`;
-    const abs = Math.abs(v);
-    const s   = abs >= 1000 ? `$${(abs/1000).toFixed(1)}B` : `$${abs.toFixed(0)}M`;
-    return v < 0 ? `(${s})` : s;
-  }
-  const highlights = [
-    ...data.income.filter(r => r.b || r.fmt === 'eps'),
-    ...data.cashflow.filter(r => r.k === 'Free cash flow'),
-  ];
-  return (
-    <div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8, marginBottom:12 }}>
-        {highlights.slice(0,6).map((r, i) => (
-          <div key={i} style={{ background:VM.paperWarm, border:`1px solid ${VM.borderSoft}`, borderRadius:8, padding:'8px 10px' }}>
-            <Label>{r.k}</Label>
-            <div style={{ fontFamily:VM.mono, fontSize:16, fontWeight:700, color: r.v[0] < 0 ? VM.downInk : VM.ink, marginTop:3 }}>
-              {fmt(r.v[0], r.fmt)}
-            </div>
-            <Mono size={9} color={VM.ink3}>TTM</Mono>
-          </div>
-        ))}
-      </div>
-      <Mono size={9} color={VM.faint}>Illustrative mock data · open dashboard for full statement</Mono>
     </div>
   );
 }

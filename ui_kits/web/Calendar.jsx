@@ -179,7 +179,7 @@ function Calendar({ go, isMobile }) {
   const inRange = events
     .map(e => ({ ...e, date: new Date(CAL_YEAR, CAL_MONTH, e.d) }))
     .filter(e => e.date >= winStart && e.date <= winEnd)
-    .sort((a, b) => a.date - b.date || (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
+    .sort((a, b) => a.date - b.date || a.time.localeCompare(b.time));
   const seedToday = new Date(CAL_YEAR, CAL_MONTH, CAL_TODAY);
   const listHasToday = seedToday >= winStart && seedToday <= winEnd;
   const shiftList = (delta) => setListAnchor(prev => { const x = new Date(prev); if (range === 'week') x.setDate(x.getDate() + delta * 7); else x.setMonth(x.getMonth() + delta); return x; });
@@ -244,7 +244,6 @@ function Calendar({ go, isMobile }) {
 
       {view === 'month' && (
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: isMobile ? 16 : 20, marginTop: 20, alignItems: 'start' }}>
-        {/* month grid */}
         <div data-tour="vm-cal-grid" style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, padding: isMobile ? '14px' : '16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{monthLabel}</span>
@@ -282,7 +281,6 @@ function Calendar({ go, isMobile }) {
           </div>
         </div>
 
-        {/* selected-day panel */}
         <div data-tour="vm-cal-day-panel" style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ padding: '13px 16px', borderBottom: `1px solid ${VM.borderHair}`, background: VM.paperWarm }}>
             <Label>{sel == null ? 'Select a day' : (isEventsMonth && sel === CAL_TODAY ? 'Today' : 'Selected')}</Label>
@@ -319,7 +317,6 @@ function Calendar({ go, isMobile }) {
       {/* list (table) view — economic-calendar style */}
       {view === 'list' && (
         <div style={{ marginTop: 20, background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
-          {/* week / month navigator */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, padding: '11px 14px', borderBottom: `1px solid ${VM.borderSoft}`, background: VM.paperWarm }}>
             <span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 16 }}>{rangeLabel}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -423,7 +420,6 @@ function CalEduModal({ e, onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(ev) => ev.stopPropagation()} style={{ width: '100%', maxWidth: 540, maxHeight: '85vh', overflowY: 'auto',
         background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 14, boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
-        {/* header */}
         <div style={{ position: 'sticky', top: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           padding: '14px 18px', borderBottom: `1px solid ${VM.borderSoft}`, background: VM.paperWarm }}>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -444,15 +440,12 @@ function CalEduModal({ e, onClose }) {
         </div>
 
         <div style={{ padding: '16px 18px 20px' }}>
-          {/* what it is */}
           <Label style={{ display: 'block', marginBottom: 6, color: VM.terra }}>What it is</Label>
           <p style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.5, margin: 0 }}>{edu.what}</p>
 
-          {/* how it moves markets */}
           <Label style={{ display: 'block', margin: '16px 0 6px', color: VM.terra }}>How it moves markets</Label>
           <p style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.5, margin: 0 }}>{edu.moves}</p>
 
-          {/* impact level explainer */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 14, padding: '10px 12px', background: VM.paperWarm, border: `1px solid ${VM.borderSoft}`, borderRadius: 8 }}>
             <span style={{ width: 9, height: 9, borderRadius: 999, background: imp.color, marginTop: 4, flexShrink: 0 }}></span>
             <span style={{ fontFamily: VM.serif, fontSize: 13, color: VM.ink2, lineHeight: 1.45 }}>
@@ -460,9 +453,8 @@ function CalEduModal({ e, onClose }) {
             </span>
           </div>
 
-          {/* bullish vs bearish, or a neutral note for mechanical events */}
           {edu.good && edu.bad ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginTop: 16 }}>
+            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
               <div style={{ padding: '11px 13px', background: VM.tealTint, border: `1px solid ${VM.tealTint2}`, borderRadius: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                   <i className="ti ti-trending-up" style={{ fontSize: 15, color: VM.upInk }}></i>
@@ -507,7 +499,6 @@ function CalLegendModal({ onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto',
         background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 14, boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
-        {/* header */}
         <div style={{ position: 'sticky', top: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 18px', borderBottom: `1px solid ${VM.borderSoft}`, background: VM.paperWarm }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -518,7 +509,6 @@ function CalLegendModal({ onClose }) {
         </div>
 
         <div style={{ padding: '16px 18px 20px' }}>
-          {/* columns */}
           <Label style={{ display: 'block', marginBottom: 8, color: VM.terra }}>Columns</Label>
           {CAL_COL_HELP.map(([k, d]) => (
             <div key={k} style={{ display: 'grid', gridTemplateColumns: '92px 1fr', gap: 10, padding: '6px 0', borderBottom: `1px dotted ${VM.border}` }}>
@@ -532,7 +522,6 @@ function CalLegendModal({ onClose }) {
             </span>
           </div>
 
-          {/* impact */}
           <Label style={{ display: 'block', margin: '18px 0 8px', color: VM.terra }}>Impact</Label>
           {Object.values(CAL_IMPACT).map(im => (
             <div key={im.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0' }}>
@@ -544,7 +533,6 @@ function CalLegendModal({ onClose }) {
             </div>
           ))}
 
-          {/* event types */}
           <Label style={{ display: 'block', margin: '18px 0 8px', color: VM.terra }}>Event types</Label>
           {Object.values(CAL_TYPES).map(t => (
             <div key={t.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0' }}>

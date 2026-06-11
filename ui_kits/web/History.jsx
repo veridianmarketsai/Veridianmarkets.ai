@@ -9,12 +9,11 @@ function History({ go, isMobile }) {
     "Apple's supply chain history",
     'Why have construction costs for residential houses gone up?',
   ];
-  const pick = (p) => { setQuery(p); if (inputRef.current) inputRef.current.focus(); };
+  const pick = (p) => { setQuery(p); inputRef.current?.focus(); };
   const submit = (e) => { e.preventDefault(); /* TODO(search): wire to the data/AI provider */ };
 
   return (
     <div style={{ padding: isMobile ? '20px 16px 88px' : '44px 32px 80px', maxWidth:720, margin:'0 auto' }}>
-      {/* hint pill */}
       <div style={{ display:'flex', justifyContent:'center', marginBottom: isMobile ? 22 : 30 }}>
         <span style={{ display:'inline-flex', alignItems:'center', gap:7, fontFamily:VM.mono, fontSize:10.5,
           letterSpacing:'0.06em', textTransform:'uppercase', color:VM.ink3, background:VM.paper,
@@ -24,11 +23,9 @@ function History({ go, isMobile }) {
         </span>
       </div>
 
-      {/* title */}
       <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 40 : 54, lineHeight:1.02,
         textAlign:'center', letterSpacing:'-0.01em', margin:'0 0 20px' }}>Search.</h1>
 
-      {/* search bar */}
       <form onSubmit={submit} style={{ display:'flex', alignItems:'center', gap:10, background:VM.paper,
         border:`1.5px solid ${VM.border}`, borderRadius:999, padding: isMobile ? '11px 14px' : '14px 20px',
         boxShadow:'0 4px 18px rgba(31,29,26,0.06)' }}>
@@ -42,7 +39,6 @@ function History({ go, isMobile }) {
         </button>
       </form>
 
-      {/* prompts — a plain bullet list (matches the sketch). */}
       <div style={{ marginTop: isMobile ? 32 : 44 }}>
         <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, color:VM.ink, marginBottom:6 }}>Prompts</div>
         <div style={{ display:'flex', flexDirection:'column' }}>

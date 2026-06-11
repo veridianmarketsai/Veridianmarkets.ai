@@ -4,7 +4,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
   // The drill trail — each crumb is { co, tab } so the path reads
   // Search › SPX › Supply chain › AAPL › Financials. Earlier crumbs (company AND
   // its tab) are clickable to step back to exactly where you were.
-  const crumbs = (trail && trail.length) ? trail : [{ co: c, tab }];
+  const crumbs = trail?.length ? trail : [{ co: c, tab }];
   const sepEl = (k) => <span key={k} style={{ color:VM.faint, margin:'0 6px' }}>›</span>;
 
   // Tabs scroll horizontally when they don't fit. No scrollbar — grab & drag with the
@@ -23,7 +23,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
         <span onClick={()=>go&&go('screener')} style={{ color:VM.teal, cursor: go?'pointer':'default' }}>Search</span>
         {crumbs.map((cr, i) => {
           const last = i === crumbs.length - 1;
-          const back = () => go && go('dashboard', cr.co);   // step back to that company (restores its tab)
+          const back = () => go && go('dashboard', cr.co);
           const tk = last
             ? <b key="tk" style={{ color:VM.ink }}>{cr.co.ticker}</b>
             : <span key="tk" onClick={back} style={{ color:VM.teal, cursor:'pointer' }}>{cr.co.ticker}</span>;
@@ -44,7 +44,6 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
           <div><Label>Mkt cap</Label><div><Mono size={isMobile?18:22} weight={700}>{c.cap}</Mono></div><Mono size={10} color={VM.ink3}>P/E 37.36 · div 0.34%</Mono></div>
         </div>
       </div>
-      {/* tabs — drag-scroll horizontally (no scrollbar) when they don't fit */}
       <div data-tour="vm-company-tabs" ref={tabsRef} className="vm-noscroll"
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
         style={{ display:'flex', gap: isMobile?18:22, marginTop:16, borderBottom:`1px solid ${VM.borderSoft}`,
@@ -57,7 +56,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
             fontFamily:VM.serif, fontSize: isMobile?15:16, padding:'4px 8px 10px', cursor:'pointer', whiteSpace:'nowrap', borderRadius:'6px 6px 0 0',
             color: active?VM.ink:(hov?VM.teal:VM.ink2), fontWeight: active?700:(hov?600:400),
             background: hov?VM.tealTint:'transparent',
-            borderBottom: active?`2.5px solid ${VM.teal}`:(hov?`2.5px solid ${VM.teal}`:'2.5px solid transparent'), marginBottom:-1,
+            borderBottom: (active||hov)?`2.5px solid ${VM.teal}`:'2.5px solid transparent', marginBottom:-1,
             transition:'color .14s ease, background .14s ease, border-color .14s ease',
           }}>{t}</span>;
         })}

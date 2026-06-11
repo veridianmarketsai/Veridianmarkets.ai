@@ -28,7 +28,7 @@ const VM_COMPANIES = [
     external:[{t:'MAERSK.B',d:'shipping'},{t:'XOM',d:'energy'},{t:'MP',d:'rare-earth'},{t:'ALB',d:'battery'}],
     customers:[{t:'TMUS',d:'carrier'},{t:'VZ',d:'carrier'},{t:'BBY',d:'retail'},{t:'COST',d:'retail'},{t:'AMZN',d:'retail+cloud'}],
     competitors:[{t:'005930.KS',d:'Samsung'},{t:'1810.HK',d:'Xiaomi'},{t:'GOOGL',d:'Alphabet'},{t:'MSFT',d:'Microsoft'}] },
-  { ticker:'NVDA', name:'NVIDIA Corp.',       sector:'Tech · Semiconductors', cap:'$2.32T', price:'945.10', chg:'+3.40%', dir:'up',   sub:'Accelerated computing', analogue:'CSCO', analogueYear:'1999', match:64 },
+  { ticker:'NVDA', name:'NVIDIA Corp.',       sector:'Tech · Semiconductors', cap:'$2.32T', price:'945.10', chg:'+3.40%', dir:'up',   sub:'Accelerated computing', analogue:'CSCO', analogueYear:'1999', match:70 },
   { ticker:'MSFT', name:'Microsoft Corp.',    sector:'Tech · Software',       cap:'$3.17T', price:'427.15', chg:'+0.84%', dir:'up',   sub:'Cloud + software',      analogue:'IBM',  analogueYear:'2004', match:71 },
   { ticker:'GOOGL',name:'Alphabet Inc.',      sector:'Tech · Advertising',    cap:'$2.13T', price:'172.04', chg:'-0.42%', dir:'down', sub:'Search + ads',           analogue:'AAPL', analogueYear:'2013', match:59 },
   { ticker:'AMZN', name:'Amazon.com Inc.',    sector:'Retail · Cloud',        cap:'$1.93T', price:'185.30', chg:'+0.91%', dir:'up',   sub:'Marketplace + AWS',      analogue:'WMT',  analogueYear:'2001', match:55 },
@@ -132,8 +132,8 @@ const VM_COMPANY_DATA = {
         { k:'AI · on-device ML',    pct:12, n:281, c:'#2D5E5A' },
         { k:'Battery · power',      pct:10, n:234, c:'#B35A3A' },
         { k:'Health · sensors',     pct:9,  n:211, c:'#8A857D' },
-        { k:'Camera · imaging',     pct:8,  n:187, c:'#185FA5' },
-        { k:'Audio · spatial',      pct:5,  n:117, c:'#B6AFA2' },
+        { k:'Camera · imaging',     pct:10, n:234, c:'#185FA5' },
+        { k:'Audio · spatial',      pct:8,  n:187, c:'#B6AFA2' },
       ],
       filings: [
         { y:'FY20', n:2380 }, { y:'FY21', n:2614 }, { y:'FY22', n:2190 },
@@ -310,7 +310,7 @@ const VM_COMPANY_DATA = {
       ],
       analogues: [
         { ticker:'CSCO', year:'1999', match:70, what:'Infrastructure bottleneck · dominant standard · build-out peak',     ret:'+312%', dir:'up',   outcome:'CLOSEST' },
-        { ticker:'INTC', year:'1995', match:65, what:"Wintel monopoly · 60%+ market share · Grovee's paranoia culture",   ret:'+428%', dir:'up',   outcome:'ECHO'    },
+        { ticker:'INTC', year:'1995', match:65, what:"Wintel monopoly · 60%+ market share · Grove's paranoia culture",    ret:'+428%', dir:'up',   outcome:'ECHO'    },
         { ticker:'QCOM', year:'2014', match:58, what:'IP licensing + chip monopoly · mobile handset royalties',            ret:'+88%',  dir:'up',   outcome:'ECHO'    },
         { ticker:'CSCO', year:'2000', match:52, what:'Platform crowding · multiples stretched · capacity overbuild begins',ret:'-89%',  dir:'down', outcome:'WARNING' },
         { ticker:'INTC', year:'2003', match:48, what:'AMD/ARM disruption begins · complacency in platform refresh',        ret:'+12%',  dir:'up',   outcome:'MIXED'   },
@@ -542,7 +542,7 @@ const VM_COMPANY_DATA = {
       ],
       filings: [
         { y:'FY19', n:2900 }, { y:'FY20', n:3100 }, { y:'FY21', n:3300 },
-        { y:'FY22', n:3500 }, { y:'FY23', n:3650 }, { y:'FY24', n:3800 },
+        { y:'FY22', n:3500 }, { y:'FY23', n:3650 }, { y:'FY24', n:3800, partial:true },
       ],
       notable: [
         { id:'US12,088,752', filed:'Nov 2023', granted:'Apr 2025', title:'Multi-modal grounding with retrieval-augmented generation for conversational AI agents',  area:'AI · ML systems'     },
@@ -613,7 +613,7 @@ const VM_COMPANY_DATA = {
     ],
     revenueMix: [
       { k:'Online stores',   v:38, c:'#1D4E3A' },
-      { k:'AWS',             v:17, c:'#C46A3B' },
+      { k:'AWS',             v:18, c:'#C46A3B' },
       { k:'3rd-party seller',v:24, c:'#2D5E5A' },
       { k:'Advertising',     v: 9, c:'#8A857D' },
       { k:'Subscriptions',   v: 7, c:'#185FA5' },
@@ -678,7 +678,7 @@ const VM_COMPANY_DATA = {
       ],
       filings: [
         { y:'FY19', n:1500 }, { y:'FY20', n:1700 }, { y:'FY21', n:1900 },
-        { y:'FY22', n:2000 }, { y:'FY23', n:2050 }, { y:'FY24', n:2100 },
+        { y:'FY22', n:2000 }, { y:'FY23', n:2050 }, { y:'FY24', n:2100, partial:true },
       ],
       notable: [
         { id:'US12,071,823', filed:'Oct 2023', granted:'Mar 2025', title:'Autonomous drone corridor management with dynamic geofencing and cooperative sense-and-avoid', area:'Drone · delivery'          },
@@ -730,10 +730,7 @@ const VM_COMPANY_DATA = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE DATA SEAM.
-// Today returns mock. Replace this body with a real fetch when the backend lands.
-// Every component calls resolveCompany(ticker) — none read VM_COMPANY_DATA directly.
-// ─────────────────────────────────────────────────────────────────────────────
+// Returns mock data; replace with a real fetch when the backend is ready.
 function resolveCompany(ticker) {
   return VM_COMPANY_DATA[ticker] || VM_COMPANY_DATA['AAPL'];
 }

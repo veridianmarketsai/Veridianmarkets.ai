@@ -5,8 +5,9 @@ const {
   useEffect:   useEffectA,
   useRef:      useRefA,
   useMemo:     useMemoA,
-  useCallback: useCallbackA,
 } = React;
+
+const rev = arr => [...arr].reverse();
 
 // ── Chart registry ────────────────────────────────────────────────────────────
 const CHART_CATEGORIES = [
@@ -132,11 +133,11 @@ function fmtMil(v) {
 }
 
 function buildRevenueOption(data) {
-  const perList = [...data.periods].reverse();
-  const rev = data.income.find(r => r.k === 'Total revenue');
+  const perList = rev(data.periods);
+  const revRow = data.income.find(r => r.k === 'Total revenue');
   const gp  = data.income.find(r => r.k === 'Gross profit');
-  const revV = [...rev.v].reverse();
-  const gpV  = [...gp.v].reverse();
+  const revV = rev(revRow.v);
+  const gpV  = rev(gp.v);
   return {
     backgroundColor: 'transparent',
     grid: { left: 72, right: 20, top: 24, bottom: 44 },
@@ -156,11 +157,11 @@ function buildRevenueOption(data) {
 }
 
 function buildMarginsOption(data, logScale) {
-  const perList = [...data.periods].reverse();
-  const revV  = [...data.income.find(r => r.k === 'Total revenue').v].reverse();
-  const gpV   = [...data.income.find(r => r.k === 'Gross profit').v].reverse();
-  const oiV   = [...data.income.find(r => r.k === 'Operating income').v].reverse();
-  const niV   = [...data.income.find(r => r.k === 'Net income').v].reverse();
+  const perList = rev(data.periods);
+  const revV  = rev(data.income.find(r => r.k === 'Total revenue').v);
+  const gpV   = rev(data.income.find(r => r.k === 'Gross profit').v);
+  const oiV   = rev(data.income.find(r => r.k === 'Operating income').v);
+  const niV   = rev(data.income.find(r => r.k === 'Net income').v);
   const pct   = (arr) => arr.map((v, i) => +(v / revV[i] * 100).toFixed(1));
   return {
     backgroundColor: 'transparent',
@@ -183,9 +184,9 @@ function buildMarginsOption(data, logScale) {
 }
 
 function buildEpsOption(data) {
-  const perList = [...data.periods].reverse();
+  const perList = rev(data.periods);
   const epsRow  = data.income.find(r => r.fmt === 'eps');
-  const epsV    = [...epsRow.v].reverse();
+  const epsV    = rev(epsRow.v);
   return {
     backgroundColor: 'transparent',
     grid: { left: 56, right: 20, top: 24, bottom: 44 },
@@ -418,12 +419,12 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
+  const handleClose = () => { onClose(); analysisButtonRef?.current?.focus(); };
+
   // ESC to close
   useEffectA(() => {
     if (!open) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape') { onClose(); if (analysisButtonRef && analysisButtonRef.current) analysisButtonRef.current.focus(); }
-    };
+    const onKey = (e) => { if (e.key === 'Escape') handleClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -456,7 +457,6 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
   const chartMeta = CHART_MAP[activeChart];
 
   if (!open) return null;
-  const handleClose = () => { onClose(); if (analysisButtonRef && analysisButtonRef.current) analysisButtonRef.current.focus(); };
   return ReactDOM.createPortal(
     <div onClick={handleClose}
       style={{ position:'fixed', inset:0, zIndex:300,
@@ -474,7 +474,6 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
           border: isMob ? 'none' : `1px solid ${VM.borderSoft}`,
           outline:'none', overflow:'hidden' }}>
 
-        {/* Header */}
         <div style={{ display:'flex', alignItems:'center', gap:12,
           padding: isMob ? '12px 14px' : '14px 18px',
           borderBottom:`1px solid ${VM.borderSoft}`, flexShrink:0, background:VM.paper }}>
@@ -495,14 +494,10 @@ function AnalysisModal({ open, onClose, data, c, analysisButtonRef }) {
           </button>
         </div>
 
-        {/* Body */}
         <div style={{ display:'flex', flexDirection: isMob ? 'column' : 'row', flex:1, minHeight:0 }}>
-          {/* Sidebar: left panel on desktop, horizontal chip strip on mobile */}
           {isMob
             ? <MobileChartStrip activeChart={activeChart} onSelect={handleSelect} />
             : <AnalysisSidebar activeChart={activeChart} onSelect={handleSelect} search={search} onSearch={setSearch} />}
-
-          {/* Main canvas area */}
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
             <AnalysisControls chartId={activeChart} toggles={toggles} onToggle={onToggle}
               onExplain={handleExplain} explaining={explaining} hasExplanation={!!explanation} />
