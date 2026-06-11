@@ -6,7 +6,8 @@ const { useState: useStateApp, useEffect: useEffectApp, useRef: useRefApp } = Re
 // /company/<ticker>. Everything is served from the site root (see index.html +
 // 404.html for the GitHub Pages SPA deep-link handling).
 const ROUTE_PATHS = {
-  front:       '/',
+  landing:     '/',
+  front:       '/home',
   signin:      '/sign-in',
   myportfolio: '/portfolio',
   mybusiness:  '/my-business',
@@ -22,7 +23,8 @@ const ROUTE_PATHS = {
 };
 const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
 const ROUTE_TITLES = {
-  front:'Veridian Markets · history-led finance', signin:'Sign in · Veridian Markets',
+  landing:'Veridian Markets · history-led finance',
+  front:'Home · Veridian Markets', signin:'Sign in · Veridian Markets',
   myportfolio:'My Account · Veridian Markets', mybusiness:'My Business · Veridian Markets',
   supply:'Supply chain network · Veridian Markets',
   screener:'Search · Veridian Markets', history:'History · Veridian Markets',
@@ -41,7 +43,7 @@ function pathToState(pathname) {
     return { route:'dashboard', company: company || null };
   }
   if (p.startsWith('/settings')) return { route: 'settings', company: null };
-  return { route: PATH_ROUTES[p] || 'front', company: null };
+  return { route: PATH_ROUTES[p] || 'landing', company: null };
 }
 // Turn a route (+ company for the dashboard) into a URL.
 function stateToPath(route, company) {
@@ -279,7 +281,8 @@ function App() {
   const railRoute = effRoute==='dashboard' ? 'screener' : effRoute;
 
   let screen;
-  if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} />;
+  if(effRoute==='landing') screen = <VMLanding />;
+  else if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} />;
   else if(effRoute==='screener') screen = <Screener go={go} isMobile={isMobile} />;
   else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
   else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} trail={dashTrail} tab={dashTab} onTabChange={setDashTab} />;
@@ -295,6 +298,15 @@ function App() {
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : gatedFromBusiness ? 'mybusiness' : 'myportfolio'} isMobile={isMobile} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
+  // Full-bleed marketing landing — its own nav/footer, no app chrome at all.
+  const chromeless = effRoute==='landing';
+  if (chromeless) {
+    return (
+      <div key={'app-'+theme} id="vm-main" style={{ height:'100vh', overflowY:'auto', overflowX:'hidden', background:VM.paperWarm }}>
+        {screen}
+      </div>
+    );
+  }
 
   return (
     <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>

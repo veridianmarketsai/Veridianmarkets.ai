@@ -3,53 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Veridian Markets · history-led finance</title>
+  <title>Veridian Markets — history-led finance</title>
+  <meta name="description" content="Veridian Markets maps the hidden dependencies behind every company, commodity and market — then reads today against what history has already taught us.">
   <link rel="stylesheet" href="/colors_and_type.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
 
-  <!-- SPA deep-link restore: 404.html (GitHub Pages) encodes the real path into
-       a ?/ query and bounces here; this rewrites the URL back before React mounts.
-       See https://github.com/rafgraph/spa-github-pages -->
-  <script>
-    (function (l) {
-      if (l.search[1] === '/') {
-        var decoded = l.search.slice(1).split('&').map(function (s) {
-          return s.replace(/~and~/g, '&');
-        }).join('?');
-        window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
-      }
-    }(window.location));
-  </script>
-
   <style>
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; }
+    html { scroll-behavior: smooth; }
+    html, body { margin: 0; }
     body { background: var(--vm-paper-warm); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-    #root { height: 100%; }
     ::selection { background: #CFE5DD; }
-    main::-webkit-scrollbar { width: 11px; }
-    main::-webkit-scrollbar-thumb { background: rgba(31,29,26,0.18); border-radius: 6px; border: 3px solid var(--vm-paper-warm); }
     button { font-family: inherit; }
-    /* drag-to-scroll strips (tabs, etc.) — no visible scrollbar */
-    .vm-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
-    .vm-noscroll::-webkit-scrollbar { display: none; }
-    /* AI assistant search input (light text on dark green) */
-    .vm-ai-input::placeholder { color: rgba(241,241,232,0.6); }
     @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes ldFloatA { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+    @keyframes ldFloatB { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+    @keyframes ldFloatC { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes ldDash { to { stroke-dashoffset: -16; } }
   </style>
 </head>
 <body>
   <div id="root"></div>
-
-  <template id="__bundler_thumbnail">
-    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="1200" height="800" fill="#F4F1E8"></rect>
-      <rect x="360" y="240" width="480" height="320" rx="28" fill="#1D4E3A"></rect>
-      <text x="600" y="430" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-weight="700" font-size="150" fill="#E1F1EC">VM</text>
-      <polyline points="430,610 500,580 570,595 640,545 710,560 770,520" fill="none" stroke="#C46A3B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline>
-      <text x="600" y="700" text-anchor="middle" font-family="Georgia, serif" font-size="40" fill="#1F1D1A">Veridian Markets</text>
-    </svg>
-  </template>
 
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
@@ -57,6 +31,9 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+  <!-- Shared app modules (same set as the app, minus app.jsx so the SPA does NOT
+       boot — Landing.jsx mounts itself). The dependency-map demo can drill into a
+       full-screen dashboard, so its downstream components must be present too. -->
   <script type="text/babel" src="/ui_kits/web/data.jsx"></script>
   <script type="text/babel" src="/ui_kits/web/admin_data.jsx"></script>
   <script type="text/babel" src="/ui_kits/web/primitives.jsx"></script>
@@ -79,7 +56,10 @@
   <script type="text/babel" src="/ui_kits/web/Calendar.jsx"></script>
   <script type="text/babel" src="/ui_kits/web/News.jsx"></script>
   <script type="text/babel" src="/ui_kits/web/Tour.jsx"></script>
+
+  <!-- Standalone preview: tell Landing.jsx to mount itself (in the app it doesn't). -->
+  <script>window.__VM_LANDING_STANDALONE = true;</script>
+  <!-- The marketing landing site (mounts <VMLanding/> into #root). -->
   <script type="text/babel" src="/ui_kits/web/Landing.jsx"></script>
-  <script type="text/babel" src="/ui_kits/web/app.jsx"></script>
 </body>
 </html>
