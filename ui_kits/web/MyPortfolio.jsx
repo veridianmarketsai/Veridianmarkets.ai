@@ -9,10 +9,11 @@
 const { useState: useStateMP, useEffect: useEffectMP, useMemo: useMemoMP } = React;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-const num     = s => parseFloat(String(s).replace(/[^0-9.\-]/g,'')) || 0;
-const pctNum  = s => parseFloat(String(s).replace(/[^0-9.\-]/g,'')) || 0;
-const money   = (n, dec=0) => '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
-const signPct = n => (n>=0?'+':'')+n.toFixed(2)+'%';
+const num      = s => parseFloat(String(s).replace(/[^0-9.\-]/g,'')) || 0;
+const money    = (n, dec=0) => '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const signMoney = (n, dec=0) => (n>=0?'+':'')+money(n,dec);
+const signPct  = n => (n>=0?'+':'')+n.toFixed(2)+'%';
+const dir      = n => n >= 0 ? 'up' : 'down';
 function walk(seed,n,drift=0){
   const out=[]; let y=0.5;
   for(let i=0;i<n;i++){y+=Math.sin(i*0.6+seed)*0.06+(((seed*9301+i*49297)%233280)/233280-0.5)*0.07+drift;y=Math.max(0.06,Math.min(0.94,y));out.push(y);}
@@ -100,9 +101,9 @@ function MyPortfolio({ go, user, isMobile }) {
   const pf = useMemoMP(()=>{
     const rows = PF_HOLDINGS_RAW.map(h=>{
       const c = VM_COMPANIES.find(x=>x.ticker===h.ticker)||{};
-      const price=num(c.price), value=price*h.shares, cost=h.avg*h.shares, dayPct=pctNum(c.chg);
+      const price=num(c.price), value=price*h.shares, cost=h.avg*h.shares, dayPct=num(c.chg);
       const risk = PF_RISK[h.ticker] || { tier:'medium', score:2, note:'—' };
-      return {...h, name:c.name||h.ticker, sector:c.sector||'—', dir:c.dir, price, value, cost,
+      return {...h, name:c.name||h.ticker, dir:c.dir, price, value, cost,
         pl:value-cost, plPct:((value-cost)/cost)*100, dayPct, dayChg:value*dayPct/100, risk };
     });
     const invested = rows.reduce((s,r)=>s+r.value,0);
@@ -230,7 +231,7 @@ function MyPortfolio({ go, user, isMobile }) {
             </div>
             <div>
               <Mono size={9.5} color={VM.ink3} weight={600} style={{ display:'block', marginBottom:8, letterSpacing:'0.05em', textTransform:'uppercase' }}>Risk notes</Mono>
-              {pf.rows.sort((a,b)=>b.risk.score-a.risk.score).map((r,i)=>(
+              {pf.rows.sort((a,b)=>b.risk.score-a.risk.score).map((r)=>(
                 <div key={r.ticker} style={{ display:'flex', gap:10, alignItems:'flex-start', padding:'5px 0', borderBottom:`1px dotted ${VM.borderHair}` }}>
                   <span style={{ width:6, height:6, borderRadius:999, background:RISK_COLOR[r.risk.tier], flexShrink:0, marginTop:5 }}></span>
                   <Mono size={11} weight={700} style={{ minWidth:42 }}>{r.ticker}</Mono>
@@ -298,8 +299,8 @@ function BrokerButton({ b, on, onToggle }) {
 function PfKPIs({ pf }) {
   const kpis = [
     { label:'Total value',    value:money(pf.total)  },
-    { label:'Today',          value:(pf.dayChg>=0?'+':'')+money(pf.dayChg), dir:pf.dayChg>=0?'up':'down', extra:signPct(pf.dayPct) },
-    { label:'Total return',   value:(pf.totalPL>=0?'+':'')+money(pf.totalPL), dir:pf.totalPL>=0?'up':'down', extra:signPct(pf.totalPLPct) },
+    { label:'Today',          value:signMoney(pf.dayChg), dir:dir(pf.dayChg), extra:signPct(pf.dayPct) },
+    { label:'Total return',   value:signMoney(pf.totalPL), dir:dir(pf.totalPL), extra:signPct(pf.totalPLPct) },
     { label:'Cash available', value:money(PF_CASH), sub:'Buying power' },
   ];
   return (
@@ -398,7 +399,7 @@ function PfHoldings({ pf, go, isMobile }) {
             </div>
             <div style={{ textAlign:'right' }}>
               <Mono size={13} weight={700}>{money(r.value)}</Mono>
-              <div><Chg dir={r.dayPct>=0?'up':'down'}>{signPct(r.dayPct)}</Chg></div>
+              <div><Chg dir={dir(r.dayPct)}>{signPct(r.dayPct)}</Chg></div>
             </div>
           </div>
         );
@@ -413,7 +414,7 @@ function PfHoldings({ pf, go, isMobile }) {
             <Mono size={12} color={VM.ink2} style={{ textAlign:'right' }}>{r.shares}</Mono>
             <Mono size={12} weight={600} style={{ textAlign:'right' }}>${r.price.toFixed(2)}</Mono>
             <Mono size={12} weight={700} style={{ textAlign:'right' }}>{money(r.value)}</Mono>
-            <span style={{ textAlign:'right' }}><Chg dir={r.dayPct>=0?'up':'down'}>{signPct(r.dayPct)}</Chg></span>
+            <span style={{ textAlign:'right' }}><Chg dir={dir(r.dayPct)}>{signPct(r.dayPct)}</Chg></span>
             <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'flex-end' }}>
               <div style={{ flex:1, maxWidth:60 }}><ProgressBar v={r.weight}/></div>
               <Mono size={11} color={VM.ink2} style={{ minWidth:32, textAlign:'right' }}>{r.weight.toFixed(0)}%</Mono>

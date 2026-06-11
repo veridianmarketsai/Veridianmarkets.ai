@@ -43,9 +43,9 @@ function vmBuildUsers() {
     const first = VM_FIRST[Math.floor(rnd() * VM_FIRST.length)];
     const last = VM_LAST[Math.floor(rnd() * VM_LAST.length)];
     const plan = vmPickWeighted(rnd, VM_PLANS, 'p');
-    let status = vmPickWeighted(rnd, VM_STATUSES, 's');
+    const status = vmPickWeighted(rnd, VM_STATUSES, 's');
     const country = vmPickWeighted(rnd, VM_COUNTRIES, 'c');
-    const joinedAgo = Math.floor(rnd() * 540) + 1;            // 1..540 days ago
+    const joinedAgo = Math.floor(rnd() * 540) + 1;
     const joined = new Date(VM_NOW.getTime() - joinedAgo * DAY);
     // active users seen recently; churned a while ago; trials in between
     const lastAgo = status === 'active' ? Math.floor(rnd() * 6)
@@ -75,16 +75,15 @@ function vmUserStats(users = VM_USERS) {
   users.forEach(u => {
     byPlan[u.plan]++; byStatus[u.status]++;
     byCountry[u.country] = (byCountry[u.country] || 0) + 1;
-    if (u.status !== 'churned') mrr += (VM_PLANS.find(p => p.p === u.plan) || {}).price || 0;
+    if (u.status !== 'churned') mrr += VM_PLANS.find(p => p.p === u.plan).price;
     lessons += u.lessons;
   });
-  // signups for the last 12 months
   const months = [];
   for (let m = 11; m >= 0; m--) {
     const d = new Date(VM_NOW.getFullYear(), VM_NOW.getMonth() - m, 1);
     const label = d.toLocaleString('en-US', { month: 'short' });
     const count = users.filter(u => u.joined.getFullYear() === d.getFullYear() && u.joined.getMonth() === d.getMonth()).length;
-    months.push({ label, count, key: d.getFullYear() + '-' + d.getMonth() });
+    months.push({ label, count });
   }
   const topCountries = Object.entries(byCountry).map(([c, n]) => ({ c, n })).sort((a, b) => b.n - a.n).slice(0, 6);
   return {
@@ -106,7 +105,7 @@ function vmUserProfits(u) {
   const profitPct = u.status === 'churned' ? (rnd() * 40 - 28) : (rnd() * 120 - 30);
   const cost = value / (1 + profitPct / 100);
   const profit = Math.round(value - cost);
-  const dayPct = (rnd() * 6 - 3);
+  const dayPct = rnd() * 6 - 3;
   return { value, cost: Math.round(cost), profit, profitPct, dayPct, dayChg: Math.round(value * dayPct / 100), dir: profit >= 0 ? 'up' : 'down' };
 }
 

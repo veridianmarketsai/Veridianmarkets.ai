@@ -31,6 +31,7 @@ function catTint(cat) {
   };
   return map[cat] || { bg:VM.paperDeep, fg:VM.ink2, icon:'book' };
 }
+const catLabel = id => LEARN_CATS.find(x => x.id === id)?.label || '';
 const LEARN_LEVELS  = ['Beginner','Intermediate','Advanced'];
 const LEARN_FORMATS = ['Course','Path','Guide','Interactive'];
 const TAG_TONE = {
@@ -154,6 +155,26 @@ const LEARN_COURSES = [
 
   { id:17, title:'From Idea to Business Plan',        cat:'business',  provider:'Veridian Academy', level:'Beginner',     format:'Path',        length:'6 modules',   tag:'New',
     lessons:[{n:1,title:'Idea validation',dur:'8 min'},{n:2,title:'Market sizing: TAM, SAM, SOM',dur:'10 min'},{n:3,title:'Business model design',dur:'9 min'},{n:4,title:'Financial projections',dur:'11 min'},{n:5,title:'The pitch deck',dur:'8 min'},{n:6,title:'Feedback and iteration',dur:'7 min'}] },
+
+  { id:18, title:'Building Watchlists That Work',     cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'8 min',       tag:'App tutorial', route:'myportfolio',  tourId:'myportfolio',
+    description:'How to build and maintain a watchlist in Veridian. Covers connecting a broker account, customising the dashboard layout, and reading the analogue alerts.',
+    highlights:['Connect a broker account','Add and remove companies from your watchlist','Customise the dashboard layout','Read and act on analogue alert signals'],
+    tour:[
+      { icon:'user', title:'Your account overview',
+        body:'My Account is your personal home on Veridian — watchlist, portfolio holdings, and analogue alerts all in one view. Everything is stored locally on your device for now; full cloud sync comes with the backend launch. Sign in to access it from any browser session.' },
+      { icon:'bookmarks', title:'Your watchlist',
+        body:'The watchlist is a curated list of companies you\'re monitoring. Unlike a portfolio, watchlist entries don\'t require a position or a price — they\'re just companies you want to follow. Add any company from its dashboard page using the bookmark icon in the company header.',
+        tryIt:'Navigate to any company dashboard and look for the bookmark / watchlist button in the header.' },
+      { icon:'briefcase', title:'Portfolio holdings',
+        body:'If you\'ve connected a broker, your real holdings appear here with current values, unrealised gain/loss, and position size as a percentage of your total portfolio. Without a broker connection, you can enter holdings manually. The view helps you spot concentration and coverage gaps.',
+        tryIt:'Look for the "Add holding" or broker connection option in My Account.' },
+      { icon:'plug', title:'Connecting a broker',
+        body:'Veridian can import your actual portfolio positions from a connected brokerage account. Click "Connect a broker" to see supported integrations. Once connected, holdings sync automatically. This is in early access — more broker integrations are being added in each release.',
+        tryIt:'Tap "Connect a broker" and explore which integrations are available.' },
+      { icon:'bell', title:'Analogue alerts',
+        body:'When Veridian\'s engine finds a strong historical match for a company on your watchlist, it logs an analogue alert. The alert shows which period the current situation resembles and what happened to companies in that position over the following 12–24 months. These are informational context — not buy or sell signals.',
+        tryIt:'Check the analogue alerts section and tap an alert to read the full historical parallel.' },
+    ] },
 
   { id:19, title:'The News Feed', cat:'using-vm', provider:'Veridian Markets', level:'Beginner', format:'Interactive', length:'5 min', tag:'App tutorial', route:'news', tourId:'news',
     description:'A walkthrough of the Veridian news feed — how to read, filter, and act on market news in context.',
@@ -311,25 +332,6 @@ const LEARN_COURSES = [
         tryIt:'Open the History tab and find the company\'s founding date or a major turning point in its story.' },
     ] },
 
-  { id:18, title:'Building Watchlists That Work',     cat:'using-vm',  provider:'Veridian Markets', level:'Beginner',     format:'Interactive', length:'8 min',       tag:'App tutorial', route:'myportfolio',  tourId:'myportfolio',
-    description:'How to build and maintain a watchlist in Veridian. Covers connecting a broker account, customising the dashboard layout, and reading the analogue alerts.',
-    highlights:['Connect a broker account','Add and remove companies from your watchlist','Customise the dashboard layout','Read and act on analogue alert signals'],
-    tour:[
-      { icon:'user', title:'Your account overview',
-        body:'My Account is your personal home on Veridian — watchlist, portfolio holdings, and analogue alerts all in one view. Everything is stored locally on your device for now; full cloud sync comes with the backend launch. Sign in to access it from any browser session.' },
-      { icon:'bookmarks', title:'Your watchlist',
-        body:'The watchlist is a curated list of companies you\'re monitoring. Unlike a portfolio, watchlist entries don\'t require a position or a price — they\'re just companies you want to follow. Add any company from its dashboard page using the bookmark icon in the company header.',
-        tryIt:'Navigate to any company dashboard and look for the bookmark / watchlist button in the header.' },
-      { icon:'briefcase', title:'Portfolio holdings',
-        body:'If you\'ve connected a broker, your real holdings appear here with current values, unrealised gain/loss, and position size as a percentage of your total portfolio. Without a broker connection, you can enter holdings manually. The view helps you spot concentration and coverage gaps.',
-        tryIt:'Look for the "Add holding" or broker connection option in My Account.' },
-      { icon:'plug', title:'Connecting a broker',
-        body:'Veridian can import your actual portfolio positions from a connected brokerage account. Click "Connect a broker" to see supported integrations. Once connected, holdings sync automatically. This is in early access — more broker integrations are being added in each release.',
-        tryIt:'Tap "Connect a broker" and explore which integrations are available.' },
-      { icon:'bell', title:'Analogue alerts',
-        body:'When Veridian\'s engine finds a strong historical match for a company on your watchlist, it logs an analogue alert. The alert shows which period the current situation resembles and what happened to companies in that position over the following 12–24 months. These are informational context — not buy or sell signals.',
-        tryIt:'Check the analogue alerts section and tap an alert to read the full historical parallel.' },
-    ] },
 ];
 
 // ── Course store ──────────────────────────────────────────────────────────
@@ -371,7 +373,7 @@ function Learn({ go, isMobile }) {
     if (level !== 'all' && c.level !== level) return false;
     if (format !== 'all' && c.format !== format) return false;
     if (q) {
-      const hay = (c.title+' '+c.provider+' '+(LEARN_CATS.find(x=>x.id===c.cat)?.label||'')).toLowerCase();
+      const hay = (c.title+' '+c.provider+' '+catLabel(c.cat)).toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -488,11 +490,10 @@ function Learn({ go, isMobile }) {
 }
 
 // ── Full-screen course overlay ────────────────────────────────────────────────
-function CourseOverlay({ c, go, isMobile, onClose, onStart }) {
+function CourseOverlay({ c, isMobile, onClose, onStart }) {
   const t         = catTint(c.cat);
   const tone      = c.tag ? TAG_TONE[c.tag] : null;
   const hasLessons = c.lessons && c.lessons.length > 0;
-  const catLabel  = LEARN_CATS.find(x=>x.id===c.cat)?.label || '';
 
   React.useEffect(()=>{
     const h = e => { if(e.key==='Escape') onClose(); };
@@ -514,7 +515,7 @@ function CourseOverlay({ c, go, isMobile, onClose, onStart }) {
           padding:'14px 20px', borderBottom:`1px solid ${VM.borderHair}`,
           position:'sticky', top:0, background:VM.paperWarm, zIndex:1, flexShrink:0 }}>
           <Mono size={10} weight={700} color={VM.ink3} style={{ letterSpacing:'0.08em', textTransform:'uppercase' }}>
-            {catLabel}
+            {catLabel(c.cat)}
           </Mono>
           <button onClick={onClose} style={{ width:30, height:30, borderRadius:999, border:`1px solid ${VM.border}`,
             background:VM.paper, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
@@ -531,7 +532,7 @@ function CourseOverlay({ c, go, isMobile, onClose, onStart }) {
           justifyContent:'center', position:'relative', marginBottom:20, border:`1px solid ${VM.borderSoft}` }}>
           <i className={'ti ti-'+t.icon} style={{ fontSize:60, color:t.fg, opacity:0.85 }}></i>
           <span style={{ position:'absolute', left:18, bottom:14 }}>
-            <Mono size={10} color={t.fg} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.9 }}>{catLabel}</Mono>
+            <Mono size={10} color={t.fg} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.9 }}>{catLabel(c.cat)}</Mono>
           </span>
           {tone && (
             <span style={{ position:'absolute', right:16, top:14, fontFamily:VM.mono, fontSize:9.5, fontWeight:600,
@@ -593,7 +594,7 @@ function CourseOverlay({ c, go, isMobile, onClose, onStart }) {
           <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'20px 24px', marginBottom:28 }}>
             <Mono size={10} color={VM.ink3} weight={700} style={{ display:'block', marginBottom:10, letterSpacing:'0.06em', textTransform:'uppercase' }}>Preview</Mono>
             <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink2, lineHeight:1.65, margin:0 }}>
-              {c.description} Written to be read in one sitting — no prior knowledge beyond the level listed above.
+              Written to be read in one sitting — no prior knowledge beyond the level listed above.
             </p>
           </div>
         )}
@@ -777,7 +778,7 @@ function StartModal({ course, lesson, go, onClose }) {
           <i className={'ti ti-'+t.icon} style={{ fontSize:24, color:t.fg }}></i>
         </div>
         <Mono size={9.5} color={VM.terra} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:6 }}>
-          {LEARN_CATS.find(x=>x.id===course.cat)?.label}
+          {catLabel(course.cat)}
         </Mono>
         <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, lineHeight:1.2, marginBottom:5 }}>{title}</div>
         <Mono size={11} color={VM.ink3} style={{ display:'block', marginBottom:18 }}>{sub}</Mono>
@@ -832,7 +833,7 @@ function CourseCard({ c, onOpen }) {
         <i className={'ti ti-'+t.icon} style={{ fontSize:40, color:t.fg, opacity:0.92 }}></i>
         <span style={{ position:'absolute', left:12, bottom:10 }}>
           <Mono size={9} color={t.fg} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.85 }}>
-            {LEARN_CATS.find(x=>x.id===c.cat)?.label}
+            {catLabel(c.cat)}
           </Mono>
         </span>
         {c.lessons && <span style={{ position:'absolute', right:10, top:10 }}><Mono size={9} color={t.fg} style={{ opacity:0.65 }}>{c.lessons.length} lessons</Mono></span>}
@@ -863,7 +864,7 @@ function CourseCard({ c, onOpen }) {
   );
 }
 
-function StartHere({ go, isMobile, onOpen }) {
+function StartHere({ isMobile, onOpen }) {
   const [hover, setHover] = useStateLearn(false);
   return (
     <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={onOpen}
@@ -969,7 +970,6 @@ function LessonViewer({ course, lesson, onClose, onNav, isMobile }) {
   const pct     = Math.round(((idx + 1) / lessons.length) * 100);
   const content = getLessonContent(course.id, lesson);
   const t       = catTint(course.cat);
-  const catLabel = LEARN_CATS.find(x=>x.id===course.cat)?.label || '';
 
   React.useEffect(()=>{
     const h = e => { if(e.key==='Escape') onClose(); };
@@ -1011,7 +1011,7 @@ function LessonViewer({ course, lesson, onClose, onNav, isMobile }) {
 
         {/* lesson header */}
         <Mono size={10} color={t.fg} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:8 }}>
-          {catLabel} · Lesson {lesson.n}
+          {catLabel(course.cat)} · Lesson {lesson.n}
         </Mono>
         <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:isMobile?26:34, margin:'0 0 6px', lineHeight:1.1 }}>
           {lesson.title}

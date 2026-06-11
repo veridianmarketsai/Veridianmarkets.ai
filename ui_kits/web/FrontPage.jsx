@@ -8,25 +8,25 @@ function FrontPage({ go, isMobile }) {
   const cols = isMobile ? 1 : 3;                       // story tiles per row (stacks on mobile)
   const perPage = cols * 3;                            // 3 rows visible per page → 9 desktop / 3 mobile
   const pageCount = Math.ceil(27 / perPage);           // 3 pages desktop, 9 mobile
-  const [page, setPage] = useState(0);                 // story-tile pager
+  const [page, setPage] = React.useState(0);                 // story-tile pager
   React.useEffect(() => { setPage(p => Math.min(p, pageCount - 1)); }, [pageCount]);  // clamp when the breakpoint changes
   const lastPage = page === pageCount - 1;             // final page → 'More' is hidden
-  const [pagerHover, setPagerHover] = useState(false);  // hover shade on the pager pill
+  const [pagerHover, setPagerHover] = React.useState(false);  // hover shade on the pager pill
   const moreRef = React.useRef(null);                   // measure 'More' so we can pin it to the centre
-  const [anchorX, setAnchorX] = useState(43);           // pill's right edge sits this many px right of centre
+  const [anchorX, setAnchorX] = React.useState(43);           // pill's right edge sits this many px right of centre
   React.useLayoutEffect(() => { if (moreRef.current) setAnchorX(16 + moreRef.current.offsetWidth / 2); }, []);
-  const [openCard, setOpenCard] = useState('recap');  // right column accordion: exactly one of 'recap' | 'calendar' is always open
+  const [openCard, setOpenCard] = React.useState('recap');  // right column accordion: exactly one of 'recap' | 'calendar' is always open
   // Clicking the open card's chevron switches to the other; clicking a closed card opens it. Never both closed.
   const toggleCard = (id) => setOpenCard(cur => cur === id ? (id === 'recap' ? 'calendar' : 'recap') : id);
-  const [companyQuery, setCompanyQuery] = useState('');  // 'Find a company' search filter
-  const [openRow, setOpenRow] = useState(null);          // ticker of the row whose eye-preview is expanded
+  const [companyQuery, setCompanyQuery] = React.useState('');  // 'Find a company' search filter
+  const [openRow, setOpenRow] = React.useState(null);          // ticker of the row whose eye-preview is expanded
   const q = companyQuery.trim().toLowerCase();
   const companyRows = VM_COMPANIES
     .filter(c => !q || c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q))
     .slice(0, 10);
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
-  const [screenerHover, setScreenerHover] = useState(false);  // hover shade on the 'Open full screener' button
-  const [newsHover, setNewsHover] = useState(false);          // hover shade on the 'See all news' button
+  const [screenerHover, setScreenerHover] = React.useState(false);  // hover shade on the 'Open full screener' button
+  const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button
   return (
     <div style={{ padding: isMobile ? '14px 16px 80px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       {/* LEARN — resume / start learning, above Global News + Market recap. */}
@@ -40,7 +40,6 @@ function FrontPage({ go, isMobile }) {
           <div data-tour="vm-story-tiles" style={{ marginTop:10 }}>
             <StoryScroller page={page} tileTitles={tileTitles} cols={cols} perPage={perPage} />
           </div>
-          {/* Pager — 'More' stays centered; 'Back to top' eases in to its left once you've paged in. */}
           {/* Pager — 'More' is pinned to the page centre (never moves); 'Up' reveals to its left and the box grows leftward only. */}
           <div style={{ position:'relative', height:38, marginTop:16 }}>
             <div onMouseEnter={()=>setPagerHover(true)} onMouseLeave={()=>setPagerHover(false)}
@@ -110,7 +109,6 @@ function FrontPage({ go, isMobile }) {
               background: screenerHover ? VM.paperDeep : VM.paper,
               transition:'background .15s ease, border-color .15s ease' }}>Open full screener →</span>
         </div>
-        {/* Search box — filters the preview list by ticker or company name. */}
         <div style={{ display:'flex', alignItems:'center', gap:9, background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
           <i className="ti ti-search" style={{ fontSize:15, color:VM.ink3 }}></i>
           <input value={companyQuery} onChange={e=>setCompanyQuery(e.target.value)} placeholder="Search by ticker or company name…"

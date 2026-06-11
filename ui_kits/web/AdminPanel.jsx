@@ -14,6 +14,8 @@ const A_STATUS = {
 const aMoney = (n) => '$' + Number(n).toLocaleString('en-US');
 const aDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 const aRel = (d) => { const days = Math.round((VM_NOW - d) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
+const A_PLAN_PRICE = { Plus: 9, Pro: 19 };
+const DAY_MS = 86400000;
 
 function adminDownloadCSV(filename, headers, rows) {
   const escape = v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
@@ -71,7 +73,6 @@ function AdminPanel({ go, user, isMobile }) {
         </button>
       </div>
 
-      {/* impersonation banner */}
       {accessing && (
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', borderRadius: 10, background: 'rgba(196,106,59,0.12)', border: `1px solid ${VM.terra}` }}>
           <i className="ti ti-eye" style={{ fontSize: 17, color: VM.rustDeep }}></i>
@@ -80,7 +81,6 @@ function AdminPanel({ go, user, isMobile }) {
         </div>
       )}
 
-      {/* tabs */}
       <div data-tour="vm-admin-tabs" style={{ display: 'flex', gap: 6, marginTop: 20, borderBottom: `1px solid ${VM.borderSoft}` }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: VM.serif, fontSize: 15,
@@ -181,7 +181,6 @@ function AdminKpi({ label, value, foot, tone, onClick }) {
 function AdminKpiModal({ kpiKey, stats, onClose }) {
   const users   = VM_USERS;
   const courses = vmGetCourses();
-  const DAY_MS  = 86400000;
 
   // helpers
   const StatRow = ({ label, value, sub, bar, barColor, valueColor }) => (
@@ -280,8 +279,8 @@ function AdminKpiModal({ kpiKey, stats, onClose }) {
   else if (kpiKey === 'paying') {
     const plusActive = users.filter(u => u.plan==='Plus' && u.status!=='churned');
     const proActive  = users.filter(u => u.plan==='Pro'  && u.status!=='churned');
-    const plusMrr    = plusActive.length * 9;
-    const proMrr     = proActive.length  * 19;
+    const plusMrr    = plusActive.length * A_PLAN_PRICE.Plus;
+    const proMrr     = proActive.length  * A_PLAN_PRICE.Pro;
     const arpu       = stats.paying ? (stats.mrr / (plusActive.length + proActive.length)).toFixed(2) : 0;
     const recentPaying = [...users].filter(u => u.plan !== 'Free').sort((a,b) => b.joined - a.joined).slice(0,6);
     csvData = { filename:'vm_users_paying.csv', headers:['Name','Email','Plan','Status','Country','Joined'], rows:users.filter(u=>u.plan!=='Free').sort((a,b)=>b.joined-a.joined).map(u=>[u.name,u.email,u.plan,u.status,u.country,aDate(u.joined)]) };
@@ -309,19 +308,19 @@ function AdminKpiModal({ kpiKey, stats, onClose }) {
   else if (kpiKey === 'mrr') {
     const plusActive = users.filter(u => u.plan==='Plus' && u.status!=='churned');
     const proActive  = users.filter(u => u.plan==='Pro'  && u.status!=='churned');
-    const plusMrr    = plusActive.length * 9;
-    const proMrr     = proActive.length  * 19;
+    const plusMrr    = plusActive.length * A_PLAN_PRICE.Plus;
+    const proMrr     = proActive.length  * A_PLAN_PRICE.Pro;
     const topCMrr    = {};
-    users.filter(u=>u.status!=='churned'&&u.plan!=='Free').forEach(u=>{ topCMrr[u.country]=(topCMrr[u.country]||0)+(u.plan==='Pro'?19:9); });
+    users.filter(u=>u.status!=='churned'&&u.plan!=='Free').forEach(u=>{ topCMrr[u.country]=(topCMrr[u.country]||0)+(u.plan==='Pro'?A_PLAN_PRICE.Pro:A_PLAN_PRICE.Plus); });
     const topCountryMrr = Object.entries(topCMrr).sort((a,b)=>b[1]-a[1]).slice(0,4);
-    csvData = { filename:'vm_mrr.csv', headers:['Plan','Active Accounts','Price/mo','MRR/mo'], rows:[['Plus',plusActive.length,9,plusMrr],['Pro',proActive.length,19,proMrr],['Total',plusActive.length+proActive.length,'—',stats.mrr]] };
+    csvData = { filename:'vm_mrr.csv', headers:['Plan','Active Accounts','Price/mo','MRR/mo'], rows:[['Plus',plusActive.length,A_PLAN_PRICE.Plus,plusMrr],['Pro',proActive.length,A_PLAN_PRICE.Pro,proMrr],['Total',plusActive.length+proActive.length,'—',stats.mrr]] };
     title = `Est. MRR · ${aMoney(stats.mrr)}`;
     subtitle = 'Monthly recurring revenue estimate';
     body = (
       <>
         <Section title="Revenue breakdown">
-          <StatRow label={`Plus (${plusActive.length} accounts × $9)`} value={aMoney(plusMrr)} sub="/mo" bar={plusMrr/stats.mrr*100} barColor={VM.teal} />
-          <StatRow label={`Pro  (${proActive.length} accounts × $19)`} value={aMoney(proMrr)}  sub="/mo" bar={proMrr/stats.mrr*100}  barColor={VM.forest} />
+          <StatRow label={`Plus (${plusActive.length} accounts × $${A_PLAN_PRICE.Plus})`} value={aMoney(plusMrr)} sub="/mo" bar={plusMrr/stats.mrr*100} barColor={VM.teal} />
+          <StatRow label={`Pro  (${proActive.length} accounts × $${A_PLAN_PRICE.Pro})`}  value={aMoney(proMrr)}  sub="/mo" bar={proMrr/stats.mrr*100}  barColor={VM.forest} />
         </Section>
         <Section title="Projections">
           <StatRow label="Monthly (MRR)"      value={aMoney(stats.mrr)}       />
@@ -407,7 +406,6 @@ function AdminKpiModal({ kpiKey, stats, onClose }) {
       <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:520, maxHeight:'88vh', display:'flex', flexDirection:'column',
         background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:18,
         boxShadow:'0 20px 60px rgba(31,29,26,0.28)', overflow:'hidden' }}>
-        {/* modal header */}
         <div style={{ padding:'18px 20px 14px', borderBottom:`1px solid ${VM.borderHair}`, flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
             <div>
@@ -430,7 +428,6 @@ function AdminKpiModal({ kpiKey, stats, onClose }) {
             </div>
           </div>
         </div>
-        {/* scrollable body */}
         <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>{body}</div>
       </div>
     </div>
@@ -510,8 +507,8 @@ function AdminChartModal({ chartKey, stats, onClose }) {
   else if (chartKey === 'plans') {
     const planData = [
       { label:'Free', value:stats.byPlan.Free, color:A_PLAN_COLOR.Free, price:0 },
-      { label:'Plus', value:stats.byPlan.Plus, color:A_PLAN_COLOR.Plus, price:9 },
-      { label:'Pro',  value:stats.byPlan.Pro,  color:A_PLAN_COLOR.Pro,  price:19 },
+      { label:'Plus', value:stats.byPlan.Plus, color:A_PLAN_COLOR.Plus, price:A_PLAN_PRICE.Plus },
+      { label:'Pro',  value:stats.byPlan.Pro,  color:A_PLAN_COLOR.Pro,  price:A_PLAN_PRICE.Pro  },
     ];
     // by status per plan
     const planStatus = {};
@@ -792,7 +789,6 @@ function UserRow({ u, last, onView, onAccess, onToast }) {
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 70 }}></div>
           <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: 212, zIndex: 71, background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 10, boxShadow: '0 12px 30px rgba(31,29,26,0.18)', padding: 5 }}>
             <MenuItem icon="user-circle" label="View account details" onClick={() => act(() => onView(u))} />
-            <MenuItem icon="chart-line" label="Personal profits" onClick={() => act(() => onView(u))} />
             <MenuItem icon="login-2" label="Access account" tint={VM.teal} onClick={() => act(() => onAccess(u))} />
             <div style={{ height: 1, background: VM.borderHair, margin: '5px 4px' }}></div>
             <MenuItem icon="mail" label="Email user" onClick={() => act(() => onToast('Opened email composer (mock).'))} />
@@ -845,7 +841,6 @@ function UserDetailModal({ u, onClose, onAccess, onToast }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(31,29,26,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 16, boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
-        {/* header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 22px', borderBottom: `1px solid ${VM.borderHair}` }}>
           <span style={{ width: 48, height: 48, borderRadius: 12, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{initials}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -854,7 +849,6 @@ function UserDetailModal({ u, onClose, onAccess, onToast }) {
           </div>
           <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink2, cursor: 'pointer' }}><i className="ti ti-x" style={{ fontSize: 15 }}></i></button>
         </div>
-        {/* details */}
         <div style={{ padding: '18px 22px' }}>
           <Label>Account details</Label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 10 }}>
@@ -863,7 +857,6 @@ function UserDetailModal({ u, onClose, onAccess, onToast }) {
                 <div style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink, marginTop: 2 }}>{v}</div></div>
             ))}
           </div>
-          {/* profits */}
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${VM.borderHair}` }}>
             <Label>Personal profits</Label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginTop: 10 }}>
@@ -878,7 +871,6 @@ function UserDetailModal({ u, onClose, onAccess, onToast }) {
             <div style={{ marginTop: 12, width: '100%', overflowX: 'auto' }}><Sparkline dir={p.dir} w={520} h={34} /></div>
           </div>
         </div>
-        {/* actions */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '14px 22px', borderTop: `1px solid ${VM.borderHair}`, background: VM.paperWarm, borderRadius: '0 0 16px 16px' }}>
           <Btn solid onClick={() => onAccess(u)}><i className="ti ti-login-2" style={{ fontSize: 15 }}></i>Access account</Btn>
           <Btn onClick={() => onToast('Password reset link sent (mock).')}><i className="ti ti-key" style={{ fontSize: 15 }}></i>Reset password</Btn>

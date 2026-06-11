@@ -298,7 +298,6 @@ function ScnIndexTree({ data, go, isMobile }) {
       ))}
       <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:6 }}>Top names by weight · a 500-name index · illustrative mock data</Mono>
 
-      {/* company preview popup */}
       {preview && (
         <div onClick={()=>setPreview(null)} style={{ position:'fixed', inset:0, zIndex:80, background:'rgba(31,29,26,0.45)',
           display:'flex', alignItems:'flex-start', justifyContent:'center', padding: isMobile ? '12px' : '40px 20px', overflowY:'auto' }}>
@@ -397,13 +396,12 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
   // Robust against late layout shifts: re-measure on element/window resize and once
   // web fonts finish loading (the node cards reflow when the fonts swap in).
   React.useEffect(() => {
-    const on = () => remeasure();
-    window.addEventListener('resize', on);
+    window.addEventListener('resize', remeasure);
     let ro;
-    if (typeof ResizeObserver !== 'undefined' && canvasRef.current) { ro = new ResizeObserver(on); ro.observe(canvasRef.current); }
+    if (typeof ResizeObserver !== 'undefined' && canvasRef.current) { ro = new ResizeObserver(remeasure); ro.observe(canvasRef.current); }
     let cancelled = false;
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!cancelled) remeasure(); });
-    return () => { cancelled = true; window.removeEventListener('resize', on); if (ro) ro.disconnect(); };
+    return () => { cancelled = true; window.removeEventListener('resize', remeasure); if (ro) ro.disconnect(); };
   }, [remeasure]);
 
   const drill = (n) => {
@@ -430,7 +428,7 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
     const tk = (SCN_DB[id] && SCN_DB[id].ticker) || id;
     return (
       <React.Fragment key={i}>
-        <span onClick={()=> last ? null : jumpTo(i)}
+        <span onClick={last ? undefined : ()=>jumpTo(i)}
           style={{ fontFamily:VM.mono, fontSize:11.5, padding:'3px 9px', borderRadius:5,
             border:`1px solid ${VM.border}`, background: last ? VM.paperDeep : VM.paper,
             color: last ? VM.ink : VM.ink3, fontWeight: last ? 600 : 400, cursor: last ? 'default' : 'pointer' }}>{tk}</span>
@@ -590,12 +588,10 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
         </p>
       </>}
 
-      {/* breadcrumb (drill trail) */}
       <div data-tour="vm-supply-crumbs" style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:14, minHeight:26 }}>
         {renderCrumbs()}
       </div>
 
-      {/* filters */}
       <div data-tour="vm-supply-filters" style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginBottom:6 }}>
         <Label style={{ marginRight:2 }}>Filters:</Label>
         {tab('all','All')}{tab('companies','Companies')}{tab('external','External')}
@@ -765,7 +761,6 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
         </div>
       )}
 
-      {/* legend */}
       <div data-tour="vm-supply-legend" style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10 }}>
         {[['Company (direct)', { borderLeft:`3px solid ${SCN.blue}`, background:VM.paper }],
           ['External factor', { borderLeft:`3px solid ${SCN.coral}`, background:VM.paper }],

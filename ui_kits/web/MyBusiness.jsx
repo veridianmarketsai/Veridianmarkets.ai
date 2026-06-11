@@ -182,7 +182,7 @@ function MyBusiness({ go, user, isMobile }) {
     d.moved = true;
     setMap(m => ({ ...m, nodes: m.nodes.map(nn => nn.id === d.id ? { ...nn, x, y } : nn) }));
   };
-  const onNodeUp = (e) => { if (dragRef.current && dragRef.current.moved) mark(); dragRef.current = null; };
+  const onNodeUp = () => { if (dragRef.current && dragRef.current.moved) mark(); dragRef.current = null; };
 
   // Connector path from a node to the centre company (curved, bipartite).
   const pathFor = (n) => {
@@ -569,7 +569,7 @@ function buildNodes(sheets) {
           annualValue:(row['Annual Revenue ($)']||'').toString().trim(),
           concentration:(row['Revenue Concentration (%)']||'').toString().trim(),
           contractExpiry:(row['Contract Expiry']||'').toString().trim(),
-          risk: BIZ_RISK[(row['Risk (low/medium/high/critical)']||'').toString().toLowerCase().trim()] ? (row['Risk (low/medium/high/critical)']).toString().toLowerCase().trim() : '',
+          riskTier: BIZ_RISK[(row['Risk (low/medium/high/critical)']||'').toString().toLowerCase().trim()] ? (row['Risk (low/medium/high/critical)']).toString().toLowerCase().trim() : '',
           note:(row['Notes']||'').toString().trim(),
           x:600, y:100+nodes.filter(n=>n.kind==='customer').length*62,
         });
@@ -583,7 +583,7 @@ function buildNodes(sheets) {
           annualValue:(row['Annual Spend ($)']||'').toString().trim(),
           concentration:(row['Cost Concentration (%)']||'').toString().trim(),
           contractExpiry:(row['Contract Expiry']||'').toString().trim(),
-          risk: BIZ_RISK[(row['Risk (low/medium/high/critical)']||'').toString().toLowerCase().trim()] ? (row['Risk (low/medium/high/critical)']).toString().toLowerCase().trim() : '',
+          riskTier: BIZ_RISK[(row['Risk (low/medium/high/critical)']||'').toString().toLowerCase().trim()] ? (row['Risk (low/medium/high/critical)']).toString().toLowerCase().trim() : '',
           note:(row['Notes']||'').toString().trim(),
           x:80, y:100+nodes.filter(n=>n.kind!=='customer').length*62,
         });
@@ -623,7 +623,7 @@ function BizImportPreview({ sheets, onConfirm, onBack }) {
         </div>
         {/* legend */}
         <div style={{ display:'flex', gap:10, marginLeft:16 }}>
-          {[['required','Error'],['invalid','Error'],['duplicate_file','Duplicate'],['duplicate_map','On map'],['number_format','Format']].filter((v,i,a)=>a.findIndex(x=>x[0]===v[0])===i).map(([type,lbl]) => {
+          {[['required','Error'],['invalid','Error'],['duplicate_file','Duplicate'],['duplicate_map','On map'],['number_format','Format']].filter((v,i,a)=>a.findIndex(x=>x[1]===v[1])===i).map(([type,lbl]) => {
             const s = IMPORT_ERR[type];
             return (
               <div key={type} style={{ display:'flex', alignItems:'center', gap:5 }}>
@@ -947,8 +947,8 @@ function BizSignals({ map, company, onClose }) {
           {nodes.map(n => {
             const k = BIZ_KINDS[n.kind];
             const news = seedPick(SIGNALS_NEWS[n.kind], n.id, 2);
-            const riskInfo = n.risk ? BIZ_RISK[n.risk] : null;
-            const riskText = n.risk ? RISK_TO_PRINCIPLE[n.kind]?.[n.risk] : null;
+            const riskInfo = n.riskTier ? BIZ_RISK[n.riskTier] : null;
+            const riskText = n.riskTier ? RISK_TO_PRINCIPLE[n.kind]?.[n.riskTier] : null;
             return (
               <div key={n.id} style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`,
                 borderLeft:`3px solid ${k.color}`, borderRadius:10, padding:'14px 16px' }}>
@@ -1096,7 +1096,7 @@ function BizAnalysis({ map }) {
 
   // Risk breakdown
   const riskCounts = {};
-  nodes.forEach(n => { if (n.risk) riskCounts[n.risk] = (riskCounts[n.risk]||0) + 1; });
+  nodes.forEach(n => { if (n.riskTier) riskCounts[n.riskTier] = (riskCounts[n.riskTier]||0) + 1; });
 
   // Named vs unnamed
   const named = nodes.filter(n => n.name && n.name !== 'New input' && n.name !== 'New customer').length;

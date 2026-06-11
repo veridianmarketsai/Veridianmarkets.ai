@@ -5,13 +5,13 @@
 // the owner sign in on the static prototype; real auth (AWS Cognito) comes later.
 const { useState: useStateSignIn } = React;
 
-function SignInField({ label, type, placeholder, autoComplete, value, onChange, onKeyDown }) {
+function SignInField({ label, type, placeholder, autoComplete, value, onChange }) {
   return (
     <label style={{ display:'block', marginBottom:14 }}>
       <span style={{ fontFamily:VM.mono, fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase',
         color:VM.ink3, display:'block', marginBottom:6 }}>{label}</span>
       <input type={type} placeholder={placeholder} autoComplete={autoComplete} value={value}
-        onChange={onChange} onKeyDown={onKeyDown} style={{ width:'100%',
+        onChange={onChange} style={{ width:'100%',
         fontFamily:VM.serif, fontSize:15, color:VM.ink, padding:'10px 12px', borderRadius:8,
         border:`1px solid ${VM.border}`, background:VM.paperWarm, outline:'none' }} />
     </label>
@@ -25,7 +25,7 @@ function SignIn({ go, signIn, redirectTo, isMobile }) {
   const [busy, setBusy] = useStateSignIn(false);
 
   const submit = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     if (busy) return;
     setError(''); setBusy(true);
     const ok = await (signIn ? signIn(email, password) : Promise.resolve(false));

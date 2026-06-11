@@ -1,6 +1,4 @@
 // Veridian Markets — app chrome: masthead, left rail, index strip.
-const { useState } = React;
-
 const VM_HEADER_H = 52; // height of the green global top bar
 
 // Full-width green top bar: branding (= home button) + hamburger on mobile.
@@ -112,12 +110,10 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isA
       )}
       <nav style={{ padding:'8px 8px 14px', display:'flex', flexDirection:'column', gap:2, flex:1 }}>
         {groups.map((g,gi)=>(
-          <div key={gi} style={{ marginBottom:10, ...(g.bottom ? { marginTop:'auto', marginBottom:0 } : null) }}>
+          <div key={gi} style={{ marginBottom:10, ...(g.bottom ? { marginTop:'auto', marginBottom:0 } : {}) }}>
             {g.head && <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.faint, padding:'8px 10px 5px' }}>{g.head}</div>}
             {g.items.map((it,ii)=>{
-              // The Sign-in item flips to "Sign out" once authenticated.
-              const isAuth = it.id==='signin';
-              const showSignOut = isAuth && signedIn;
+              const isAuth = it.id==='signin'; const showSignOut = isAuth && signedIn;
               const active = it.id && it.id===route && !showSignOut;
               const clickable = !!it.id;
               const label = showSignOut ? 'Sign out' : it.label;
@@ -218,7 +214,6 @@ function IndexStrip() {
   );
 }
 
-// Shared editorial footer — rendered once in App so it sits at the foot of every page.
 function Footer() {
   return (
     <footer style={{ borderTop:`1px solid ${VM.borderSoft}`, padding:'30px 24px 40px', textAlign:'center', background:VM.paperWarm }}>

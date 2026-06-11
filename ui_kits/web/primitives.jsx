@@ -21,15 +21,7 @@ const VM_DARK = {
   serif:"'Spectral', Georgia, serif", mono:"'JetBrains Mono', ui-monospace, monospace",
 };
 
-const VM = {
-  ink:'#1F1D1A', ink2:'#4A4640', ink3:'#8A857D', faint:'#B6AFA2',
-  paper:'#FBF9F3', paperWarm:'#F4F1E8', paperDeep:'#ECE7DB', rail:'#E7ECED',
-  teal:'#2D5E5A', forest:'#1D4E3A', tealInk:'#0F6E56', tealTint:'#E1F1EC', tealTint2:'#CFE5DD',
-  terra:'#C46A3B', rust:'#B35A3A', rustDeep:'#A8512A',
-  up:'#1D9E75', upInk:'#0F6E56', down:'#C0563B', downInk:'#A32D2D',
-  border:'rgba(31,29,26,0.18)', borderSoft:'rgba(31,29,26,0.10)', borderHair:'rgba(31,29,26,0.06)',
-  serif:"'Spectral', Georgia, serif", mono:"'JetBrains Mono', ui-monospace, monospace",
-};
+const VM = Object.assign({}, VM_LIGHT);
 
 function applyVMTheme(name) {
   var palette = name === 'dark' ? VM_DARK : VM_LIGHT;
@@ -52,7 +44,6 @@ function applyVMTheme(name) {
   } catch(e) {}
 })();
 
-// ---- text bits ----
 function Kicker({ children, tone='teal', style }) {
   const c = tone==='rust' ? VM.terra : tone==='muted' ? VM.ink3 : VM.teal;
   return <span style={{ fontFamily:VM.mono, fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', color:c, ...style }}>{children}</span>;
@@ -67,7 +58,6 @@ function Chg({ dir, children }) {
   return <Mono weight={600} color={dir==='up'?VM.upInk:VM.downInk}>{children}</Mono>;
 }
 
-// ---- controls ----
 function IconBtn({ icon, active, round, size=30, title, onClick }) {
   return (
     <button title={title} onClick={onClick} style={{
@@ -99,7 +89,6 @@ function Btn({ children, solid, onClick, style }) {
   );
 }
 
-// ---- charts ----
 function pathFrom(pts, w, h) {
   const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
   const mnx=Math.min(...xs), mxx=Math.max(...xs), mny=Math.min(...ys), mxy=Math.max(...ys);
@@ -117,7 +106,6 @@ function Sparkline({ dir='up', w=72, h=24, sw=1.6 }) {
   return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:'block'}}>
     <path d={pathFrom(pts,w,h)} fill="none" stroke={col} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
-// NOW (solid) vs THEN (dashed) overlay
 function OverlayChart({ w=560, h=180, label, legend=true, thenYear='1973' }) {
   const now = useMemo(()=>genSeries(1.2,40,0.012),[]);
   const then = useMemo(()=>genSeries(4.7,40,-0.004),[]);
@@ -141,7 +129,6 @@ function ProgressBar({ v, w='100%', color=VM.teal }) {
   return <div style={{ width:w, height:8, background:VM.paperDeep, borderRadius:2, overflow:'hidden' }}>
     <div style={{ width:`${v}%`, height:'100%', background:color }}></div></div>;
 }
-// diagonal-hatch image placeholder
 function Hatch({ w, h, label, style }) {
   return <div style={{ width:w, height:h, border:`1.2px solid ${VM.border}`, borderRadius:6,
     backgroundImage:`repeating-linear-gradient(45deg, transparent 0 8px, ${VM.borderSoft} 8px 9px)`,
@@ -150,4 +137,4 @@ function Hatch({ w, h, label, style }) {
   </div>;
 }
 
-Object.assign(window, { VM, VM_LIGHT, VM_DARK, applyVMTheme, Kicker, Label, Mono, Chg, IconBtn, Pill, Btn, Sparkline, OverlayChart, ProgressBar, Hatch });
+Object.assign(window, { VM, applyVMTheme, Kicker, Label, Mono, Chg, IconBtn, Pill, Btn, Sparkline, OverlayChart, ProgressBar, Hatch });
