@@ -62,10 +62,12 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isA
   }
   // Greeting changes with the time of day (11pm–6am gets a wry late-night line).
   const hour = new Date().getHours();
-  const greeting = (hour >= 23 || hour < 6) ? "It's a bit late, isn't it?"
-    : hour < 12 ? 'Good morning.'
-    : hour < 17 ? 'Good afternoon.'
-    : 'Good evening.';
+  const firstName = signedIn && user && user.name ? user.name.split(' ')[0] : null;
+  const greetBase = (hour >= 23 || hour < 6) ? "It's a bit late, isn't it?"
+    : hour < 12 ? 'Good morning'
+    : hour < 17 ? 'Good afternoon'
+    : 'Good evening';
+  const greeting = firstName ? `${greetBase}, ${firstName}.` : `${greetBase}.`;
   const base = { width:208, flexShrink:0, background:VM.rail, borderRight:`1px solid ${VM.borderSoft}`, overflowY:'auto', display:'flex', flexDirection:'column' };
   const style = mobile
     ? { ...base, width:248, position:'fixed', top:VM_HEADER_H, left:0, bottom:0, zIndex:40,
