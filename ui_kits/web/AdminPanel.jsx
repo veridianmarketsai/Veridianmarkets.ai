@@ -15,6 +15,15 @@ const aMoney = (n) => '$' + Number(n).toLocaleString('en-US');
 const aDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 const aRel = (d) => { const days = Math.round((VM_NOW - d) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
 
+function adminDownloadCSV(filename, headers, rows) {
+  const escape = v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const csv = [headers, ...rows].map(r => r.map(escape).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  a.download = filename;
+  a.click();
+}
+
 const ADMIN_STEPS = [
   { sel:'[data-tour="vm-admin-header"]',
     title:'Control panel.',
@@ -95,29 +104,31 @@ function AdminPanel({ go, user, isMobile }) {
 
 // ── Overview ────────────────────────────────────────────────────────────────
 function OverviewTab({ stats, isMobile }) {
+  const [kpiModal, setKpiModal] = useStateAdmin(null);
+  const [chartModal, setChartModal] = useStateAdmin(null); // 'signups' | 'plans' | 'countries'
   const courseCount = vmGetCourses().length;
   const kpis = [
-    { label: 'Total users', value: stats.total, foot: `${stats.active} active` },
-    { label: 'New this week', value: '+' + stats.newThisWeek, foot: `${stats.newThisMonth} this month`, tone: 'up' },
-    { label: 'Paying', value: stats.paying, foot: `${(stats.paying / stats.total * 100).toFixed(0)}% of users` },
-    { label: 'Est. MRR', value: aMoney(stats.mrr), foot: 'Plus + Pro' },
-    { label: 'Churned', value: stats.churned, foot: `${(stats.churned / stats.total * 100).toFixed(0)}% of users`, tone: 'down' },
-    { label: 'Courses', value: courseCount, foot: 'in the catalogue' },
+    { id:'total',   label: 'Total users',    value: stats.total,              foot: `${stats.active} active` },
+    { id:'new',     label: 'New this week',  value: '+' + stats.newThisWeek,  foot: `${stats.newThisMonth} this month`,                               tone: 'up' },
+    { id:'paying',  label: 'Paying',         value: stats.paying,             foot: `${(stats.paying / stats.total * 100).toFixed(0)}% of users` },
+    { id:'mrr',     label: 'Est. MRR',       value: aMoney(stats.mrr),        foot: 'Plus + Pro' },
+    { id:'churned', label: 'Churned',        value: stats.churned,            foot: `${(stats.churned / stats.total * 100).toFixed(0)}% of users`,    tone: 'down' },
+    { id:'courses', label: 'Courses',        value: courseCount,              foot: 'in the catalogue' },
   ];
   const planData = [
     { label: 'Free', value: stats.byPlan.Free, color: A_PLAN_COLOR.Free },
     { label: 'Plus', value: stats.byPlan.Plus, color: A_PLAN_COLOR.Plus },
-    { label: 'Pro', value: stats.byPlan.Pro, color: A_PLAN_COLOR.Pro },
+    { label: 'Pro',  value: stats.byPlan.Pro,  color: A_PLAN_COLOR.Pro  },
   ];
   const maxC = Math.max(...stats.topCountries.map(c => c.n), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div data-tour="vm-admin-kpis" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-        {kpis.map((k, i) => <AdminKpi key={i} {...k} />)}
+        {kpis.map((k, i) => <AdminKpi key={i} {...k} onClick={() => setKpiModal(k.id)} />)}
       </div>
       <div data-tour="vm-admin-charts" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
-        <AdminCard title="Signups · last 12 months"><AdminBars data={stats.months} /></AdminCard>
-        <AdminCard title="Plan distribution">
+        <AdminCard title="Signups · last 12 months" onOpen={() => setChartModal('signups')}><AdminBars data={stats.months} /></AdminCard>
+        <AdminCard title="Plan distribution" onOpen={() => setChartModal('plans')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
             <AdminDonut data={planData} center={stats.total} centerLabel="USERS" />
             <div style={{ flex: 1, minWidth: 130, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -132,7 +143,7 @@ function OverviewTab({ stats, isMobile }) {
           </div>
         </AdminCard>
       </div>
-      <AdminCard title="Top countries" dataTour="vm-admin-countries">
+      <AdminCard title="Top countries" dataTour="vm-admin-countries" onOpen={() => setChartModal('countries')}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
           {stats.topCountries.map(c => (
             <div key={c.c} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -143,23 +154,519 @@ function OverviewTab({ stats, isMobile }) {
           ))}
         </div>
       </AdminCard>
+      {kpiModal && <AdminKpiModal kpiKey={kpiModal} stats={stats} onClose={() => setKpiModal(null)} />}
+      {chartModal && <AdminChartModal chartKey={chartModal} stats={stats} onClose={() => setChartModal(null)} />}
     </div>
   );
 }
-function AdminKpi({ label, value, foot, tone }) {
+
+function AdminKpi({ label, value, foot, tone, onClick }) {
+  const [hover, setHover] = useStateAdmin(false);
   return (
-    <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 12, padding: '13px 15px' }}>
+    <div onClick={onClick}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ background: hover ? VM.paperWarm : VM.paper, border: `1px solid ${hover ? VM.border : VM.borderSoft}`,
+        borderRadius: 12, padding: '13px 15px', cursor: 'pointer', transition: 'background .12s, border-color .12s',
+        position: 'relative' }}>
+      <span style={{ position:'absolute', top:10, right:12, fontFamily:VM.mono, fontSize:12,
+        color: hover ? VM.teal : VM.faint, transition:'color .12s' }}>↗</span>
       <Label>{label}</Label>
-      <div style={{ fontFamily: VM.mono, fontWeight: 700, fontSize: 24, marginTop: 5, color: tone === 'up' ? VM.upInk : tone === 'down' ? VM.downInk : VM.ink }}>{value}</div>
+      <div style={{ fontFamily: VM.mono, fontWeight: 700, fontSize: 24, marginTop: 5,
+        color: tone === 'up' ? VM.upInk : tone === 'down' ? VM.downInk : VM.ink }}>{value}</div>
       {foot && <div style={{ marginTop: 3 }}><Mono size={10} color={VM.ink3}>{foot}</Mono></div>}
     </div>
   );
 }
-function AdminCard({ title, children, dataTour }) {
+
+function AdminKpiModal({ kpiKey, stats, onClose }) {
+  const users   = VM_USERS;
+  const courses = vmGetCourses();
+  const DAY_MS  = 86400000;
+
+  // helpers
+  const StatRow = ({ label, value, sub, bar, barColor, valueColor }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+      <span style={{ flex:1, fontFamily:VM.serif, fontSize:13, color:VM.ink2 }}>{label}</span>
+      {bar !== undefined && (
+        <div style={{ width:80, height:5, background:VM.border, borderRadius:3, flexShrink:0 }}>
+          <div style={{ height:5, borderRadius:3, width:`${Math.min(bar,100)}%`, background: barColor || VM.teal }} />
+        </div>
+      )}
+      <span style={{ fontFamily:VM.mono, fontSize:13, fontWeight:700, color: valueColor || VM.ink, textAlign:'right', minWidth:36 }}>
+        {value}
+        {sub && <span style={{ fontFamily:VM.mono, fontSize:10, fontWeight:400, color:VM.ink3, marginLeft:3 }}>{sub}</span>}
+      </span>
+    </div>
+  );
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom:20 }}>
+      <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.ink3, marginBottom:8 }}>{title}</div>
+      {children}
+    </div>
+  );
+  const UserRow = ({ u }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+      <div style={{ width:28, height:28, borderRadius:999, background:VM.paperWarm, border:`1px solid ${VM.border}`,
+        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <span style={{ fontFamily:VM.mono, fontSize:10, fontWeight:700, color:VM.ink3 }}>{u.name[0]}</span>
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.name}</div>
+        <div style={{ fontFamily:VM.mono, fontSize:9.5, color:VM.ink3 }}>{u.country}</div>
+      </div>
+      <span style={{ fontFamily:VM.mono, fontSize:9, padding:'2px 7px', borderRadius:4,
+        background: u.plan==='Pro' ? 'rgba(29,158,117,0.15)' : u.plan==='Plus' ? 'rgba(29,158,117,0.10)' : VM.paperWarm,
+        color: u.plan==='Free' ? VM.ink3 : VM.teal, border:`1px solid ${u.plan==='Free' ? VM.border : VM.up}` }}>{u.plan}</span>
+      <span style={{ fontFamily:VM.mono, fontSize:9.5, color:VM.ink3, flexShrink:0 }}>{aRel(u.joined)}</span>
+    </div>
+  );
+
+  let title = '', subtitle = '', body = null, csvData = null;
+
+  if (kpiKey === 'total') {
+    const recentUsers = [...users].sort((a,b) => b.joined - a.joined).slice(0,6);
+    csvData = { filename:'vm_users_total.csv', headers:['Name','Email','Plan','Status','Country','Joined'], rows:users.map(u=>[u.name,u.email,u.plan,u.status,u.country,aDate(u.joined)]) };
+    title = `${stats.total} Users`;
+    subtitle = 'Full platform breakdown';
+    body = (
+      <>
+        <Section title="By status">
+          <StatRow label="Active"  value={stats.active}  sub={`${(stats.active/stats.total*100).toFixed(0)}%`}  bar={stats.active/stats.total*100}  barColor={VM.upInk} />
+          <StatRow label="Trial"   value={stats.trial}   sub={`${(stats.trial/stats.total*100).toFixed(0)}%`}   bar={stats.trial/stats.total*100}   barColor={VM.terra} />
+          <StatRow label="Churned" value={stats.churned} sub={`${(stats.churned/stats.total*100).toFixed(0)}%`} bar={stats.churned/stats.total*100} barColor={VM.downInk} valueColor={VM.downInk} />
+        </Section>
+        <Section title="By plan">
+          <StatRow label="Free" value={stats.byPlan.Free} sub={`${(stats.byPlan.Free/stats.total*100).toFixed(0)}%`} bar={stats.byPlan.Free/stats.total*100} barColor={VM.faint} />
+          <StatRow label="Plus" value={stats.byPlan.Plus} sub={`${(stats.byPlan.Plus/stats.total*100).toFixed(0)}%`} bar={stats.byPlan.Plus/stats.total*100} barColor={VM.teal} />
+          <StatRow label="Pro"  value={stats.byPlan.Pro}  sub={`${(stats.byPlan.Pro/stats.total*100).toFixed(0)}%`}  bar={stats.byPlan.Pro/stats.total*100}  barColor={VM.forest} />
+        </Section>
+        <Section title="Recently joined">
+          {recentUsers.map(u => <UserRow key={u.id} u={u} />)}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'new') {
+    const thisWeek  = [...users].filter(u => (VM_NOW - u.joined) <= 7 * DAY_MS).sort((a,b) => b.joined - a.joined);
+    const thisMonth = [...users].filter(u => (VM_NOW - u.joined) <= 30 * DAY_MS).sort((a,b) => b.joined - a.joined);
+    const peakMonth = Math.max(...stats.months.map(m => m.count), 1);
+    csvData = { filename:'vm_users_new.csv', headers:['Name','Email','Plan','Status','Country','Joined'], rows:thisMonth.map(u=>[u.name,u.email,u.plan,u.status,u.country,aDate(u.joined)]) };
+    title = `+${stats.newThisWeek} This Week`;
+    subtitle = `${stats.newThisMonth} joined in the last 30 days`;
+    body = (
+      <>
+        <Section title="Joined this week">
+          {thisWeek.length > 0 ? thisWeek.map(u => <UserRow key={u.id} u={u} />) : <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>No signups in the last 7 days.</div>}
+        </Section>
+        <Section title="Monthly trend · last 12 months">
+          <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:60, marginBottom:8 }}>
+            {stats.months.map((m,i) => (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                <div style={{ width:'100%', borderRadius:'3px 3px 0 0', background: i===stats.months.length-1 ? VM.teal : VM.border,
+                  height: `${Math.max((m.count/peakMonth)*52, m.count>0?8:2)}px`, transition:'height .2s' }} />
+                <span style={{ fontFamily:VM.mono, fontSize:8, color:VM.ink3, writingMode:'vertical-rl', transform:'rotate(180deg)', height:22 }}>{m.label}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+        <Section title="Also joined this month">
+          {thisMonth.slice(thisWeek.length, thisWeek.length + 8).map(u => <UserRow key={u.id} u={u} />)}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'paying') {
+    const plusActive = users.filter(u => u.plan==='Plus' && u.status!=='churned');
+    const proActive  = users.filter(u => u.plan==='Pro'  && u.status!=='churned');
+    const plusMrr    = plusActive.length * 9;
+    const proMrr     = proActive.length  * 19;
+    const arpu       = stats.paying ? (stats.mrr / (plusActive.length + proActive.length)).toFixed(2) : 0;
+    const recentPaying = [...users].filter(u => u.plan !== 'Free').sort((a,b) => b.joined - a.joined).slice(0,6);
+    csvData = { filename:'vm_users_paying.csv', headers:['Name','Email','Plan','Status','Country','Joined'], rows:users.filter(u=>u.plan!=='Free').sort((a,b)=>b.joined-a.joined).map(u=>[u.name,u.email,u.plan,u.status,u.country,aDate(u.joined)]) };
+    title = `${stats.paying} Paying Accounts`;
+    subtitle = `${(stats.paying/stats.total*100).toFixed(0)}% conversion · ${aMoney(stats.mrr)}/mo MRR`;
+    body = (
+      <>
+        <Section title="Revenue by plan">
+          <StatRow label={`Plus · ${plusActive.length} active`} value={aMoney(plusMrr)} sub="/mo" bar={plusMrr/(plusMrr+proMrr)*100} barColor={VM.teal} />
+          <StatRow label={`Pro  · ${proActive.length} active`}  value={aMoney(proMrr)}  sub="/mo" bar={proMrr/(plusMrr+proMrr)*100}  barColor={VM.forest} />
+        </Section>
+        <Section title="Key metrics">
+          <StatRow label="Conversion rate" value={`${(stats.paying/stats.total*100).toFixed(1)}%`} />
+          <StatRow label="ARPU (active)"   value={`$${arpu}`} sub="/mo" />
+          <StatRow label="ARR projection"  value={aMoney(stats.mrr * 12)} />
+          <StatRow label="Churned paying"  value={users.filter(u=>u.plan!=='Free'&&u.status==='churned').length} sub="former" valueColor={VM.downInk} />
+        </Section>
+        <Section title="Recent paying signups">
+          {recentPaying.map(u => <UserRow key={u.id} u={u} />)}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'mrr') {
+    const plusActive = users.filter(u => u.plan==='Plus' && u.status!=='churned');
+    const proActive  = users.filter(u => u.plan==='Pro'  && u.status!=='churned');
+    const plusMrr    = plusActive.length * 9;
+    const proMrr     = proActive.length  * 19;
+    const topCMrr    = {};
+    users.filter(u=>u.status!=='churned'&&u.plan!=='Free').forEach(u=>{ topCMrr[u.country]=(topCMrr[u.country]||0)+(u.plan==='Pro'?19:9); });
+    const topCountryMrr = Object.entries(topCMrr).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    csvData = { filename:'vm_mrr.csv', headers:['Plan','Active Accounts','Price/mo','MRR/mo'], rows:[['Plus',plusActive.length,9,plusMrr],['Pro',proActive.length,19,proMrr],['Total',plusActive.length+proActive.length,'—',stats.mrr]] };
+    title = `Est. MRR · ${aMoney(stats.mrr)}`;
+    subtitle = 'Monthly recurring revenue estimate';
+    body = (
+      <>
+        <Section title="Revenue breakdown">
+          <StatRow label={`Plus (${plusActive.length} accounts × $9)`} value={aMoney(plusMrr)} sub="/mo" bar={plusMrr/stats.mrr*100} barColor={VM.teal} />
+          <StatRow label={`Pro  (${proActive.length} accounts × $19)`} value={aMoney(proMrr)}  sub="/mo" bar={proMrr/stats.mrr*100}  barColor={VM.forest} />
+        </Section>
+        <Section title="Projections">
+          <StatRow label="Monthly (MRR)"      value={aMoney(stats.mrr)}       />
+          <StatRow label="Quarterly"          value={aMoney(stats.mrr * 3)}   />
+          <StatRow label="Annual (ARR)"       value={aMoney(stats.mrr * 12)}  />
+          <StatRow label="ARPU (active)"      value={`$${(plusActive.length+proActive.length ? stats.mrr/(plusActive.length+proActive.length) : 0).toFixed(2)}`} sub="/mo" />
+        </Section>
+        <Section title="MRR by country (top 4)">
+          {topCountryMrr.map(([c,v]) => (
+            <StatRow key={c} label={c} value={aMoney(v)} sub="/mo" bar={v/topCountryMrr[0][1]*100} barColor={VM.teal} />
+          ))}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'churned') {
+    const churnedUsers = users.filter(u => u.status === 'churned');
+    const churnByPlan  = { Free:0, Plus:0, Pro:0 };
+    churnedUsers.forEach(u => churnByPlan[u.plan]++);
+    const lostMrr = churnedUsers.filter(u=>u.plan==='Plus').length*9 + churnedUsers.filter(u=>u.plan==='Pro').length*19;
+    const churnByCountry = {};
+    churnedUsers.forEach(u => { churnByCountry[u.country]=(churnByCountry[u.country]||0)+1; });
+    const topChurnC = Object.entries(churnByCountry).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    const recentChurned = [...churnedUsers].sort((a,b) => b.lastActive - a.lastActive).slice(0,6);
+    csvData = { filename:'vm_users_churned.csv', headers:['Name','Email','Plan','Country','Last Active'], rows:churnedUsers.map(u=>[u.name,u.email,u.plan,u.country,aDate(u.lastActive)]) };
+    title = `${stats.churned} Churned`;
+    subtitle = `${(stats.churned/stats.total*100).toFixed(0)}% churn rate · ${aMoney(lostMrr)}/mo lost`;
+    body = (
+      <>
+        <Section title="Churned by plan">
+          <StatRow label="Free" value={churnByPlan.Free} bar={churnedUsers.length ? churnByPlan.Free/churnedUsers.length*100 : 0} barColor={VM.faint} />
+          <StatRow label="Plus" value={churnByPlan.Plus} bar={churnedUsers.length ? churnByPlan.Plus/churnedUsers.length*100 : 0} barColor={VM.terra} valueColor={churnByPlan.Plus>0?VM.downInk:VM.ink} />
+          <StatRow label="Pro"  value={churnByPlan.Pro}  bar={churnedUsers.length ? churnByPlan.Pro/churnedUsers.length*100  : 0} barColor={VM.downInk} valueColor={churnByPlan.Pro>0?VM.downInk:VM.ink} />
+        </Section>
+        <Section title="Impact">
+          <StatRow label="Lost MRR"       value={aMoney(lostMrr)} sub="/mo" valueColor={VM.downInk} />
+          <StatRow label="Lost ARR est."  value={aMoney(lostMrr * 12)} valueColor={VM.downInk} />
+          <StatRow label="Churn rate"     value={`${(stats.churned/stats.total*100).toFixed(1)}%`} valueColor={VM.downInk} />
+        </Section>
+        <Section title="By country (top 4)">
+          {topChurnC.map(([c,v]) => (
+            <StatRow key={c} label={c} value={v} bar={v/topChurnC[0][1]*100} barColor={VM.downInk} />
+          ))}
+        </Section>
+        <Section title="Recently churned">
+          {recentChurned.map(u => <UserRow key={u.id} u={u} />)}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'courses') {
+    const totalEnrolled = users.reduce((s,u) => s+u.enrolled, 0);
+    const totalLessons  = users.reduce((s,u) => s+u.lessons, 0);
+    csvData = { filename:'vm_courses.csv', headers:['Title','Level'], rows:courses.map(c=>[c.title,c.level||'']) };
+    title = `${courses.length} Courses`;
+    subtitle = `${totalEnrolled} enrolments · ${totalLessons} lessons completed`;
+    body = (
+      <>
+        <Section title="Platform activity">
+          <StatRow label="Total enrolments"      value={totalEnrolled} />
+          <StatRow label="Lessons completed"     value={totalLessons} />
+          <StatRow label="Avg enrolments / user" value={(totalEnrolled/users.length).toFixed(1)} />
+          <StatRow label="Avg lessons / user"    value={(totalLessons/users.length).toFixed(1)} />
+        </Section>
+        <Section title={`Catalogue · ${courses.length} courses`}>
+          {courses.map((c,i) => (
+            <div key={c.id||i} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+              <i className="ti ti-book" style={{ fontSize:13, color:VM.teal, flexShrink:0 }}></i>
+              <span style={{ flex:1, fontFamily:VM.serif, fontSize:13, color:VM.ink }}>{c.title}</span>
+              {c.level && <span style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, background:VM.paperWarm, border:`1px solid ${VM.border}`, borderRadius:4, padding:'1px 6px' }}>{c.level}</span>}
+            </div>
+          ))}
+        </Section>
+      </>
+    );
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:85, display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(31,29,26,0.55)', backdropFilter:'blur(3px)' }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:520, maxHeight:'88vh', display:'flex', flexDirection:'column',
+        background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:18,
+        boxShadow:'0 20px 60px rgba(31,29,26,0.28)', overflow:'hidden' }}>
+        {/* modal header */}
+        <div style={{ padding:'18px 20px 14px', borderBottom:`1px solid ${VM.borderHair}`, flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, color:VM.ink, lineHeight:1.1 }}>{title}</div>
+              <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3, marginTop:3 }}>{subtitle}</div>
+            </div>
+            <div style={{ display:'flex', gap:6, flexShrink:0, marginLeft:12 }}>
+              {csvData && (
+                <button onClick={()=>adminDownloadCSV(csvData.filename, csvData.headers, csvData.rows)} title="Download CSV"
+                  style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                    width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`,
+                    background:'transparent', color:VM.ink3, cursor:'pointer' }}>
+                  <i className="ti ti-download" style={{ fontSize:14 }}></i>
+                </button>
+              )}
+              <button onClick={onClose} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`, background:'transparent', color:VM.ink3, cursor:'pointer' }}>
+                <i className="ti ti-x" style={{ fontSize:14 }}></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* scrollable body */}
+        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>{body}</div>
+      </div>
+    </div>
+  );
+}
+function AdminChartModal({ chartKey, stats, onClose }) {
+  const users = VM_USERS;
+
+  const StatRow = ({ label, value, sub, bar, barColor, valueColor }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+      <span style={{ flex:1, fontFamily:VM.serif, fontSize:13, color:VM.ink2 }}>{label}</span>
+      {bar !== undefined && (
+        <div style={{ width:100, height:5, background:VM.border, borderRadius:3, flexShrink:0 }}>
+          <div style={{ height:5, borderRadius:3, width:`${Math.min(bar,100)}%`, background: barColor || VM.teal }} />
+        </div>
+      )}
+      <span style={{ fontFamily:VM.mono, fontSize:13, fontWeight:700, color: valueColor||VM.ink, textAlign:'right', minWidth:40 }}>
+        {value}{sub && <span style={{ fontFamily:VM.mono, fontSize:10, fontWeight:400, color:VM.ink3, marginLeft:3 }}>{sub}</span>}
+      </span>
+    </div>
+  );
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom:22 }}>
+      <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.ink3, marginBottom:8 }}>{title}</div>
+      {children}
+    </div>
+  );
+
+  let title = '', subtitle = '', body = null, csvData = null;
+
+  if (chartKey === 'signups') {
+    const total12 = stats.months.reduce((s,m) => s+m.count, 0);
+    const peak    = stats.months.reduce((p,m) => m.count > p.count ? m : p, stats.months[0]);
+    const slow    = stats.months.reduce((p,m) => m.count < p.count ? m : p, stats.months[0]);
+    const last3   = stats.months.slice(-3).reduce((s,m)=>s+m.count,0);
+    const prev3   = stats.months.slice(-6,-3).reduce((s,m)=>s+m.count,0);
+    const growth  = prev3 ? (((last3-prev3)/prev3)*100).toFixed(1) : '—';
+    const maxCount = Math.max(...stats.months.map(m=>m.count), 1);
+
+    csvData = { filename:'vm_signups.csv', headers:['Month','Signups'], rows:stats.months.map(m=>[m.label,m.count]) };
+    title = 'Signups · Last 12 Months';
+    subtitle = `${total12} total · peak in ${peak.label}`;
+    body = (
+      <>
+        <Section title="Monthly breakdown">
+          {/* tall bar chart */}
+          <div style={{ display:'flex', alignItems:'flex-end', gap:5, height:120, marginBottom:16 }}>
+            {stats.months.map((m,i) => (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, height:'100%', justifyContent:'flex-end' }}>
+                <span style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3 }}>{m.count}</span>
+                <div style={{ width:'100%', borderRadius:'3px 3px 0 0',
+                  background: i===stats.months.length-1 ? VM.forest : m.count===peak.count ? VM.teal : VM.tealTint2,
+                  height:`${Math.max((m.count/maxCount)*90,m.count>0?6:2)}px` }} />
+                <span style={{ fontFamily:VM.mono, fontSize:8, color:VM.ink3 }}>{m.label}</span>
+              </div>
+            ))}
+          </div>
+          {/* table */}
+          {stats.months.map((m,i) => (
+            <StatRow key={i} label={m.label} value={m.count} sub="signups"
+              bar={m.count/maxCount*100} barColor={i===stats.months.length-1 ? VM.forest : VM.teal} />
+          ))}
+        </Section>
+        <Section title="Period analysis">
+          <StatRow label="Total (12 months)"         value={total12} />
+          <StatRow label="Monthly average"           value={(total12/12).toFixed(1)} />
+          <StatRow label={`Peak month (${peak.label})`}  value={peak.count} barColor={VM.upInk} bar={100} />
+          <StatRow label={`Slowest (${slow.label})`}    value={slow.count} barColor={VM.terra} bar={slow.count/peak.count*100} />
+          <StatRow label="Last 3 months"             value={last3} />
+          <StatRow label="Prior 3 months"            value={prev3} />
+          <StatRow label="3-month growth"            value={`${growth}%`} valueColor={parseFloat(growth)>=0 ? VM.upInk : VM.downInk} />
+        </Section>
+      </>
+    );
+  }
+
+  else if (chartKey === 'plans') {
+    const planData = [
+      { label:'Free', value:stats.byPlan.Free, color:A_PLAN_COLOR.Free, price:0 },
+      { label:'Plus', value:stats.byPlan.Plus, color:A_PLAN_COLOR.Plus, price:9 },
+      { label:'Pro',  value:stats.byPlan.Pro,  color:A_PLAN_COLOR.Pro,  price:19 },
+    ];
+    // by status per plan
+    const planStatus = {};
+    ['Free','Plus','Pro'].forEach(p => {
+      planStatus[p] = { active:0, trial:0, churned:0 };
+      users.filter(u=>u.plan===p).forEach(u => planStatus[p][u.status]++);
+    });
+    csvData = { filename:'vm_plans.csv', headers:['Plan','Users','%','Active','Trial','Churned'], rows:planData.map(p=>[p.label,p.value,(p.value/stats.total*100).toFixed(0)+'%',planStatus[p.label].active,planStatus[p.label].trial,planStatus[p.label].churned]) };
+    title = 'Plan Distribution';
+    subtitle = `${stats.total} users across 3 tiers`;
+    body = (
+      <>
+        <Section title="Plan breakdown">
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+            <AdminDonut data={planData} size={160} thickness={22} center={stats.total} centerLabel="USERS" />
+          </div>
+          {planData.map(p => (
+            <StatRow key={p.label} label={p.label}
+              value={p.value} sub={`${(p.value/stats.total*100).toFixed(0)}%`}
+              bar={p.value/stats.total*100} barColor={p.color} />
+          ))}
+        </Section>
+        <Section title="Status by plan">
+          {planData.map(p => (
+            <div key={p.label} style={{ marginBottom:14 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
+                <span style={{ width:8, height:8, borderRadius:2, background:p.color, flexShrink:0 }}></span>
+                <span style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink2, fontWeight:700 }}>{p.label}</span>
+              </div>
+              {[['active',VM.upInk],['trial',VM.terra],['churned',VM.downInk]].map(([s,c]) => (
+                <div key={s} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0 4px 14px' }}>
+                  <span style={{ flex:1, fontFamily:VM.serif, fontSize:12, color:VM.ink3 }}>{s[0].toUpperCase()+s.slice(1)}</span>
+                  <div style={{ width:80, height:4, background:VM.border, borderRadius:2 }}>
+                    <div style={{ height:4, borderRadius:2, background:c, width:`${p.value ? planStatus[p.label][s]/p.value*100 : 0}%` }} />
+                  </div>
+                  <span style={{ fontFamily:VM.mono, fontSize:12, fontWeight:700, color:c, minWidth:22, textAlign:'right' }}>{planStatus[p.label][s]}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </Section>
+        <Section title="Revenue by plan">
+          {planData.filter(p=>p.price>0).map(p => {
+            const activePaying = planStatus[p.label].active + planStatus[p.label].trial;
+            return <StatRow key={p.label} label={`${p.label} · ${activePaying} active × $${p.price}`}
+              value={`$${activePaying*p.price}`} sub="/mo" bar={activePaying*p.price/stats.mrr*100} barColor={p.color} />;
+          })}
+          <StatRow label="Total MRR" value={`$${stats.mrr}`} sub="/mo" />
+        </Section>
+      </>
+    );
+  }
+
+  else if (chartKey === 'countries') {
+    // all countries from VM_USERS
+    const byCountry = {};
+    users.forEach(u => { byCountry[u.country] = (byCountry[u.country]||0)+1; });
+    const allCountries = Object.entries(byCountry).sort((a,b)=>b[1]-a[1]);
+    const maxN = allCountries[0]?.[1] || 1;
+    // plan breakdown for top countries
+    const topPlanByCountry = {};
+    allCountries.slice(0,5).forEach(([c]) => {
+      topPlanByCountry[c] = { Free:0, Plus:0, Pro:0 };
+      users.filter(u=>u.country===c).forEach(u => topPlanByCountry[c][u.plan]++);
+    });
+    csvData = { filename:'vm_countries.csv', headers:['Country','Users','%'], rows:allCountries.map(([c,n])=>[c,n,(n/stats.total*100).toFixed(0)+'%']) };
+    title = 'Users by Country';
+    subtitle = `${allCountries.length} countries represented`;
+    body = (
+      <>
+        <Section title={`All countries (${allCountries.length})`}>
+          {allCountries.map(([c,n]) => (
+            <StatRow key={c} label={c} value={n} sub={`${(n/stats.total*100).toFixed(0)}%`}
+              bar={n/maxN*100} barColor={VM.teal} />
+          ))}
+        </Section>
+        <Section title="Plan mix · top 5 countries">
+          {allCountries.slice(0,5).map(([c,n]) => {
+            const pm = topPlanByCountry[c];
+            return (
+              <div key={c} style={{ marginBottom:12 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                  <span style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink }}>{c}</span>
+                  <span style={{ fontFamily:VM.mono, fontSize:12, color:VM.ink3 }}>{n} users</span>
+                </div>
+                <div style={{ display:'flex', height:8, borderRadius:4, overflow:'hidden' }}>
+                  {[['Free',A_PLAN_COLOR.Free],['Plus',A_PLAN_COLOR.Plus],['Pro',A_PLAN_COLOR.Pro]].map(([p,col]) => (
+                    pm[p] > 0 ? <div key={p} title={`${p}: ${pm[p]}`} style={{ flex:pm[p], background:col }} /> : null
+                  ))}
+                </div>
+                <div style={{ display:'flex', gap:10, marginTop:3 }}>
+                  {[['Free',A_PLAN_COLOR.Free],['Plus',A_PLAN_COLOR.Plus],['Pro',A_PLAN_COLOR.Pro]].map(([p,col]) => (
+                    <span key={p} style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3 }}>
+                      <span style={{ display:'inline-block', width:6, height:6, borderRadius:2, background:col, marginRight:3, verticalAlign:'middle' }}></span>
+                      {p} {pm[p]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </Section>
+      </>
+    );
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:85, display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(31,29,26,0.55)', backdropFilter:'blur(3px)' }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:560, maxHeight:'88vh', display:'flex', flexDirection:'column',
+        background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:18,
+        boxShadow:'0 20px 60px rgba(31,29,26,0.28)', overflow:'hidden' }}>
+        <div style={{ padding:'18px 20px 14px', borderBottom:`1px solid ${VM.borderHair}`, flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, color:VM.ink, lineHeight:1.1 }}>{title}</div>
+              <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3, marginTop:3 }}>{subtitle}</div>
+            </div>
+            <div style={{ display:'flex', gap:6, flexShrink:0, marginLeft:12 }}>
+              {csvData && (
+                <button onClick={()=>adminDownloadCSV(csvData.filename, csvData.headers, csvData.rows)} title="Download CSV"
+                  style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                    width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`,
+                    background:'transparent', color:VM.ink3, cursor:'pointer' }}>
+                  <i className="ti ti-download" style={{ fontSize:14 }}></i>
+                </button>
+              )}
+              <button onClick={onClose} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`, background:'transparent',
+                color:VM.ink3, cursor:'pointer' }}>
+                <i className="ti ti-x" style={{ fontSize:14 }}></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>{body}</div>
+      </div>
+    </div>
+  );
+}
+
+function AdminCard({ title, children, dataTour, onOpen }) {
   return (
     <section data-tour={dataTour} style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 14, overflow: 'hidden' }}>
-      <header style={{ padding: '12px 16px', borderBottom: `1px solid ${VM.borderHair}` }}>
+      <header style={{ padding: '10px 16px', borderBottom: `1px solid ${VM.borderHair}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <span style={{ fontFamily: VM.mono, fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: VM.ink3, fontWeight: 700 }}>{title}</span>
+        {onOpen && (
+          <button onClick={onOpen} style={{ display:'inline-flex', alignItems:'center', gap:5, fontFamily:VM.mono, fontSize:9,
+            letterSpacing:'0.05em', textTransform:'uppercase', padding:'3px 9px', borderRadius:5,
+            border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink3, cursor:'pointer' }}
+            onMouseEnter={e=>{ e.currentTarget.style.borderColor=VM.teal; e.currentTarget.style.color=VM.teal; }}
+            onMouseLeave={e=>{ e.currentTarget.style.borderColor=VM.border; e.currentTarget.style.color=VM.ink3; }}>
+            Open ↗
+          </button>
+        )}
       </header>
       <div style={{ padding: '16px' }}>{children}</div>
     </section>
