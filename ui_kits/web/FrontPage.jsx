@@ -29,9 +29,8 @@ function FrontPage({ go, isMobile }) {
   const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button
 
   // "Learn how to use this?" nudge — appears after 3 clicks on the landing page.
-  const [clickCount, setClickCount] = React.useState(() => {
-    try { return parseInt(localStorage.getItem('vm_fp_clicks') || '0', 10); } catch { return 0; }
-  });
+  // Click count is session-only (resets on page load); dismissed state persists via localStorage.
+  const [clickCount, setClickCount] = React.useState(0);
   const [nudgeDismissed, setNudgeDismissed] = React.useState(() => {
     try { return !!localStorage.getItem('vm_learn_nudge_done'); } catch { return false; }
   });
@@ -41,11 +40,7 @@ function FrontPage({ go, isMobile }) {
     if (showNudge) { const t = setTimeout(() => setNudgeIn(true), 60); return () => clearTimeout(t); }
     else setNudgeIn(false);
   }, [showNudge]);
-  const bumpClick = () => setClickCount(n => {
-    const next = n + 1;
-    try { localStorage.setItem('vm_fp_clicks', String(next)); } catch {}
-    return next;
-  });
+  const bumpClick = () => setClickCount(n => n + 1);
   const dismissNudge = (e) => {
     e.stopPropagation();
     setNudgeDismissed(true);
