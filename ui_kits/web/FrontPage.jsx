@@ -27,8 +27,34 @@ function FrontPage({ go, isMobile }) {
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
   const [screenerHover, setScreenerHover] = React.useState(false);  // hover shade on the 'Open full screener' button
   const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button
+
+  // "Learn how to use this?" nudge — appears after 3 clicks on the landing page.
+  const [clickCount, setClickCount] = React.useState(() => {
+    try { return parseInt(localStorage.getItem('vm_fp_clicks') || '0', 10); } catch { return 0; }
+  });
+  const [nudgeDismissed, setNudgeDismissed] = React.useState(() => {
+    try { return !!localStorage.getItem('vm_learn_nudge_done'); } catch { return false; }
+  });
+  const [nudgeIn, setNudgeIn] = React.useState(false);
+  const showNudge = clickCount >= 3 && !nudgeDismissed;
+  React.useEffect(() => {
+    if (showNudge) { const t = setTimeout(() => setNudgeIn(true), 60); return () => clearTimeout(t); }
+    else setNudgeIn(false);
+  }, [showNudge]);
+  const bumpClick = () => setClickCount(n => {
+    const next = n + 1;
+    try { localStorage.setItem('vm_fp_clicks', String(next)); } catch {}
+    return next;
+  });
+  const dismissNudge = (e) => {
+    e.stopPropagation();
+    setNudgeDismissed(true);
+    setNudgeIn(false);
+    try { localStorage.setItem('vm_learn_nudge_done', '1'); } catch {}
+  };
+
   return (
-    <div style={{ padding: isMobile ? '14px 16px 80px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
+    <div onClick={bumpClick} style={{ padding: isMobile ? '14px 16px 80px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       {/* LEARN — resume / start learning, above Global News + Market recap. */}
       <LearnBanner go={go} isMobile={isMobile} />
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
@@ -129,6 +155,25 @@ function FrontPage({ go, isMobile }) {
           ))}
         </div>
       </div>
+
+      {showNudge && (
+        <div style={{ position:'fixed', bottom: isMobile ? 92 : 36, left:'50%',
+          display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',
+          background:VM.paper, border:`1px solid ${VM.teal}`, borderRadius:999,
+          boxShadow:'0 6px 32px rgba(31,29,26,0.14)', zIndex:61,
+          opacity: nudgeIn ? 1 : 0,
+          transform: nudgeIn ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(18px)',
+          transition:'opacity .38s ease, transform .42s cubic-bezier(.34,1.56,.64,1)',
+          pointerEvents: nudgeIn ? 'auto' : 'none' }}>
+          <i className="ti ti-graduation-cap" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
+          <span onClick={(e)=>{ e.stopPropagation(); dismissNudge(e); go('learn'); }}
+            style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink, cursor:'pointer', userSelect:'none' }}>
+            Learn how to use this?
+          </span>
+          <i onClick={dismissNudge} className="ti ti-x"
+            style={{ fontSize:13, color:VM.ink3, cursor:'pointer', flexShrink:0, marginLeft:2 }} title="Dismiss"></i>
+        </div>
+      )}
       </div>
   );
 }
