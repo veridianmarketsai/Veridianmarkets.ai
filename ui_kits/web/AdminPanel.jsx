@@ -51,8 +51,9 @@ function AdminPanel({ go, user, isMobile }) {
   const stats = React.useMemo(() => vmUserStats(), []);
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'layout-dashboard' },
-    { id: 'users', label: 'Users', icon: 'users' },
-    { id: 'courses', label: 'Courses', icon: 'book' },
+    { id: 'users',    label: 'Users',    icon: 'users' },
+    { id: 'courses',  label: 'Courses',  icon: 'book' },
+    { id: 'heatmap',  label: 'Heatmap',  icon: 'flame' },
   ];
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
@@ -93,8 +94,9 @@ function AdminPanel({ go, user, isMobile }) {
 
       <div style={{ marginTop: 22 }}>
         {tab === 'overview' && <OverviewTab stats={stats} isMobile={isMobile} />}
-        {tab === 'users' && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
-        {tab === 'courses' && <CoursesTab go={go} isMobile={isMobile} />}
+        {tab === 'users'    && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
+        {tab === 'courses'  && <CoursesTab go={go} isMobile={isMobile} />}
+        {tab === 'heatmap'  && <HeatmapAdmin isMobile={isMobile} />}
       </div>
 
       {tutorialOpen && <TutorialOverlay steps={ADMIN_STEPS} label="Admin panel tutorial" onClose={()=>setTutorialOpen(false)} />}
