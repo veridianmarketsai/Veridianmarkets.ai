@@ -190,6 +190,30 @@ function App() {
   const [activeTourId, setActiveTourId] = useStateApp(null);
   const goRef = useRefApp(null);
 
+  // "Learn how to use this?" nudge — slides up after 3 clicks anywhere in the app.
+  const [nudgeCount, setNudgeCount] = useStateApp(0);
+  const [nudgeDismissed, setNudgeDismissed] = useStateApp(() => {
+    try { return !!localStorage.getItem('vm_learn_nudge_done'); } catch { return false; }
+  });
+  const [nudgeIn, setNudgeIn] = useStateApp(false);
+  useEffectApp(() => {
+    if (nudgeDismissed) return;
+    const bump = () => setNudgeCount(n => n + 1);
+    document.addEventListener('click', bump);
+    return () => document.removeEventListener('click', bump);
+  }, [nudgeDismissed]);
+  const showNudge = nudgeCount >= 3 && !nudgeDismissed && route !== 'learn';
+  useEffectApp(() => {
+    if (showNudge) { const t = setTimeout(() => setNudgeIn(true), 60); return () => clearTimeout(t); }
+    else setNudgeIn(false);
+  }, [showNudge]);
+  const dismissNudge = (e) => {
+    e.stopPropagation();
+    setNudgeDismissed(true);
+    setNudgeIn(false);
+    try { localStorage.setItem('vm_learn_nudge_done', '1'); } catch {}
+  };
+
   // Keep the trail in step with navigation: drilling into a new company appends a
   // crumb (fresh on Overview); revisiting an earlier crumb truncates back to it
   // (restoring the tab it was on); leaving the dashboard flow clears the trail.
@@ -322,6 +346,24 @@ function App() {
       )}
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
+      {showNudge && (
+        <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
+          display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',
+          background:VM.paper, border:`1px solid ${VM.teal}`, borderRadius:999,
+          boxShadow:'0 6px 32px rgba(31,29,26,0.14)', zIndex:61,
+          opacity: nudgeIn ? 1 : 0,
+          transform: nudgeIn ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(18px)',
+          transition:'opacity .38s ease, transform .42s cubic-bezier(.34,1.56,.64,1)',
+          pointerEvents: nudgeIn ? 'auto' : 'none' }}>
+          <i className="ti ti-graduation-cap" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
+          <span onClick={(e) => { e.stopPropagation(); dismissNudge(e); goRef.current && goRef.current('learn'); }}
+            style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink, cursor:'pointer', userSelect:'none' }}>
+            Learn how to use this?
+          </span>
+          <i onClick={dismissNudge} className="ti ti-x"
+            style={{ fontSize:13, color:VM.ink3, cursor:'pointer', flexShrink:0, marginLeft:2 }} title="Dismiss"></i>
+        </div>
+      )}
       {activeTourId && <TourEngine key={activeTourId} tourId={activeTourId} onDone={() => setActiveTourId(null)} />}
     </div>
   );
