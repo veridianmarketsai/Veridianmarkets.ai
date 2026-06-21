@@ -27,6 +27,7 @@ function FrontPage({ go, isMobile }) {
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
   const [screenerHover, setScreenerHover] = React.useState(false);  // hover shade on the 'Open full screener' button
   const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button
+
   return (
     <div style={{ padding: isMobile ? '14px 16px 80px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       {/* LEARN — resume / start learning, above Global News + Market recap. */}
@@ -129,6 +130,7 @@ function FrontPage({ go, isMobile }) {
           ))}
         </div>
       </div>
+
       </div>
   );
 }
