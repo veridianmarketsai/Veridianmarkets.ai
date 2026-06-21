@@ -292,8 +292,22 @@ function HeatmapOverlayApp({ onClose }) {
   const [eventCount, setCount]  = useStateHm(0);
   const canvasRef               = useRefHm(null);
 
-  const refresh = useCallbackHm(() => {
-    const all = window.__vmHeatmap?.get() || [];
+  const refresh = useCallbackHm(async () => {
+    const queryUrl = window.VM_QUERY_URL;
+    const adminKey = window.VM_ADMIN_KEY;
+    let all;
+    if (queryUrl) {
+      try {
+        const params = new URLSearchParams({ since: String(Date.now() - cfg.sinceMs), limit: '5000' });
+        if (cfg.page !== 'all') params.set('page', cfg.page);
+        const res = await fetch(`${queryUrl}?${params}`, {
+          headers: adminKey ? { 'X-VM-Admin-Key': adminKey } : {},
+        });
+        all = (await res.json()).events || [];
+      } catch { all = window.__vmHeatmap?.get() || []; }
+    } else {
+      all = window.__vmHeatmap?.get() || [];
+    }
     const filtered = filterEvents(all, cfg);
     setEvents(filtered);
     setCount(all.length);
@@ -389,8 +403,30 @@ function HeatmapAdmin({ isMobile }) {
   const canvasRef                 = useRefHm(null);
   const overlayRootRef            = useRefHm(null);
 
-  const refresh = useCallbackHm(() => {
-    const all = window.__vmHeatmap?.get() || [];
+  const refresh = useCallbackHm(async () => {
+    const queryUrl = window.VM_QUERY_URL;
+    const adminKey = window.VM_ADMIN_KEY;
+    let all;
+
+    if (queryUrl) {
+      // Fetch from AWS when the query endpoint is configured.
+      try {
+        const params = new URLSearchParams({ since: String(Date.now() - cfg.sinceMs), limit: '5000' });
+        if (cfg.page !== 'all') params.set('page', cfg.page);
+        const res = await fetch(`${queryUrl}?${params}`, {
+          headers: adminKey ? { 'X-VM-Admin-Key': adminKey } : {},
+        });
+        const data = await res.json();
+        all = data.events || [];
+      } catch (err) {
+        console.warn('Heatmap query failed, falling back to localStorage', err);
+        all = window.__vmHeatmap?.get() || [];
+      }
+    } else {
+      // Local preview (same-device data only).
+      all = window.__vmHeatmap?.get() || [];
+    }
+
     setAllEvents(all);
     setEvents(filterEvents(all, cfg));
   }, [cfg]);

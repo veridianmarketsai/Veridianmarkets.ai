@@ -1,22 +1,64 @@
 // Veridian Markets — Customer Interaction Tracker
 // Collects clicks, scroll depth, hover dwell, mouse movement, and text selection.
 // All coordinates are stored as 0–100 viewport percentages (device-independent).
-// Data is capped at 5 000 events in localStorage under 'vm_heatmap_events'.
+//
+// Storage:
+//   - localStorage  (always)  — local fallback / admin preview on same device
+//   - AWS API Gateway (when VM_INGEST_URL is set) — server-side persistence
+//
+// To enable AWS: set window.VM_INGEST_URL to your API Gateway POST endpoint.
+// Example (add to index.html before this script):
+//   <script>window.VM_INGEST_URL = 'https://xxxx.execute-api.eu-west-1.amazonaws.com/heatmap/events';</script>
+//
 // Exposes window.__vmHeatmap = { get, clear, push, sessionId }.
 (function () {
   const MAX        = 5000;
   const KEY        = 'vm_heatmap_events';
   const SID_KEY    = 'vm_heatmap_sid';
-  const THROTTLE   = 220;   // ms between stored mousemove events
-  const DWELL      = 650;   // ms hover on element before storing as 'hover'
+  const THROTTLE   = 220;
+  const DWELL      = 650;
 
-  // Session ID resets on tab close so each page session is distinct.
   let sid = sessionStorage.getItem(SID_KEY);
   if (!sid) { sid = Math.random().toString(36).slice(2, 10); sessionStorage.setItem(SID_KEY, sid); }
 
+  // ── Local storage ────────────────────────────────────────────────────────────
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
   const save = a  => { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch {} };
-  const push = ev => { const a = load(); a.push(ev); if (a.length > MAX) a.splice(0, a.length - MAX); save(a); };
+
+  // ── Server flush (AWS) ───────────────────────────────────────────────────────
+  // Events accumulate in a batch; flushed every 5 s, on page hide, and when
+  // the batch reaches 20 items. Fire-and-forget — never blocks the user.
+  const batch = [];
+  const flush = () => {
+    const url = window.VM_INGEST_URL;
+    if (!url || !batch.length) return;
+    const payload = batch.splice(0, batch.length);   // drain atomically
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,   // survives tab/page close
+    }).catch(() => {
+      // On failure put events back at the front so they retry next flush.
+      batch.unshift(...payload);
+      if (batch.length > MAX) batch.splice(MAX);
+    });
+  };
+  setInterval(flush, 5000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+
+  // ── Combined push ────────────────────────────────────────────────────────────
+  const push = ev => {
+    // Always write locally (powers the same-device admin preview).
+    const a = load(); a.push(ev);
+    if (a.length > MAX) a.splice(0, a.length - MAX);
+    save(a);
+    // Queue for server if URL is configured.
+    if (window.VM_INGEST_URL) {
+      batch.push(ev);
+      if (batch.length >= 20) flush();
+    }
+  };
 
   const route  = () => location.pathname.replace(/^\//, '') || 'front';
   const pct    = (v, t) => +((v / Math.max(1, t)) * 100).toFixed(1);
