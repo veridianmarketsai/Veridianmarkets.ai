@@ -4,6 +4,20 @@ Customer interaction tracking for Veridian Markets. Tracks real user behaviour a
 
 ---
 
+## Change log
+
+| Date | Branch | What shipped |
+|---|---|---|
+| 2026-06-30 | `heatmap-1.1` → `main` | Initial heatmap system: tracker, admin tab, overlay, AWS Lambda + DynamoDB backend, this reference doc |
+
+**Branch:** `heatmap-1.1` (merged into `main` 2026-06-30)
+**Commits:**
+- `8611ead` — Heatmap 1.1: customer interaction heatmap in Admin panel
+- `951dbcb` — Heatmap 1.1: AWS DynamoDB + Lambda backend wiring
+- `1af36bc` — Heatmap 1.1: add heatmap.md reference document
+
+---
+
 ## How it works (overview)
 
 ```
