@@ -61,6 +61,23 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-06-30
+
+- **Started `analysis-tools-2.1`.** New branch (from main) for additional **analysis
+  tools**. (User said "analysis tools" → feature-scoped `-2.1`.) Clarified to mean
+  **admin-facing operator analytics**, not market tools for end users.
+- **Admin Analytics tab (`analysis-tools-2.1`). Merged to main + live.** Replaced the
+  Admin **Heatmap** top-level tab with an **Analytics** tab (`AnalyticsTab` in
+  `AdminPanel.jsx`); the heatmap is preserved as a sub-tool inside it. Seven sub-tools,
+  all derived deterministically from `VM_USERS`: **Retention** (cohort grid + avg curve),
+  **Growth** (growth accounting + Quick Ratio, synthesised monthly activity w/ gaps),
+  **Funnel**, **Revenue** (MRR/ARPU/LTV/LTV:CAC + MRR-movement waterfall + 12-mo trend +
+  NRR/GRR + plan-movement bars), **Engagement** (DAU/WAU/MAU, stickiness, **L28** power-user
+  curve, top pages), **Churn risk** (scored save-list + CSV), **Heatmap**. Reusable
+  helpers added: `AnStat`, `AnLine`. Mock until the real event stream (heatmap pipeline)
+  can feed the behavioural metrics. Open ideas next: path/flow analysis, event explorer,
+  A/B experiments, virality k-factor (all want real event data).
+
 ### 2026-06-11
 
 - **Code cleanup 2.1 (`code-cleanup-2.1`). Merged to main.** Multi-file cleanup
@@ -528,7 +545,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration:** For global-counter branches: `<code-name>-2.9`. For feature-scoped branches: use `<feature-name>-2.<n>` where `n` is the next minor for that feature.
+**Next free iteration:** For global-counter branches: `<code-name>-2.9`. For feature-scoped branches: use `<feature-name>-2.<n>` where `n` is the next minor for that feature. *In progress:* `analysis-tools-2.1` (new analytical tools beyond the chart explorer).
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
