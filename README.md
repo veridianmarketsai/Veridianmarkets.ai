@@ -315,6 +315,18 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-30 (analysis-tools)
+
+- **Admin Analytics tab — operator analytics suite.** Replaced the Admin **Heatmap**
+  tab with an **Analytics** tab (the heatmap lives on as a sub-tool inside it). Seven
+  sub-tools, all derived deterministically from the mock `VM_USERS` dataset: **Retention**
+  (cohort grid + average curve), **Growth** (growth accounting — Retained/New/Resurrected/
+  Churned with the Quick Ratio), **Funnel** (visitor→signup→activated→paying→retained),
+  **Revenue** (MRR/ARPU/LTV/LTV:CAC, MRR-movement waterfall, 12-mo trend, NRR/GRR, plan
+  movement), **Engagement** (DAU/WAU/MAU, stickiness, L28 power-user curve, top pages),
+  **Churn risk** (scored "save list" of at-risk paying accounts + CSV export), and the
+  existing **Heatmap**. _(branch: `analysis-tools-2.1`)_
+
 ### 2026-06-11
 
 - **Code cleanup 2.1.** Multi-file cleanup pass across all 23 JSX source files —

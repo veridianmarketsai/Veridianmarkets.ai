@@ -31,8 +31,8 @@ const ADMIN_STEPS = [
     title:'Control panel.',
     body:'This is the admin view — only accounts with the admin role can access it. You can see platform-wide metrics, browse and manage users, and edit the course catalogue from here.' },
   { sel:'[data-tour="vm-admin-tabs"]',
-    title:'Three tabs.',
-    body:'Overview shows the headline KPIs and charts. Users lets you search, filter, and access any account on the platform. Courses lets you add, edit, or remove courses from the learn catalogue in real time.' },
+    title:'Four tabs.',
+    body:'Overview shows the headline KPIs and charts. Users lets you search, filter, and access any account. Courses lets you edit the learn catalogue in real time. Analytics holds the deeper tools — cohort retention, conversion funnel, revenue/MRR movement, engagement, and the interaction heatmap.' },
   { sel:'[data-tour="vm-admin-kpis"]',
     title:'Key metrics at a glance.',
     body:'Total users, new signups, paying accounts, estimated MRR, churn count, and live course count — all updated from the temporary dataset. Green is good, red warrants attention.' },
@@ -50,10 +50,10 @@ function AdminPanel({ go, user, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = useStateAdmin(false);
   const stats = React.useMemo(() => vmUserStats(), []);
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: 'layout-dashboard' },
-    { id: 'users',    label: 'Users',    icon: 'users' },
-    { id: 'courses',  label: 'Courses',  icon: 'book' },
-    { id: 'heatmap',  label: 'Heatmap',  icon: 'flame' },
+    { id: 'overview',  label: 'Overview',  icon: 'layout-dashboard' },
+    { id: 'users',     label: 'Users',     icon: 'users' },
+    { id: 'courses',   label: 'Courses',   icon: 'book' },
+    { id: 'analytics', label: 'Analytics', icon: 'chart-histogram' },
   ];
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
@@ -93,10 +93,10 @@ function AdminPanel({ go, user, isMobile }) {
       </div>
 
       <div style={{ marginTop: 22 }}>
-        {tab === 'overview' && <OverviewTab stats={stats} isMobile={isMobile} />}
-        {tab === 'users'    && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
-        {tab === 'courses'  && <CoursesTab go={go} isMobile={isMobile} />}
-        {tab === 'heatmap'  && <HeatmapAdmin isMobile={isMobile} />}
+        {tab === 'overview'  && <OverviewTab stats={stats} isMobile={isMobile} />}
+        {tab === 'users'     && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
+        {tab === 'courses'   && <CoursesTab go={go} isMobile={isMobile} />}
+        {tab === 'analytics' && <AnalyticsTab stats={stats} isMobile={isMobile} />}
       </div>
 
       {tutorialOpen && <TutorialOverlay steps={ADMIN_STEPS} label="Admin panel tutorial" onClose={()=>setTutorialOpen(false)} />}
@@ -959,5 +959,523 @@ function Field({ label, full, children }) {
   </label>;
 }
 const inputStyle = { width: '100%', boxSizing: 'border-box', fontFamily: VM.serif, fontSize: 14, color: VM.ink, padding: '9px 11px', borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.paperWarm, outline: 'none' };
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+// Operator-facing business analytics derived (deterministically) from the mock
+// VM_USERS dataset: cohort retention, conversion funnel, revenue/MRR movement and
+// engagement. The Heatmap (real DynamoDB-backed) lives on as a sub-view here.
+const AN_TOOLS = [
+  { id:'retention',  label:'Retention',   icon:'chart-dots' },
+  { id:'growth',     label:'Growth',      icon:'chart-arrows-vertical' },
+  { id:'funnel',     label:'Funnel',      icon:'filter' },
+  { id:'revenue',    label:'Revenue',     icon:'cash' },
+  { id:'engagement', label:'Engagement',  icon:'activity' },
+  { id:'risk',       label:'Churn risk',  icon:'alert-triangle' },
+  { id:'heatmap',    label:'Heatmap',     icon:'flame' },
+];
+const anMonths = (a, b) => Math.max(0, (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()));
+const anMKey = (d) => d.getFullYear() * 12 + d.getMonth();
+const anWithin = (d, days) => (VM_NOW - d) <= days * DAY_MS;
+// teal→forest wash for retention cells, by percentage.
+const anHeat = (pct) => pct == null ? VM.paperWarm : `rgba(29,78,58,${(pct / 100) * 0.82 + 0.05})`;
+
+function AnalyticsTab({ stats, isMobile }) {
+  const [tool, setTool] = useStateAdmin('retention');
+  return (
+    <div>
+      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:18 }}>
+        {AN_TOOLS.map(t => {
+          const on = tool === t.id;
+          return (
+            <button key={t.id} onClick={() => setTool(t.id)} style={{ display:'inline-flex', alignItems:'center', gap:6,
+              fontFamily:VM.mono, fontSize:10.5, letterSpacing:'0.04em', textTransform:'uppercase', padding:'7px 13px', borderRadius:999, cursor:'pointer',
+              border:`1px solid ${on ? VM.forest : VM.border}`, background: on ? VM.forest : VM.paper, color: on ? VM.paperWarm : VM.ink2 }}>
+              <i className={'ti ti-' + t.icon} style={{ fontSize:13 }}></i>{t.label}
+            </button>
+          );
+        })}
+      </div>
+      {tool === 'retention'  && <AnRetention isMobile={isMobile} />}
+      {tool === 'growth'     && <AnGrowth isMobile={isMobile} />}
+      {tool === 'funnel'     && <AnFunnel isMobile={isMobile} />}
+      {tool === 'revenue'    && <AnRevenue stats={stats} isMobile={isMobile} />}
+      {tool === 'engagement' && <AnEngagement isMobile={isMobile} />}
+      {tool === 'risk'       && <AnRisk isMobile={isMobile} />}
+      {tool === 'heatmap'    && <HeatmapAdmin isMobile={isMobile} />}
+    </div>
+  );
+}
+
+// Small non-clickable stat tile.
+function AnStat({ label, value, foot, tone }) {
+  return (
+    <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'13px 15px' }}>
+      <Label>{label}</Label>
+      <div style={{ fontFamily:VM.mono, fontWeight:700, fontSize:23, marginTop:5,
+        color: tone === 'up' ? VM.upInk : tone === 'down' ? VM.downInk : VM.ink }}>{value}</div>
+      {foot && <div style={{ marginTop:3 }}><Mono size={10} color={VM.ink3}>{foot}</Mono></div>}
+    </div>
+  );
+}
+
+// Compact responsive line chart (markers + value labels).
+function AnLine({ data, height = 130, color = VM.forest, prefix = '', suffix = '', area = true }) {
+  const max = Math.max(...data.map(d => d.v), 1);
+  const n = data.length, W = Math.max(280, n * 56), H = height, pad = 26, base = H - 22;
+  const x = i => pad + i * ((W - 2 * pad) / Math.max(n - 1, 1));
+  const y = v => base - (v / max) * (base - 16);
+  const line = data.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.v).toFixed(1)}`).join(' ');
+  const fill = `${line} L${x(n - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="xMidYMid meet" style={{ display:'block' }}>
+      {area && <path d={fill} fill={color} opacity="0.08" />}
+      <path d={line} fill="none" stroke={color} strokeWidth="2" />
+      {data.map((d, i) => (
+        <g key={i}>
+          <circle cx={x(i)} cy={y(d.v)} r="3" fill={color} />
+          <text x={x(i)} y={y(d.v) - 8} textAnchor="middle" style={{ fontFamily:VM.mono, fontSize:9, fill:VM.ink2 }}>{prefix}{d.v}{suffix}</text>
+          <text x={x(i)} y={H - 6} textAnchor="middle" style={{ fontFamily:VM.mono, fontSize:8.5, fill:VM.ink3 }}>{d.label}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// ── Tool 1: Cohort retention ─────────────────────────────────────────────────
+function AnRetention({ isMobile }) {
+  const { rows, curve } = React.useMemo(() => {
+    const buckets = {};
+    VM_USERS.forEach(u => { const k = u.joined.getFullYear() * 12 + u.joined.getMonth(); (buckets[k] = buckets[k] || []).push(u); });
+    const nowKey = VM_NOW.getFullYear() * 12 + VM_NOW.getMonth();
+    const span = 7;                                  // last 8 monthly cohorts
+    const rows = [];
+    for (let k = nowKey - span; k <= nowKey; k++) {
+      const us = buckets[k] || [];
+      const age = nowKey - k;
+      // retention at month-offset t = % of the cohort whose activity tenure ≥ t.
+      const ret = [];
+      for (let t = 0; t <= age; t++) ret.push(us.length ? Math.round(us.filter(u => anMonths(u.joined, u.lastActive) >= t).length / us.length * 100) : null);
+      const d = new Date(VM_NOW.getFullYear(), VM_NOW.getMonth() - age, 1);
+      rows.push({ label: d.toLocaleString('en-US', { month:'short', year:'2-digit' }), size: us.length, ret });
+    }
+    // average curve across cohorts per offset
+    const curve = [];
+    for (let t = 0; t <= span; t++) {
+      const vals = rows.map(r => r.ret[t]).filter(v => v != null);
+      if (vals.length) curve.push({ label:'M' + t, v: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) });
+    }
+    return { rows, curve };
+  }, []);
+  const offsets = rows[rows.length - 1].ret.length;
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <p style={{ fontFamily:VM.serif, fontSize:14.5, color:VM.ink2, lineHeight:1.5, margin:0, maxWidth:680 }}>
+        Of the users who joined in a given month, how many were still active <i>N</i> months later. Read each row left→right; healthy products flatten rather than fall to zero.
+      </p>
+      <AdminCard title="Retention by signup cohort">
+        <div style={{ overflowX:'auto' }}>
+          <div style={{ minWidth: 480 }}>
+            <div style={{ display:'grid', gridTemplateColumns:`92px 46px repeat(${offsets}, 1fr)`, gap:4, marginBottom:6 }}>
+              <Label>Cohort</Label><Label style={{ textAlign:'right' }}>Size</Label>
+              {Array.from({ length: offsets }).map((_, t) => <Label key={t} style={{ textAlign:'center' }}>M{t}</Label>)}
+            </div>
+            {rows.map((r, i) => (
+              <div key={i} style={{ display:'grid', gridTemplateColumns:`92px 46px repeat(${offsets}, 1fr)`, gap:4, marginBottom:4 }}>
+                <Mono size={11} color={VM.ink2} style={{ alignSelf:'center' }}>{r.label}</Mono>
+                <Mono size={11} color={VM.ink3} style={{ alignSelf:'center', textAlign:'right' }}>{r.size}</Mono>
+                {Array.from({ length: offsets }).map((_, t) => {
+                  const v = r.ret[t];
+                  return (
+                    <div key={t} title={v == null ? '—' : `${r.label} · M${t}: ${v}%`} style={{ height:30, borderRadius:5, display:'flex', alignItems:'center', justifyContent:'center',
+                      background: v == null ? 'transparent' : anHeat(v) }}>
+                      {v != null && <span style={{ fontFamily:VM.mono, fontSize:10, fontWeight:600, color: v >= 55 ? VM.paperWarm : VM.ink2 }}>{v}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </AdminCard>
+      <AdminCard title="Average retention curve · all cohorts">
+        <AnLine data={curve} suffix="%" color={VM.forest} />
+      </AdminCard>
+    </div>
+  );
+}
+
+// ── Tool 2: Conversion funnel ────────────────────────────────────────────────
+function AnFunnel({ isMobile }) {
+  const steps = React.useMemo(() => {
+    const signups   = VM_USERS.length;
+    const activated = VM_USERS.filter(u => u.lessons >= 1).length;
+    const paying    = VM_USERS.filter(u => u.plan !== 'Free' && u.status !== 'churned').length;
+    const retained  = VM_USERS.filter(u => u.status === 'active').length;
+    const visitors  = Math.round(signups / 0.082);   // ~8.2% visitor→signup
+    return [
+      { label:'Visitors',  value:visitors,  note:'unique site visitors' },
+      { label:'Sign-ups',  value:signups,   note:'created an account' },
+      { label:'Activated', value:activated, note:'completed ≥1 lesson' },
+      { label:'Paying',    value:paying,    note:'on Plus or Pro' },
+      { label:'Retained',  value:retained,  note:'still active today' },
+    ];
+  }, []);
+  const top = steps[0].value;
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <p style={{ fontFamily:VM.serif, fontSize:14.5, color:VM.ink2, lineHeight:1.5, margin:0, maxWidth:680 }}>
+        Where prospects drop off on the path from first visit to a retained, paying user. The biggest fall-off is where to focus.
+      </p>
+      <AdminCard title="Acquisition funnel">
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {steps.map((s, i) => {
+            const stepConv = i === 0 ? 100 : (s.value / steps[i - 1].value) * 100;
+            const overall  = (s.value / top) * 100;
+            return (
+              <div key={s.label}>
+                <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:4 }}>
+                  <span style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink }}>{s.label} <span style={{ color:VM.ink3, fontSize:12 }}>· {s.note}</span></span>
+                  <span><Mono size={13} weight={700}>{s.value.toLocaleString('en-US')}</Mono> {i > 0 && <Mono size={10} color={stepConv < 50 ? VM.downInk : VM.ink3}>{stepConv.toFixed(0)}% of prev</Mono>}</span>
+                </div>
+                <div style={{ height:26, borderRadius:6, background:VM.paperWarm, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${overall}%`, minWidth:2, borderRadius:6,
+                    background:`linear-gradient(90deg, ${VM.forest}, ${VM.teal})`, display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:8 }}>
+                    <Mono size={9.5} color={VM.paperWarm}>{overall.toFixed(1)}%</Mono>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ marginTop:14, paddingTop:12, borderTop:`1px solid ${VM.borderHair}`, display:'flex', gap:24, flexWrap:'wrap' }}>
+          <div><Label>Visitor → paying</Label><div style={{ fontFamily:VM.mono, fontWeight:700, fontSize:18, color:VM.ink, marginTop:3 }}>{(steps[3].value / top * 100).toFixed(1)}%</div></div>
+          <div><Label>Signup → paying</Label><div style={{ fontFamily:VM.mono, fontWeight:700, fontSize:18, color:VM.ink, marginTop:3 }}>{(steps[3].value / steps[1].value * 100).toFixed(0)}%</div></div>
+          <div><Label>Paying → retained</Label><div style={{ fontFamily:VM.mono, fontWeight:700, fontSize:18, color:VM.ink, marginTop:3 }}>{(steps[4].value / steps[3].value * 100).toFixed(0)}%</div></div>
+        </div>
+      </AdminCard>
+    </div>
+  );
+}
+
+// ── Tool 3: Revenue / MRR movement ───────────────────────────────────────────
+function AnRevenue({ stats, isMobile }) {
+  const m = React.useMemo(() => {
+    const paying = VM_USERS.filter(u => u.plan !== 'Free' && u.status !== 'churned');
+    const mrr = paying.reduce((s, u) => s + A_PLAN_PRICE[u.plan], 0);
+    const arppu = paying.length ? mrr / paying.length : 0;
+    const arpu = mrr / VM_USERS.length;
+    const monthlyChurn = (stats.churned / stats.total) / 9;          // ~tenure-adjusted proxy
+    const ltv = arppu / Math.max(monthlyChurn, 0.001);
+    const cac = 42;                                                  // mock blended CAC
+    // This-month movement.
+    const newMrr = VM_USERS.filter(u => u.plan !== 'Free' && u.status !== 'churned' && anWithin(u.joined, 30)).reduce((s, u) => s + A_PLAN_PRICE[u.plan], 0);
+    const churnMrr = VM_USERS.filter(u => u.plan !== 'Free' && u.status === 'churned' && anWithin(u.lastActive, 60)).reduce((s, u) => s + A_PLAN_PRICE[u.plan], 0);
+    const expansion = Math.round(mrr * 0.035), contraction = Math.round(mrr * 0.018);
+    const start = mrr - newMrr - expansion + contraction + churnMrr;
+    // Net / Gross revenue retention from the existing base (excludes new MRR).
+    const nrr = start ? Math.round((start + expansion - contraction - churnMrr) / start * 100) : 0;
+    const grr = start ? Math.round((start - contraction - churnMrr) / start * 100) : 0;
+    // 12-month MRR trend (paying, not-yet-churned, joined on/before each month).
+    const trend = [];
+    for (let k = 11; k >= 0; k--) {
+      const end = new Date(VM_NOW.getFullYear(), VM_NOW.getMonth() - k + 1, 0, 23, 59, 59);
+      const v = VM_USERS.filter(u => u.plan !== 'Free' && u.joined <= end && (u.status !== 'churned' || u.lastActive > end)).reduce((s, u) => s + A_PLAN_PRICE[u.plan], 0);
+      trend.push({ label: end.toLocaleString('en-US', { month:'short' }), v });
+    }
+    return { mrr, arppu, arpu, ltv, cac, newMrr, churnMrr, expansion, contraction, start, nrr, grr, trend };
+  }, [stats]);
+  const wf = [
+    { label:'Start',   v:m.start,       type:'base' },
+    { label:'+ New',   v:m.newMrr,      type:'pos' },
+    { label:'+ Expan', v:m.expansion,   type:'pos' },
+    { label:'− Contr', v:m.contraction, type:'neg' },
+    { label:'− Churn', v:m.churnMrr,    type:'neg' },
+    { label:'End',     v:m.mrr,         type:'total' },
+  ];
+  // floating-bar geometry
+  let run = 0; const bars = wf.map(s => {
+    if (s.type === 'base' || s.type === 'total') { run = s.v; return { ...s, lo:0, hi:s.v }; }
+    if (s.type === 'pos') { const lo = run; run += s.v; return { ...s, lo, hi:run }; }
+    const hi = run; run -= s.v; return { ...s, lo:run, hi };
+  });
+  const peak = Math.max(...bars.map(b => b.hi), 1);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(auto-fit,minmax(140px,1fr))', gap:12 }}>
+        <AnStat label="Current MRR" value={aMoney(m.mrr)} foot={`${aMoney(m.mrr * 12)} ARR`} />
+        <AnStat label="ARPU" value={`$${m.arpu.toFixed(2)}`} foot="per user / mo" />
+        <AnStat label="ARPPU" value={`$${m.arppu.toFixed(2)}`} foot="per paying user" />
+        <AnStat label="LTV" value={aMoney(Math.round(m.ltv))} foot={`churn ${(m.ltv ? (m.arppu / m.ltv * 100) : 0).toFixed(1)}%/mo`} />
+        <AnStat label="LTV : CAC" value={`${(m.ltv / m.cac).toFixed(1)}×`} foot={`CAC $${m.cac}`} tone={(m.ltv / m.cac) >= 3 ? 'up' : 'down'} />
+        <AnStat label="NRR" value={`${m.nrr}%`} foot="net revenue retention" tone={m.nrr >= 100 ? 'up' : 'down'} />
+        <AnStat label="GRR" value={`${m.grr}%`} foot="gross revenue retention" />
+      </div>
+      <AdminCard title="MRR movement · this month">
+        <div style={{ display:'flex', alignItems:'flex-end', gap: isMobile ? 6 : 14, height:180 }}>
+          {bars.map((b, i) => {
+            const color = b.type === 'pos' ? VM.up : b.type === 'neg' ? VM.down : VM.forest;
+            return (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%' }}>
+                <Mono size={9} color={VM.ink2}>{b.type === 'neg' ? '-' : b.type === 'pos' ? '+' : ''}${Math.abs(b.type === 'base' || b.type === 'total' ? b.v : b.v)}</Mono>
+                <div style={{ width:'100%', maxWidth:54, position:'relative', height:`${(b.hi - b.lo) / peak * 100}%`, minHeight:3,
+                  marginBottom:`${b.lo / peak * 100}%`, background:color, borderRadius:4, opacity: b.type === 'total' || b.type === 'base' ? 1 : 0.85 }}></div>
+                <Mono size={8.5} color={VM.ink3} style={{ marginTop:5 }}>{b.label}</Mono>
+              </div>
+            );
+          })}
+        </div>
+      </AdminCard>
+      <AdminCard title="MRR trend · last 12 months">
+        <AnLine data={m.trend} prefix="$" color={VM.teal} />
+      </AdminCard>
+      <AdminCard title="Plan movement · last quarter">
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          {AN_PLAN_MOVE.map(p => (
+            <div key={p.plan}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                <span style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink }}>From <b>{p.plan}</b></span>
+                <Mono size={10} color={VM.ink3}>{p.dist.map(d => `${d[0]} ${d[1]}%`).join(' · ')}</Mono>
+              </div>
+              <div style={{ display:'flex', height:18, borderRadius:5, overflow:'hidden' }}>
+                {p.dist.map((d, i) => (
+                  <div key={i} title={`${d[0]}: ${d[1]}%`} style={{ width:`${d[1]}%`, background:d[2] }}></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginTop:12 }}>
+          {[['Stayed', VM.faint],['Upgrade', VM.forest],['Downgrade', VM.teal],['Churned', VM.down]].map(([l, c]) => (
+            <span key={l} style={{ display:'inline-flex', alignItems:'center', gap:5, fontFamily:VM.serif, fontSize:11, color:VM.ink3 }}>
+              <span style={{ width:10, height:10, borderRadius:3, background:c }}></span>{l}
+            </span>
+          ))}
+        </div>
+        <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:10 }}>Illustrative quarter-over-quarter plan transitions.</Mono>
+      </AdminCard>
+    </div>
+  );
+}
+
+// ── Tool 4: Engagement ───────────────────────────────────────────────────────
+const AN_PAGES = [
+  { name:'Home',              v:4120 }, { name:'Search',          v:3380 },
+  { name:'Company dashboard', v:2960 }, { name:'Dependency map',  v:2210 },
+  { name:'Calendar',          v:1740 }, { name:'My Portfolio',    v:1520 },
+  { name:'Learn',             v:1180 }, { name:'News',            v:980  },
+  { name:'My Business',       v:640  },
+];
+function AnEngagement({ isMobile }) {
+  const e = React.useMemo(() => {
+    const dau = VM_USERS.filter(u => anWithin(u.lastActive, 1)).length;
+    const wau = VM_USERS.filter(u => anWithin(u.lastActive, 7)).length;
+    const mau = VM_USERS.filter(u => anWithin(u.lastActive, 30)).length;
+    return { dau, wau, mau, stickiness: mau ? Math.round(dau / mau * 100) : 0 };
+  }, []);
+  // Engagement depth — days active in the last 28 (Facebook's L28). Synthesised
+  // per user (we only snapshot lastActive) but stable + status-weighted.
+  const depth = React.useMemo(() => {
+    const buckets = [{ label:'1–3', min:1, max:3, n:0 }, { label:'4–7', min:4, max:7, n:0 }, { label:'8–14', min:8, max:14, n:0 }, { label:'15–21', min:15, max:21, n:0 }, { label:'22–28', min:22, max:28, n:0 }];
+    let core = 0, any = 0;
+    VM_USERS.forEach(u => {
+      if (!anWithin(u.lastActive, 28)) return;
+      const rnd = vmRng(u.id * 97 + 3);
+      let d = u.status === 'active' ? 8 + Math.floor(rnd() * 21) : u.status === 'trial' ? 2 + Math.floor(rnd() * 10) : 1 + Math.floor(rnd() * 5);
+      d = Math.min(28, d); any++; if (d >= 15) core++;
+      const b = buckets.find(b => d >= b.min && d <= b.max); if (b) b.n++;
+    });
+    return { buckets, corePct: any ? Math.round(core / any * 100) : 0, any };
+  }, []);
+  const maxV = AN_PAGES[0].v;
+  const maxB = Math.max(...depth.buckets.map(b => b.n), 1);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(auto-fit,minmax(140px,1fr))', gap:12 }}>
+        <AnStat label="DAU" value={e.dau} foot="active today" />
+        <AnStat label="WAU" value={e.wau} foot="active this week" />
+        <AnStat label="MAU" value={e.mau} foot="active this month" />
+        <AnStat label="Stickiness" value={`${e.stickiness}%`} foot="DAU / MAU" tone={e.stickiness >= 20 ? 'up' : undefined} />
+        <AnStat label="Avg session" value="6m 12s" foot="per visit" />
+      </div>
+      <AdminCard title="Engagement depth · days active in last 28 (L28)">
+        <div style={{ display:'flex', alignItems:'flex-end', gap:14, height:140 }}>
+          {depth.buckets.map((b, i) => (
+            <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', gap:5 }}>
+              <Mono size={9} color={VM.ink3}>{b.n}</Mono>
+              <div title={`${b.label} days: ${b.n} users`} style={{ width:'100%', maxWidth:40, height:`${b.n / maxB * 100}%`, minHeight:3,
+                background: i >= 3 ? VM.forest : VM.tealTint2, borderRadius:'4px 4px 0 0' }}></div>
+              <Mono size={8.5} color={VM.ink3}>{b.label}</Mono>
+            </div>
+          ))}
+        </div>
+        <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:10 }}><b style={{ color:VM.forest }}>{depth.corePct}%</b> of active users are <b style={{ color:VM.ink3 }}>core</b> (15+ days/28) — your power users.</Mono>
+      </AdminCard>
+      <AdminCard title="Most-used pages">
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {AN_PAGES.map(p => (
+            <div key={p.name} style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <span style={{ flex:1, fontFamily:VM.serif, fontSize:14, color:VM.ink2 }}>{p.name}</span>
+              <div style={{ flex:1.4 }}><ProgressBar v={p.v / maxV * 100} /></div>
+              <Mono size={11} color={VM.ink2} style={{ minWidth:42, textAlign:'right' }}>{p.v.toLocaleString('en-US')}</Mono>
+            </div>
+          ))}
+        </div>
+        <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:12 }}>Illustrative — for real per-page interaction data, see the <b style={{ color:VM.ink3 }}>Heatmap</b> sub-tab.</Mono>
+      </AdminCard>
+    </div>
+  );
+}
+
+// Illustrative quarter-over-quarter plan transitions (used by Revenue).
+const AN_PLAN_MOVE = [
+  { plan:'Free', dist:[['Stayed', 88, VM.faint], ['Upgrade', 8, VM.forest], ['Churned', 4, VM.down]] },
+  { plan:'Plus', dist:[['Stayed', 79, VM.faint], ['Upgrade', 9, VM.forest], ['Downgrade', 5, VM.teal], ['Churned', 7, VM.down]] },
+  { plan:'Pro',  dist:[['Stayed', 86, VM.faint], ['Downgrade', 6, VM.teal], ['Churned', 8, VM.down]] },
+];
+
+// ── Tool 5: Growth accounting ────────────────────────────────────────────────
+// MAU change decomposed into New + Resurrected + Retained − Churned, plus the
+// growth Quick Ratio = (new + resurrected) / churned (>1 = growing). Per-user
+// monthly activity is synthesised (with gaps, so resurrection appears) from the
+// snapshot — deterministic via the seeded RNG.
+function AnGrowth({ isMobile }) {
+  const data = React.useMemo(() => {
+    const nowKey = anMKey(VM_NOW), startKey = nowKey - 11;
+    const active = {}; for (let k = startKey; k <= nowKey; k++) active[k] = new Set();
+    const joinedKey = {};
+    VM_USERS.forEach(u => {
+      joinedKey[u.id] = anMKey(u.joined);
+      const rnd = vmRng(u.id * 1313 + 7);
+      const from = Math.max(joinedKey[u.id], startKey), to = Math.min(anMKey(u.lastActive), nowKey);
+      for (let k = from; k <= to; k++) { if (k === joinedKey[u.id] || rnd() < 0.8) active[k].add(u.id); }
+    });
+    const rows = [];
+    for (let k = startKey + 1; k <= nowKey; k++) {
+      const cur = active[k], prev = active[k - 1];
+      let nu = 0, res = 0, ret = 0, ch = 0;
+      cur.forEach(id => { if (joinedKey[id] === k) nu++; else if (prev.has(id)) ret++; else res++; });
+      prev.forEach(id => { if (!cur.has(id)) ch++; });
+      const d = new Date(VM_NOW.getFullYear(), VM_NOW.getMonth() - (nowKey - k), 1);
+      rows.push({ label: d.toLocaleString('en-US', { month:'short' }), mau: cur.size, nu, res, ret, ch, net: nu + res - ch, qr: ch ? (nu + res) / ch : (nu + res) });
+    }
+    return rows.slice(-8);
+  }, []);
+  const latest = data[data.length - 1];
+  const maxPos = Math.max(...data.map(r => r.ret + r.nu + r.res), 1);
+  const maxNeg = Math.max(...data.map(r => r.ch), 1);
+  const POS = 132, NEG = 48;
+  const px = v => Math.round(v / maxPos * POS);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <p style={{ fontFamily:VM.serif, fontSize:14.5, color:VM.ink2, lineHeight:1.5, margin:0, maxWidth:680 }}>
+        Every month's active-user change, split into where it came from. The <b>Quick Ratio</b> = (new + resurrected) ÷ churned — above <b>1</b> means you're growing; Facebook's growth team used this as a north-star health check.
+      </p>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(auto-fit,minmax(140px,1fr))', gap:12 }}>
+        <AnStat label="Quick Ratio" value={latest.qr.toFixed(2)} foot="(new+resurr) / churned" tone={latest.qr >= 1 ? 'up' : 'down'} />
+        <AnStat label="MAU" value={latest.mau} foot="this month" />
+        <AnStat label="Net adds" value={`${latest.net >= 0 ? '+' : ''}${latest.net}`} foot="this month" tone={latest.net >= 0 ? 'up' : 'down'} />
+        <AnStat label="Churned" value={latest.ch} foot="lost this month" tone="down" />
+      </div>
+      <AdminCard title="Growth accounting · monthly">
+        <div style={{ display:'flex', alignItems:'stretch', gap: isMobile ? 4 : 12 }}>
+          {data.map((r, i) => (
+            <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center' }}>
+              <Mono size={9} weight={700} color={r.qr >= 1 ? VM.upInk : VM.downInk}>{r.qr.toFixed(1)}</Mono>
+              <div style={{ height:POS, width:'100%', maxWidth:44, margin:'0 auto', display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+                <div title={`Resurrected ${r.res}`} style={{ height:px(r.res), background:VM.teal }}></div>
+                <div title={`New ${r.nu}`} style={{ height:px(r.nu), background:VM.up }}></div>
+                <div title={`Retained ${r.ret}`} style={{ height:px(r.ret), background:VM.forest }}></div>
+              </div>
+              <div style={{ height:1, width:'100%', background:VM.border }}></div>
+              <div style={{ height:NEG, width:'100%', maxWidth:44, margin:'0 auto' }}>
+                <div title={`Churned ${r.ch}`} style={{ height:Math.round(r.ch / maxNeg * NEG), background:VM.down, opacity:0.85 }}></div>
+              </div>
+              <Mono size={8.5} color={VM.ink3} style={{ marginTop:5 }}>{r.label}</Mono>
+            </div>
+          ))}
+        </div>
+        <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginTop:14 }}>
+          {[['Retained', VM.forest],['New', VM.up],['Resurrected', VM.teal],['Churned', VM.down]].map(([l, c]) => (
+            <span key={l} style={{ display:'inline-flex', alignItems:'center', gap:5, fontFamily:VM.serif, fontSize:11, color:VM.ink3 }}>
+              <span style={{ width:10, height:10, borderRadius:3, background:c }}></span>{l}
+            </span>
+          ))}
+        </div>
+      </AdminCard>
+    </div>
+  );
+}
+
+// ── Tool 6: Churn risk ───────────────────────────────────────────────────────
+// Ranks paying (Plus/Pro) accounts by a churn-risk score so the operator gets a
+// "save list" before they actually churn. Score blends recency, trial status and
+// low product usage.
+function AnRisk({ isMobile }) {
+  const list = React.useMemo(() => {
+    return VM_USERS.filter(u => u.plan !== 'Free' && u.status !== 'churned').map(u => {
+      const recency = Math.round((VM_NOW - u.lastActive) / DAY_MS);
+      let score = recency * 4 + (u.status === 'trial' ? 34 : 0) + Math.max(0, 18 - u.lessons) * 2.2;
+      if (anWithin(u.joined, 30) && u.lessons < 4) score += 14;
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      const reasons = [];
+      if (recency > 7) reasons.push(`${recency}d idle`);
+      if (u.status === 'trial') reasons.push('trial ending');
+      if (u.lessons < 6) reasons.push('low usage');
+      if (!reasons.length) reasons.push('engagement dipping');
+      return { u, score, recency, mrr: A_PLAN_PRICE[u.plan], reason: reasons.slice(0, 2).join(' · ') };
+    }).sort((a, b) => b.score - a.score);
+  }, []);
+  const high = list.filter(r => r.score >= 60), med = list.filter(r => r.score >= 35 && r.score < 60);
+  const mrrAtRisk = high.reduce((s, r) => s + r.mrr, 0);
+  const top = list.slice(0, 14);
+  const tier = (s) => s >= 60 ? { l:'High', c:VM.downInk, bg:'rgba(163,45,45,0.10)' } : s >= 35 ? { l:'Med', c:VM.terra, bg:'rgba(196,106,59,0.12)' } : { l:'Low', c:VM.ink3, bg:VM.paperWarm };
+  const cols = '1.6fr 0.6fr 0.7fr 0.8fr 1.4fr';
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <p style={{ fontFamily:VM.serif, fontSize:14.5, color:VM.ink2, lineHeight:1.5, margin:0, maxWidth:680 }}>
+        Paying accounts most likely to cancel, scored on recency, trial status and product usage — reach out to these before they go.
+      </p>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(auto-fit,minmax(150px,1fr))', gap:12 }}>
+        <AnStat label="High risk" value={high.length} foot="score ≥ 60" tone="down" />
+        <AnStat label="Medium risk" value={med.length} foot="score 35–59" />
+        <AnStat label="MRR at risk" value={aMoney(mrrAtRisk)} foot="high-risk accounts" tone="down" />
+      </div>
+      <AdminCard title="Save list · highest churn risk">
+        <div style={{ overflowX:'auto' }}>
+          <div style={{ minWidth: 520 }}>
+            <div style={{ display:'grid', gridTemplateColumns: cols, gap:8, padding:'0 0 8px', borderBottom:`1px solid ${VM.borderSoft}` }}>
+              {['Account', 'Plan', 'Risk', 'Last seen', 'Why'].map((h, i) => <Label key={i}>{h}</Label>)}
+            </div>
+            {top.map((r, i) => {
+              const t = tier(r.score);
+              return (
+                <div key={r.u.id} style={{ display:'grid', gridTemplateColumns: cols, gap:8, alignItems:'center', padding:'9px 0', borderBottom: i === top.length - 1 ? 'none' : `1px solid ${VM.borderHair}` }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontFamily:VM.serif, fontSize:13.5, color:VM.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{r.u.name}</div>
+                    <Mono size={9.5} color={VM.ink3}>{r.u.country}</Mono>
+                  </div>
+                  <Mono size={11} weight={600} color={A_PLAN_COLOR[r.u.plan]}>{r.u.plan}</Mono>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                    <span style={{ fontFamily:VM.mono, fontSize:8.5, fontWeight:700, padding:'2px 6px', borderRadius:4, color:t.c, background:t.bg, border:`1px solid ${t.c}` }}>{r.score}</span>
+                  </span>
+                  <Mono size={10.5} color={VM.ink3}>{aRel(r.u.lastActive)}</Mono>
+                  <Mono size={10.5} color={VM.ink2}>{r.reason}</Mono>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ marginTop:12, textAlign:'right' }}>
+          <button onClick={() => adminDownloadCSV('vm_churn_risk.csv', ['Name','Email','Plan','Score','LastActive','MRR','Reason'],
+            list.filter(r => r.score >= 35).map(r => [r.u.name, r.u.email, r.u.plan, r.score, aDate(r.u.lastActive), r.mrr, r.reason]))}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
+              padding:'6px 12px', borderRadius:6, border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink2, cursor:'pointer' }}>
+            <i className="ti ti-download" style={{ fontSize:13 }}></i>Export save list
+          </button>
+        </div>
+      </AdminCard>
+    </div>
+  );
+}
 
 Object.assign(window, { AdminPanel });
