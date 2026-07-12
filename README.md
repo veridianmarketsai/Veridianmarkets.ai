@@ -315,6 +315,23 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-06-30 (backend: auth + payments)
+
+- **Real sign-in (AWS Cognito).** Replaced the client-side placeholder auth with
+  real Cognito: new [`auth.jsx`](ui_kits/web/auth.jsx) (`VM_AUTH` + `cognito()` REST
+  helper, public app client, no SDK/build step) and a five-mode [`SignIn.jsx`](ui_kits/web/SignIn.jsx)
+  (sign in / sign up / confirm code / forgot / reset). `app.jsx` session/refresh now
+  Cognito-driven; sign-out returns to the landing page; admin role = Cognito group.
+  Guide: [`backend-signin.md`](backend-signin.md). _(branch: `backend-signin-AWS-1.1`)_
+- **Payments & paywall (Stripe).** News / Calendar / Dependency map are now gated
+  behind a paying plan — non-payers see a lock and hit an **/upgrade** page
+  ([`Pricing.jsx`](ui_kits/web/Pricing.jsx)); Settings → Subscription wired to the same
+  flow. Shared [`billing.jsx`](ui_kits/web/billing.jsx) config. **Real Stripe** (test):
+  Payment Links → **`vm-billing-webhook`** Lambda records the plan in DynamoDB →
+  **`vm-billing-status`** Lambda returns it → the app unlocks. Lambdas in
+  [`lambda/billing/`](lambda/billing/); guide: [`payment.md`](payment.md). Portal +
+  single-customer checkout deferred to pre-launch. _(branch: `payments-1.1`)_
+
 ### 2026-06-30 (analysis-tools)
 
 - **Admin Analytics tab — operator analytics suite.** Replaced the Admin **Heatmap**

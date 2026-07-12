@@ -40,7 +40,8 @@ belongs to the Toolbar Menu.
 | Visible label                  | Section (identifier) | Route      | Notes |
 |--------------------------------|----------------------|------------|-------|
 | *logo — "Veridian Markets"*    | **Home Page**        | `front`    | The top-left wordmark **is** the Home button. There is no "Front page" text item. |
-| Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Now wired to a **placeholder client-side auth** (`VM_ACCOUNTS` in `app.jsx`; admin account; SHA-256 hash; session in `localStorage`). **Not real security** — to be replaced by AWS Cognito. |
+| Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered card, **no rail/ticker**, **five modes** (sign in / sign up / confirm code / forgot / reset). **Real AWS Cognito auth** now (`auth.jsx` — `backend-signin-AWS-1.1`, merged): pool `us-east-1_FusGT8Ntu`, public app client, `USER_PASSWORD_AUTH` via REST (no SDK); tokens in `localStorage` (`vm_session`); admin = Cognito `admin` group. See `backend-signin.md`. |
+| *(paywall target)*             | **Pricing / Upgrade**| `upgrade`  | `Pricing.jsx` (route `/upgrade`). Non-payers hitting a gated item (News/Calendar/Dependency map) land here. Free/Plus/Pro/Business tiers → **real Stripe** checkout (`billing.jsx`). Gating + `plan` in `app.jsx` (`GATED_ROUTES`, `isPaying`, `vmFetchPlan`). See `payment.md` (`payments-1.1`, merged). |
 | My Business *(business mode)*  | **My Business Page** | `mybusiness` | **NEW (`business-page-2.8`, merged to main + live).** Signed-in-only **dependency-map builder** (`MyBusiness.jsx`): the firm at the centre, draggable supplier/external/customer nodes with live curved connectors, a right-hand editor panel (name/ticker/role/note/type + delete), add/clear/reset, **Save** to `localStorage` (`vm_business_map`). Reached via the rail **Personal ⇄ Business** toggle (top of rail) or the **My Business** rail item, which show per `accountMode` (persisted). Mobile = list editor fallback. Mock until backend. |
 | My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated (`signedIn` from `localStorage`). Now a **customisable widget dashboard** (`MyPortfolio.jsx`): Connect-accounts bar (Trading 212 + IBKR/Robinhood/Coinbase/Vanguard/Binance, mock connect), then Summary KPIs, Performance area chart (range toggles), Allocation donut, Holdings table, Watchlist, Analogue alerts. **Customise mode** = show/hide + reorder + resize widgets; layout & connections persist to `localStorage`. Mock data. |
 | Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
@@ -62,6 +63,25 @@ placeholders until their page exists.
 ## Change log
 
 ### 2026-06-30
+
+- **`backend-signin-AWS-1.1` — real Cognito sign-in. Merged to main.** Replaced the
+  placeholder `VM_ACCOUNTS`/SHA-256 auth with **AWS Cognito** (pool `us-east-1_FusGT8Ntu`,
+  public app client `7idj7ncoa195pgqiaqs7376k8d`, no secret, `USER_PASSWORD_AUTH`). New
+  `auth.jsx` (global `VM_AUTH` + `cognito()` REST helper + flows, no SDK/build step);
+  `SignIn.jsx` five modes; `app.jsx` session/refresh/sign-out via Cognito; admin = Cognito
+  group. Guide `backend-signin.md`. **Still test-stage:** move to SES email + adaptive auth
+  before scale.
+- **`payments-1.1` — payment/paywall + real Stripe (test). Merged to main.** (Numbered
+  `-1.1`, payments/backend track.) Gates **News/Calendar/Dependency map** behind a paying
+  plan → lock → **/upgrade** page (`Pricing.jsx`). Shared `billing.jsx` (`VM_BILLING` +
+  `vmStartCheckout` + `vmFetchPlan`), also wired into Settings→Subscription. **Real Stripe
+  loop works (sandbox):** Payment Links (Plus £9 `price_1TsTEt…` / Pro £19 `price_1TsTF8…`)
+  tagged with Cognito `sub` → **`vm-billing-webhook`** Lambda verifies signature + writes plan
+  to DynamoDB `vm-subscriptions` → **`vm-billing-status`** Lambda verifies the Cognito JWT +
+  returns plan → app `vmFetchPlan` on load unlocks. Lambdas in `lambda/billing/` (fetch-based,
+  no npm; use only `@aws-sdk/client-dynamodb` — `lib-dynamodb` 502s). **Deferred to pre-launch:**
+  `vm-billing-portal` (cancel/switch — user chose to skip for now), single-customer
+  `vm-billing-checkout` (Payment Links create **duplicate subs**), live keys. Guide `payment.md`.
 
 - **Started `backend-signin-AWS-1.1`.** New branch (from main) — **first real backend
   work**: replacing the placeholder client-side auth (`VM_ACCOUNTS` / SHA-256 / localStorage
@@ -543,7 +563,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `code-cleanup-2.1` (code quality pass across 23 JSX files; **merged to main**). Recent: `admin-refinement-2.1` (clickable KPI/chart modals + CSV download; merged), `my-business-2.1` (Tidy button + UX polish + Analysis/Impact/Signals tabs + Import; merged), `learn-veridian-markets-2.2` (tutorial overlays for Dependency Map + Admin; merged), `learn-veridian-markets-2.1` (tutorial overlays on every page; merged), `business-page-2.8` (Personal⇄Business rail switcher + My Business map builder; merged), `financials-2.7` (Financials export CSV/Excel + Calendar ⓘ modals; merged), `indices-2.6` (indices/commodities/forex + asset-class maps + breadcrumb drill; merged), `dependency-map-2.5` (map tabs + News filters + Financials deltas + AI assistant; merged). Note: recent branches (`my-business-2.1`, `learn-veridian-markets-2.1/2.2`, `admin-refinement-2.1`, `code-cleanup-2.1`) use **feature-scoped versioning** rather than the global running counter — the per-feature minor number tracks that feature's iteration.
+**Latest branch (this scheme):** `payments-1.1` (payment/paywall + real Stripe test loop — webhook + status Lambdas; **merged to main**). Previous: `backend-signin-AWS-1.1` (real AWS Cognito sign-in; merged), `analysis-tools-2.1` (Admin Analytics tab; merged), `code-cleanup-2.1` (code quality pass across 23 JSX files; merged). Recent: `admin-refinement-2.1` (clickable KPI/chart modals + CSV download; merged), `my-business-2.1` (Tidy button + UX polish + Analysis/Impact/Signals tabs + Import; merged), `learn-veridian-markets-2.2` (tutorial overlays for Dependency Map + Admin; merged), `learn-veridian-markets-2.1` (tutorial overlays on every page; merged), `business-page-2.8` (Personal⇄Business rail switcher + My Business map builder; merged), `financials-2.7` (Financials export CSV/Excel + Calendar ⓘ modals; merged), `indices-2.6` (indices/commodities/forex + asset-class maps + breadcrumb drill; merged), `dependency-map-2.5` (map tabs + News filters + Financials deltas + AI assistant; merged). Note: recent branches (`my-business-2.1`, `learn-veridian-markets-2.1/2.2`, `admin-refinement-2.1`, `code-cleanup-2.1`) use **feature-scoped versioning** rather than the global running counter — the per-feature minor number tracks that feature's iteration.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -551,7 +571,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration:** For global-counter branches: `<code-name>-2.9`. For feature-scoped branches: use `<feature-name>-2.<n>` where `n` is the next minor for that feature. *In progress:* `analysis-tools-2.1` (new analytical tools beyond the chart explorer).
+**Next free iteration:** For global-counter branches: `<code-name>-2.9`. For feature-scoped branches: use `<feature-name>-2.<n>` (or the backend track `<code-name>-1.<n>`, e.g. `payments-1.2`). *In progress:* none — `payments-1.1` + `backend-signin-AWS-1.1` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)
