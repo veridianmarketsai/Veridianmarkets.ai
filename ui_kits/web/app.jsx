@@ -49,30 +49,12 @@ function stateToPath(route, company) {
   return ROUTE_PATHS[route] || '/';
 }
 
-// ── Auth (PLACEHOLDER — client-side only, NOT real security) ─────────────────
-// This static prototype has no backend yet, so this login is a convenience for
-// the owner, not a security boundary: the account list below ships in public
-// client code. The password is kept as a SHA-256 hash so the literal string
-// isn't in the repo, but anyone could still read this and sign in. Replace the
-// whole block with real AWS Cognito auth before this matters. See README.
-const VM_ACCOUNTS = [
-  { email:'Admin', name:'Admin', role:'admin',
-    passHash:'60fe74406e7f353ed979f350f2fbb6a2e8690a5fa7d1b0c32983d1d8b3f95f67' }, // Admin1234
-];
-async function sha256Hex(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-async function verifyCredentials(email, password) {
-  const acct = VM_ACCOUNTS.find(a => a.email.toLowerCase() === String(email).trim().toLowerCase());
-  if (!acct) return null;
-  if (await sha256Hex(password) !== acct.passHash) return null;
-  return { email:acct.email, name:acct.name, role:acct.role };
-}
-const VM_SESSION_KEY = 'vm_session';
-function loadSession() {
-  try { return JSON.parse(localStorage.getItem(VM_SESSION_KEY)) || null; } catch { return null; }
-}
+// ── Auth ─────────────────────────────────────────────────────────────────────
+// Real sign-in is now AWS Cognito — see auth.jsx (VM_AUTH config + vm* flow
+// functions) and backend-signin.md. The old client-side placeholder
+// (VM_ACCOUNTS + SHA-256) has been removed. The app consumes the same shapes:
+// `user` = { email, name, role } from the ID token; role 'admin' = Cognito
+// group membership.
 
 // Track viewport so the Toolbar Menu collapses into a hamburger below `bp`px.
 function useIsMobile(bp) {
@@ -253,24 +235,25 @@ function App() {
   // Keep the document title in step with the route.
   useEffectApp(() => { document.title = ROUTE_TITLES[route] || ROUTE_TITLES.front; }, [route]);
 
-  // Session — restored from localStorage so a refresh keeps you signed in.
-  // (Auto-admin testing bypass removed for safety — visitors start signed out and
-  // must sign in to reach settings/portfolio/admin.)
-  const [user, setUser] = useStateApp(loadSession);
+  // Session — seeded from the stored Cognito ID token so a refresh keeps you
+  // signed in; a silent token refresh runs on mount (see effect below).
+  const [user, setUser] = useStateApp(vmLoadUser);
   const signedIn = !!user;
-  const signIn = async (email, password) => {            // returns true on success
-    const u = await verifyCredentials(email, password);
-    if (!u) return false;
-    setUser(u);
-    try { localStorage.setItem(VM_SESSION_KEY, JSON.stringify(u)); } catch {}
-    return true;
+  // Sign in via Cognito. Returns { ok } or { ok:false, error, code } so SignIn.jsx
+  // can show a friendly message (no thrown errors bubbling to the UI).
+  const signIn = async (email, password) => {
+    try { setUser(await vmSignIn(email.trim(), password)); return { ok: true }; }
+    catch (e) { return { ok: false, error: e.message, code: e.code }; }
   };
   const signOut = () => {
+    vmClearSession();
     setUser(null);
-    try { localStorage.removeItem(VM_SESSION_KEY); } catch {}
     setAccountMode('personal');
-    go('front');
+    go('landing');   // sign-out returns to the marketing landing page
   };
+  // On load: if a session exists, refresh the token when near expiry (keeps you
+  // logged in across days without re-entering the password).
+  useEffectApp(() => { vmEnsureFreshSession().then(u => { if (u) setUser(u); }); }, []);
 
   // Account mode — Personal ⇄ Business. A persisted preference that the rail
   // toggles; switching jumps to that mode's home (My Account / My Business).
