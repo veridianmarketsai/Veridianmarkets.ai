@@ -84,7 +84,7 @@ function DeleteAccountModal({ email, onConfirm, onClose }) {
   );
 }
 
-function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }) {
+function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange, plan }) {
   const initSection = () => {
     const m = window.location.pathname.match(/^\/settings\/(.+)$/);
     return m ? m[1] : null;
@@ -94,6 +94,8 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }
   const [showDelete, setShowDelete] = useStateSettings(false);
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 2800); };
   const u = user || { name: 'Guest', email: 'not signed in', tier: 'Free' };
+  // Real plan comes from the backend (app-level `plan`); fall back to the mock tier.
+  const planTier = { free: 'Free', plus: 'Plus', pro: 'Pro' }[plan] || u.tier || 'Free';
 
   const navTo = (id) => {
     setSection(id);
@@ -130,7 +132,7 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }
   return (
     <div data-tour="vm-settings-nav" style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
-        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange })}</StSubPage>
+        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier })}</StSubPage>
         : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} />}
       {toast && <StToast text={toast} />}
       {showDelete && <DeleteAccountModal email={u.email} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
@@ -177,7 +179,7 @@ function StList({ u, onRow, isMobile }) {
           <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{u.name}</div>
           <Mono size={11} color={VM.ink3}>{u.email}</Mono>
         </div>
-        <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: VM.tealInk, background: VM.paper, border: `1px solid ${VM.tealTint2}`, borderRadius: 6, padding: '3px 8px' }}>{u.tier || 'Free'}</span>
+        <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: VM.tealInk, background: VM.paper, border: `1px solid ${VM.tealTint2}`, borderRadius: 6, padding: '3px 8px' }}>{planTier}</span>
         <i className="ti ti-chevron-right" style={{ fontSize: 18, color: VM.ink3 }}></i>
       </div>
 
@@ -963,7 +965,8 @@ function ActivitySection({ go, showToast }) {
 
 // ── per-section content ───────────────────────────────────────────────────────
 function renderSection(id, ctx) {
-  const { go, u, showToast, isMobile, theme, onThemeChange } = ctx;
+  const { go, u, showToast, isMobile, theme, onThemeChange, planTier } = ctx;
+  const tier = planTier || u.tier || 'Free';   // current plan (backend-driven)
   switch (id) {
     case 'profile': return (
       <React.Fragment>
@@ -984,15 +987,21 @@ function renderSection(id, ctx) {
       <React.Fragment>
         <div style={{ background: `linear-gradient(110deg, ${VM.forest}, ${VM.teal})`, color: VM.paperWarm, borderRadius: 16, padding: '20px 22px', marginBottom: 16 }}>
           <Mono size={10} color="rgba(255,255,255,0.7)" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Current plan</Mono>
-          <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 26, margin: '4px 0 2px' }}>{u.tier || 'Free'}</div>
-          <div style={{ fontFamily: VM.serif, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>{u.tier === 'Business' ? 'Everything, for teams.' : 'Upgrade for live data, alerts and more.'}</div>
+          <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 26, margin: '4px 0 2px' }}>{tier}</div>
+          <div style={{ fontFamily: VM.serif, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>{tier === 'Business' ? 'Everything, for teams.' : tier === 'Free' ? 'Upgrade for live data, alerts and more.' : 'Thanks for subscribing — full access unlocked.'}</div>
         </div>
         <Label style={{ display: 'block', marginBottom: 8 }}>Plans</Label>
         {[{ p: 'Free', price: '£0', d: 'History-led research, delayed data' }, { p: 'Plus', price: '£9/mo', d: 'Live data, watchlists, alerts' }, { p: 'Pro', price: '£19/mo', d: 'Analogue engine, exports, priority' }, { p: 'Business', price: 'Contact', d: 'Teams, seats, admin & SSO' }].map((pl, i) => (
-          <div key={pl.p} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', background: VM.paper, border: `1px solid ${pl.p === (u.tier || 'Free') ? VM.forest : VM.borderSoft}`, borderRadius: 12, marginBottom: 8 }}>
+          <div key={pl.p} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', background: VM.paper, border: `1px solid ${pl.p === tier ? VM.forest : VM.borderSoft}`, borderRadius: 12, marginBottom: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}><span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 16 }}>{pl.p}</span><div><Mono size={10} color={VM.ink3}>{pl.d}</Mono></div></div>
             <Mono size={13} weight={700}>{pl.price}</Mono>
-            {pl.p === (u.tier || 'Free') ? <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.tealInk }}>CURRENT</span> : <Btn onClick={() => showToast('Checkout (mock) — Stripe later.')} style={{ fontSize: 13, padding: '6px 14px' }}>Choose</Btn>}
+            {pl.p === tier ? <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.tealInk }}>CURRENT</span> : <Btn onClick={async () => {
+              const id = pl.p.toLowerCase();   // 'plus' | 'pro' | 'business' | 'free'
+              if (id === 'business') return showToast('Contact sales — coming soon.');
+              if (id === 'free')     return showToast('To downgrade, cancel from the billing portal (coming soon).');
+              const started = await vmStartCheckout(id);   // → real Stripe checkout
+              if (!started) showToast('Billing isn’t set up yet.');
+            }} style={{ fontSize: 13, padding: '6px 14px' }}>Choose</Btn>}
           </div>
         ))}
         <StCard title="Payment method" style={{ marginTop: 8 }}>

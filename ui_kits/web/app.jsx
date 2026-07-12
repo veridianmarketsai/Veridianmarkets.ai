@@ -20,7 +20,10 @@ const ROUTE_PATHS = {
   settings:    '/settings',
   calendar:    '/calendar',
   news:        '/news',
+  upgrade:     '/upgrade',
 };
+// Rail items gated behind a paying plan — non-payers are routed to /upgrade.
+const GATED_ROUTES = ['news', 'calendar', 'supply'];
 const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
 const ROUTE_TITLES = {
   landing:'Veridian Markets · history-led finance',
@@ -31,6 +34,7 @@ const ROUTE_TITLES = {
   learn:'Learn · Veridian Markets', memoir:'Read memoir · Veridian Markets',
   admin:'Admin · Veridian Markets', settings:'Settings · Veridian Markets',
   calendar:'Calendar · Veridian Markets', news:'News · Veridian Markets', dashboard:'Veridian Markets',
+  upgrade:'Upgrade · Veridian Markets',
 };
 
 function pathToState(pathname) {
@@ -255,6 +259,22 @@ function App() {
   // logged in across days without re-entering the password).
   useEffectApp(() => { vmEnsureFreshSession().then(u => { if (u) setUser(u); }); }, []);
 
+  // ── Subscription plan (MOCK until Stripe/billing) ──────────────────────────
+  // Everyone starts on 'free'; the /upgrade page flips them to a paid plan. A
+  // paying user (signed in + plan≠free) unlocks the gated rail items.
+  const [plan, setPlan] = useStateApp(() => { try { return localStorage.getItem('vm_plan') || 'free'; } catch { return 'free'; } });
+  useEffectApp(() => { try { localStorage.setItem('vm_plan', plan); } catch {} }, [plan]);
+  // Source of truth = the backend (vm-billing-status). On load / after sign-in,
+  // fetch the real plan and reconcile the local cache. No-op until statusUrl is set.
+  useEffectApp(() => { if (signedIn && typeof vmFetchPlan === 'function') vmFetchPlan().then(p => { if (p) setPlan(p); }); }, [signedIn]);
+  const isPaying = signedIn && plan !== 'free';
+  // Where to send the user back after they upgrade (the page they were blocked from).
+  const [pendingRoute, setPendingRoute] = useStateApp(null);
+  const onLockedClick = (id) => { setPendingRoute(id); go('upgrade'); };
+  // Mock "purchase": set the plan, then return to the blocked page (paid plans
+  // only — a downgrade to free would just re-hit the paywall, so go home).
+  const upgradePlan = (p) => { setPlan(p); const back = pendingRoute; setPendingRoute(null); go(p !== 'free' && back && back !== 'upgrade' ? back : 'front'); };
+
   // Account mode — Personal ⇄ Business. A persisted preference that the rail
   // toggles; switching jumps to that mode's home (My Account / My Business).
   const [accountMode, setAccountMode] = useStateApp(() => { try { return localStorage.getItem('vm_account_mode') || 'personal'; } catch { return 'personal'; } });
@@ -271,10 +291,15 @@ function App() {
   const isAdmin = !!(user && user.role === 'admin');
   const gatedFromBusiness = route==='mybusiness' && !signedIn;
   const gatedFromAdmin = route==='admin' && !isAdmin;
+  const gatedByPlan = GATED_ROUTES.includes(route) && !isPaying;   // paywall
   const effRoute = gatedFromBusiness ? 'signin'
     : gatedFromAdmin ? (signedIn ? 'front' : 'signin')
+    : gatedByPlan ? 'upgrade'                     // non-payer → upgrade page
     : (route==='signin' && signedIn) ? 'front'   // already signed in → never show the sign-in page (temporary)
     : route;
+  // Remember the page a non-payer was blocked from (incl. direct URL hits) so the
+  // upgrade page can send them there after they subscribe.
+  useEffectApp(() => { if (gatedByPlan) setPendingRoute(route); }, [gatedByPlan, route]);
 
   // map rail ids to routes (rail uses 'screener' & 'supply' & 'history' & 'front')
   const railRoute = effRoute==='dashboard' ? 'screener' : effRoute;
@@ -291,9 +316,10 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
+  else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : gatedFromBusiness ? 'mybusiness' : 'myportfolio'} isMobile={isMobile} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
@@ -317,7 +343,7 @@ function App() {
         </main>
       ) : (
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
-          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} isAdmin={isAdmin} accountMode={accountMode} onModeChange={switchMode} />
+          <Rail route={railRoute} go={go} mobile={isMobile} open={menuOpen} onClose={()=>setMenuOpen(false)} signedIn={signedIn} user={user} onSignOut={signOut} isAdmin={isAdmin} accountMode={accountMode} onModeChange={switchMode} lockedIds={isPaying ? [] : GATED_ROUTES} onLockedClick={onLockedClick} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
             <IndexStrip />
             <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>

@@ -42,7 +42,7 @@ const RAIL_GROUPS = [
   { head:null, items:[ {id:'learn', label:'Learn'}, {id:'memoir', label:'Read memoir', tone:'teal'} ] },
 ];
 
-function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isAdmin, accountMode, onModeChange }) {
+function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isAdmin, accountMode, onModeChange, lockedIds = [], onLockedClick }) {
   // The You group is personalised. When signed in, Sign-out + Settings drop to a
   // pinned bottom group; admins get an "Admin" item. Signed out: keep Sign in,
   // hide Settings. The You account item follows the Personal/Business mode.
@@ -116,18 +116,22 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isA
               const isAuth = it.id==='signin'; const showSignOut = isAuth && signedIn;
               const active = it.id && it.id===route && !showSignOut;
               const clickable = !!it.id;
+              const locked = clickable && lockedIds.includes(it.id);   // paywalled item
               const label = showSignOut ? 'Sign out' : it.label;
-              const onItemClick = showSignOut ? onSignOut : (clickable ? ()=>go(it.id) : undefined);
+              const onItemClick = showSignOut ? onSignOut
+                : locked ? ()=>onLockedClick(it.id)
+                : (clickable ? ()=>go(it.id) : undefined);
               return (
-                <div key={ii} onClick={onItemClick} style={{
+                <div key={ii} onClick={onItemClick} title={locked ? 'Upgrade to unlock' : undefined} style={{
                   fontFamily:VM.serif, fontSize:15, padding:'6px 10px', borderRadius:7, cursor: clickable?'pointer':'default',
                   background: active?VM.paper:'transparent',
                   border: active?`1px solid ${VM.border}`:'1px solid transparent',
-                  color: it.tone==='teal'?VM.teal : active?VM.ink:VM.ink2, fontWeight: active?600:400,
+                  color: it.tone==='teal'?VM.teal : active?VM.ink : locked?VM.ink3 : VM.ink2, fontWeight: active?600:400,
                   display:'flex', alignItems:'center', flexWrap:'wrap', gap:6,
                 }}>
                   {it.icon && <i className={'ti ti-'+it.icon} style={{ fontSize:14 }}></i>}
                   <span>{label}</span>
+                  {locked && <i className="ti ti-lock" style={{ fontSize:12.5, color:VM.faint, marginLeft:'auto' }}></i>}
                   {showSignOut && <i className="ti ti-logout" style={{ fontSize:13, color:VM.ink3 }}></i>}
                   {it.badge && (
                     <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontFamily:VM.mono, fontSize:8.5,
