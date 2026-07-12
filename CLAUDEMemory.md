@@ -63,6 +63,12 @@ placeholders until their page exists.
 
 ### 2026-06-30
 
+- **Started `backend-signin-AWS-1.1`.** New branch (from main) — **first real backend
+  work**: replacing the placeholder client-side auth (`VM_ACCOUNTS` / SHA-256 / localStorage
+  session in `app.jsx`) with **real AWS-backed sign-in** (Cognito, per the README data/backend
+  plan). Branch name given verbatim by the user (kept the `AWS` casing + `-1.1`, a fresh
+  counter for the new backend track rather than the Foundation-2 UI counter).
+
 - **Started `analysis-tools-2.1`.** New branch (from main) for additional **analysis
   tools**. (User said "analysis tools" → feature-scoped `-2.1`.) Clarified to mean
   **admin-facing operator analytics**, not market tools for end users.
