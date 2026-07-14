@@ -1,6 +1,11 @@
 // Veridian Markets — shared company header (breadcrumb, ticker lockup, tabs, quote).
 function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
   const tabs = ['Overview','Supply chain','Financials','Patents','History','News'];
+  // Live quote (Finnhub via our cached Lambda); falls back to the mock price.
+  const live = useVMQuote(c.ticker);
+  const price = live ? live.price.toFixed(2) : c.price;
+  const chgTxt = live ? vmFmtPct(live.pct) : c.chg;
+  const dir = live ? live.dir : c.dir;
   // The drill trail — each crumb is { co, tab } so the path reads
   // Search › SPX › Supply chain › AAPL › Financials. Earlier crumbs (company AND
   // its tab) are clickable to step back to exactly where you were.
@@ -40,7 +45,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
           <span style={{ fontFamily:VM.serif, fontSize: isMobile?16:20, color:VM.ink3 }}>{c.name}</span>
         </div>
         <div style={{ display:'flex', gap: isMobile?20:26, alignItems:'flex-start' }}>
-          <div><Label>Price</Label><div style={{ display:'flex', alignItems:'baseline', gap:8 }}><Mono size={isMobile?18:22} weight={700}>${c.price}</Mono><Chg dir={c.dir}>{c.chg}</Chg></div></div>
+          <div><Label style={{ display:'inline-flex', alignItems:'center', gap:5 }}>Price {live && <span title="Live · cached ≤2 min" style={{ width:6, height:6, borderRadius:999, background:VM.up, display:'inline-block' }}></span>}</Label><div style={{ display:'flex', alignItems:'baseline', gap:8 }}><Mono size={isMobile?18:22} weight={700}>${price}</Mono><Chg dir={dir}>{chgTxt}</Chg></div></div>
           <div><Label>Mkt cap</Label><div><Mono size={isMobile?18:22} weight={700}>{c.cap}</Mono></div><Mono size={10} color={VM.ink3}>P/E 37.36 · div 0.34%</Mono></div>
         </div>
       </div>

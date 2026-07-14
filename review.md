@@ -21,6 +21,12 @@ See [`payment.md`](payment.md) for the full payments design.
   user and modifies the existing subscription instead of creating a new one. (Interim
   guard already in place: the app hides "Upgrade" for the user's current plan.)
 
+- [ ] **Currency mismatch** — the UI now shows prices in **USD ($9 / $19)**, but the
+  Stripe products/Payment Links are still priced in **GBP (£9 / £19)** — so checkout
+  charges £. Before go-live, **recreate the Stripe prices in USD** (new Price IDs →
+  update `VM_BILLING.prices` + the Payment Links) so the displayed and charged
+  currency match.
+
 - [ ] **Go-live** — swap Stripe **test → live** keys; finish account activation
   ("Managed payments: needs info"); move confirmation/email delivery from the Cognito
   default sender to **Amazon SES**.

@@ -991,7 +991,7 @@ function renderSection(id, ctx) {
           <div style={{ fontFamily: VM.serif, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>{tier === 'Business' ? 'Everything, for teams.' : tier === 'Free' ? 'Upgrade for live data, alerts and more.' : 'Thanks for subscribing — full access unlocked.'}</div>
         </div>
         <Label style={{ display: 'block', marginBottom: 8 }}>Plans</Label>
-        {[{ p: 'Free', price: '£0', d: 'History-led research, delayed data' }, { p: 'Plus', price: '£9/mo', d: 'Live data, watchlists, alerts' }, { p: 'Pro', price: '£19/mo', d: 'Analogue engine, exports, priority' }, { p: 'Business', price: 'Contact', d: 'Teams, seats, admin & SSO' }].map((pl, i) => (
+        {[{ p: 'Free', price: '$0', d: 'History-led research, delayed data' }, { p: 'Plus', price: '$9/mo', d: 'Live data, watchlists, alerts' }, { p: 'Pro', price: '$19/mo', d: 'Analogue engine, exports, priority' }, { p: 'Business', price: 'Contact', d: 'Teams, seats, admin & SSO' }].map((pl, i) => (
           <div key={pl.p} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', background: VM.paper, border: `1px solid ${pl.p === tier ? VM.forest : VM.borderSoft}`, borderRadius: 12, marginBottom: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}><span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 16 }}>{pl.p}</span><div><Mono size={10} color={VM.ink3}>{pl.d}</Mono></div></div>
             <Mono size={13} weight={700}>{pl.price}</Mono>

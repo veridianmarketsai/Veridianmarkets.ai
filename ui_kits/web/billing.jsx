@@ -8,7 +8,8 @@
 //   3. neither       → return false so the caller can run its local mock.
 
 const VM_BILLING = {
-  currency: '£',
+  currency: '$',   // display currency (USD). NOTE: Stripe products are still GBP —
+                   // recreate the Stripe prices in USD before go-live (see review.md).
   apiBase: '',   // vm-billing-checkout Lambda Function URL. Empty until built.
   statusUrl: 'https://v4fittjxd55ruqgtiqxbqyxvai0huddy.lambda-url.us-east-1.on.aws/', // vm-billing-status Lambda (returns the real plan)
   paymentLinks: {
