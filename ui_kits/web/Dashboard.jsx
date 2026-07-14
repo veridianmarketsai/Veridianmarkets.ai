@@ -461,8 +461,12 @@ function DashFinancials({ data, c, isMobile }) {
   const [analysisOpen, setAnalysisOpen] = React.useState(false);
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const analysisBtnRef = React.useRef(null);
-  const rows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheet];
-  const periods = data.periods;
+  // Real "financials as reported" (SEC filings via Finnhub) when available for
+  // this ticker/period; otherwise fall back to the curated mock (data).
+  const fin = typeof useVMFinancials === 'function' ? useVMFinancials(c.ticker, period) : { data:null, loading:false, live:false };
+  const D = fin.data || data;
+  const rows = { income:D.income, balance:D.balance, cashflow:D.cashflow }[sheet];
+  const periods = D.periods;
   const showDelta = showPct || showAbs;
   const deltaCols = showPct + showAbs;
 
@@ -486,7 +490,7 @@ function DashFinancials({ data, c, isMobile }) {
   // columns interleaved between periods (so the export mirrors the on-screen
   // table). Values stay computable: USD millions, except per-share rows.
   function buildGrid(sheetId, pct, abs) {
-    const sheetRows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheetId];
+    const sheetRows = { income:D.income, balance:D.balance, cashflow:D.cashflow }[sheetId];
     const header = ['Breakdown'];
     periods.forEach((p, pi) => {
       header.push(p);
@@ -627,6 +631,15 @@ function DashFinancials({ data, c, isMobile }) {
             <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
           </button>
         </div>
+      </div>
+      {/* Source line: real SEC filings when available, else the illustrative mock. */}
+      <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:12, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.03em', color:VM.ink3 }}>
+        {fin.loading
+          ? <><i className="ti ti-loader-2" style={{ fontSize:12 }}></i>Loading filings…</>
+          : fin.live
+            ? <><span style={{ width:7, height:7, borderRadius:'50%', background:VM.teal, display:'inline-block' }}></span>
+                As reported · SEC filings via Finnhub{D.filedDate ? ` · latest filed ${String(D.filedDate).slice(0,10)}` : ''} · USD</>
+            : <><i className="ti ti-info-circle" style={{ fontSize:12 }}></i>Illustrative figures (live filings unavailable for this ticker)</>}
       </div>
       <div data-tour="vm-fin-table" ref={scrollRef} onPointerDown={onDragDown} onPointerMove={onDragMove} onPointerUp={onDragUp} onPointerLeave={onDragUp} onPointerCancel={onDragUp}
         style={{ overflowX:'auto', cursor:'grab', userSelect:'none', touchAction:'pan-y' }}>
