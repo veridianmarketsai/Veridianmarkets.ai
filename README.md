@@ -315,6 +315,18 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-14 (financials as reported)
+
+- **Real financial statements (SEC filings via Finnhub).** The company **Financials**
+  tab now shows **as-reported** Income / Balance / Cash-flow figures (USD millions)
+  when available, falling back to the illustrative mock otherwise (a source line marks
+  which). New [`financials.jsx`](ui_kits/web/financials.jsx) maps raw **us-gaap concepts**
+  → the curated rows (by concept, so periods/companies line up), so the existing %Δ/$Δ
+  toggles and CSV/Excel export work unchanged. Backed by a **read-through cache**:
+  **`vm-financials`** Lambda ([`lambda/marketdata/vm-financials/`](lambda/marketdata/vm-financials/))
+  caches Finnhub `/stock/financials-reported` in DynamoDB (`vm-financials`, 24h TTL,
+  8 latest filings, payload as one JSON attr). US filers only. _(branch: `financials-1.1`)_
+
 ### 2026-07-14 (market data: live quotes)
 
 - **Live prices (Finnhub, cached).** Real-time US-equity quotes now drive the

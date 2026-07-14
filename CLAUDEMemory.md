@@ -64,6 +64,17 @@ placeholders until their page exists.
 
 ### 2026-07-14
 
+- **`financials-1.1` — financials as reported (cached). Merged to main.** `vm-financials`
+  Lambda caches Finnhub `/stock/financials-reported` in DynamoDB (`vm-financials`, key
+  `symbol#freq`, **24h TTL**, whole payload as one JSON `S` attr to dodge the 400KB limit,
+  trimmed to 8 latest filings). `financials.jsx` (`vmFinancials`/`vmBuildStatements`/
+  `useVMFinancials`) maps raw **us-gaap concepts** → the curated Income/Balance/Cashflow
+  rows (matched by concept suffix after `_`, first-wins; values ÷1e6 to USD millions, EPS
+  raw) → same `{periods,income,balance,cashflow}` shape the tab already renders/exports.
+  `DashFinancials` uses live filings per ticker/period, else the mock, with an "as reported
+  vs illustrative" source line. **US filers only** (free tier). Same Lambda recipe as
+  `vm-quote`: CORS in code + Function URL CORS off, 30s timeout, DynamoDB Get/PutItem IAM.
+
 - **`marketdata-1.1` — live Finnhub quotes (cached). Merged to main.** Read-through
   cache shipped: `vm-quote` Lambda serves a **`vm-quotes`** DynamoDB entry (2-min TTL) or
   fetches Finnhub on a miss. Frontend `marketdata.jsx` (`vmQuotes`/`useVMQuotes`/`vmApply`,
