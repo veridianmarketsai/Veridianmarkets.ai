@@ -64,6 +64,13 @@ placeholders until their page exists.
 
 ### 2026-06-30
 
+- **Started `marketdata-1.1`.** New branch (from main) for **live market data** via the
+  **Finnhub API** (backend track, `-1.1`). Strategy (`marketdataapi.md`): **read-through
+  cache** in DynamoDB (`vm-quotes`) with a **2-minute TTL** — quotes fetched from Finnhub
+  **only when a user accesses a symbol AND the cached copy is stale** (>120s); one fetch
+  serves all users; key stays server-side in a `vm-quote` Lambda; `data.jsx` seam swaps
+  mock → cached quotes. Build TBD (user gets Finnhub key first).
+
 - **`backend-signin-AWS-1.1` — real Cognito sign-in. Merged to main.** Replaced the
   placeholder `VM_ACCOUNTS`/SHA-256 auth with **AWS Cognito** (pool `us-east-1_FusGT8Ntu`,
   public app client `7idj7ncoa195pgqiaqs7376k8d`, no secret, `USER_PASSWORD_AUTH`). New
