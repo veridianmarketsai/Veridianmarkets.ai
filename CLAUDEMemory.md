@@ -62,6 +62,18 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-14
+
+- **`marketdata-1.1` — live Finnhub quotes (cached). Merged to main.** Read-through
+  cache shipped: `vm-quote` Lambda serves a **`vm-quotes`** DynamoDB entry (2-min TTL) or
+  fetches Finnhub on a miss. Frontend `marketdata.jsx` (`vmQuotes`/`useVMQuotes`/`vmApply`,
+  2-min client cache) drives **company header, Home, Search** in **USD** with a live dot;
+  non-equities stay mock (free tier = US stocks only). **Setup gotchas (fixed):** CORS must
+  be single-source — code sets the headers, so the **Function URL CORS config is OFF** (had
+  `*, *` → blocked); **Lambda timeout raised to 30s** (default 3s timed out on the 10-symbol
+  Home request → no CORS header on the error). IAM role needs DynamoDB Get/PutItem. Guide
+  `marketdataapi.md`.
+
 ### 2026-06-30
 
 - **Started `marketdata-1.1`.** New branch (from main) for **live market data** via the
