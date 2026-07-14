@@ -21,9 +21,11 @@ function FrontPage({ go, isMobile }) {
   const [companyQuery, setCompanyQuery] = React.useState('');  // 'Find a company' search filter
   const [openRow, setOpenRow] = React.useState(null);          // ticker of the row whose eye-preview is expanded
   const q = companyQuery.trim().toLowerCase();
-  const companyRows = VM_COMPANIES
+  const baseCompanyRows = VM_COMPANIES
     .filter(c => !q || c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q))
     .slice(0, 10);
+  const liveMap = useVMQuotes(baseCompanyRows.map(c => c.ticker));   // live quotes overlay
+  const companyRows = baseCompanyRows.map(c => vmApply(c, liveMap));
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
   const [screenerHover, setScreenerHover] = React.useState(false);  // hover shade on the 'Open full screener' button
   const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button

@@ -315,6 +315,18 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-14 (market data: live quotes)
+
+- **Live prices (Finnhub, cached).** Real-time US-equity quotes now drive the
+  company header, **Home**, and **Search**, shown in **USD** with a green live dot.
+  New [`marketdata.jsx`](ui_kits/web/marketdata.jsx) (`vmQuotes` / `useVMQuotes` /
+  `vmApply`, 2-min client cache, non-equities left as mock). Backed by a
+  **read-through cache**: **`vm-quote`** Lambda ([`lambda/marketdata/vm-quote/`](lambda/marketdata/vm-quote/))
+  serves a DynamoDB-cached quote (`vm-quotes`, 2-min TTL) or fetches from Finnhub on
+  a miss — one fetch serves every user, ≤1 Finnhub call per symbol per 2 min. Finnhub
+  key stays server-side; CORS handled in code (Function URL CORS off); Lambda timeout
+  30s for bulk requests. Guide: [`marketdataapi.md`](marketdataapi.md). _(branch: `marketdata-1.1`)_
+
 ### 2026-06-30 (backend: auth + payments)
 
 - **Real sign-in (AWS Cognito).** Replaced the client-side placeholder auth with

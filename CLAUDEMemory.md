@@ -62,7 +62,26 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-14
+
+- **`marketdata-1.1` — live Finnhub quotes (cached). Merged to main.** Read-through
+  cache shipped: `vm-quote` Lambda serves a **`vm-quotes`** DynamoDB entry (2-min TTL) or
+  fetches Finnhub on a miss. Frontend `marketdata.jsx` (`vmQuotes`/`useVMQuotes`/`vmApply`,
+  2-min client cache) drives **company header, Home, Search** in **USD** with a live dot;
+  non-equities stay mock (free tier = US stocks only). **Setup gotchas (fixed):** CORS must
+  be single-source — code sets the headers, so the **Function URL CORS config is OFF** (had
+  `*, *` → blocked); **Lambda timeout raised to 30s** (default 3s timed out on the 10-symbol
+  Home request → no CORS header on the error). IAM role needs DynamoDB Get/PutItem. Guide
+  `marketdataapi.md`.
+
 ### 2026-06-30
+
+- **Started `marketdata-1.1`.** New branch (from main) for **live market data** via the
+  **Finnhub API** (backend track, `-1.1`). Strategy (`marketdataapi.md`): **read-through
+  cache** in DynamoDB (`vm-quotes`) with a **2-minute TTL** — quotes fetched from Finnhub
+  **only when a user accesses a symbol AND the cached copy is stale** (>120s); one fetch
+  serves all users; key stays server-side in a `vm-quote` Lambda; `data.jsx` seam swaps
+  mock → cached quotes. Build TBD (user gets Finnhub key first).
 
 - **`backend-signin-AWS-1.1` — real Cognito sign-in. Merged to main.** Replaced the
   placeholder `VM_ACCOUNTS`/SHA-256 auth with **AWS Cognito** (pool `us-east-1_FusGT8Ntu`,

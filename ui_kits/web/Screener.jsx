@@ -8,6 +8,7 @@ function Screener({ go, isMobile }) {
   const setFilterVal = (i, v) => setFilters(fs => fs.map((f, j) => j === i ? { ...f, v } : f));
   const removeFilter = (i) => setFilters(fs => fs.filter((_, j) => j !== i));
   const addFilter = (k) => setFilters(fs => [...fs, { k, v: FILTER_DEFS[k][0] }]);
+  const liveMap = useVMQuotes(VM_COMPANIES.map(c => c.ticker));   // live quotes overlay
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Search</b></Mono>
@@ -48,11 +49,14 @@ function Screener({ go, isMobile }) {
             <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
           </div>
         )}
-        {VM_COMPANIES.map((c,i)=>(
-          <Row key={c.ticker} c={c} open={open===c.ticker} last={i===VM_COMPANIES.length-1} isMobile={isMobile}
-            onEye={()=>setOpen(open===c.ticker?null:c.ticker)}
-            onNet={()=>go('supply', c)} onOpen={()=>go('dashboard', c)} />
-        ))}
+        {VM_COMPANIES.map((c,i)=>{
+          const lc = vmApply(c, liveMap);
+          return (
+            <Row key={c.ticker} c={lc} open={open===c.ticker} last={i===VM_COMPANIES.length-1} isMobile={isMobile}
+              onEye={()=>setOpen(open===c.ticker?null:c.ticker)}
+              onNet={()=>go('supply', lc)} onOpen={()=>go('dashboard', lc)} />
+          );
+        })}
       </div>
     </div>
   );
