@@ -23,7 +23,9 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
       {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} go={go} isMobile={isMobile} /> : <ProfileOverview c={c} go={go} isMobile={isMobile} />)}
       {curTab === 'Supply chain' && (known ? <DashScn        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Supply-chain map" />)}
       {curTab === 'Financials'   && <DashFinancials data={known ? data.financials : EMPTY_FIN} c={c} isMobile={isMobile} />}
-      {curTab === 'Patents'      && (known ? <DashPatents    data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />)}
+      {curTab === 'Patents'      && (typeof PatentsLive === 'function'
+        ? <PatentsLive c={c} isMobile={isMobile} fallback={known ? <DashPatents data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />} />
+        : (known ? <DashPatents data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />))}
       {curTab === 'History'      && (known ? <DashHistory    c={c} data={data.history} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Historical analogues" />)}
       {curTab === 'News'         && (known ? <DashNews        c={c} go={go} isMobile={isMobile} /> : <LiveNewsFeed scope={c.ticker} isMobile={isMobile} emptyLabel={`No recent news for ${c.ticker}.`} />)}
     </div>
