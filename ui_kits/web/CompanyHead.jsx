@@ -12,6 +12,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
   const met  = prof.metric || {};
   const peTxt = met.peTTM != null ? `P/E ${vmNum2(met.peTTM)}` : 'P/E —';
   const dyTxt = met.dividendYield != null ? `div ${vmPct1(met.dividendYield)}` : 'div —';
+  const logo = prof.profile && prof.profile.logo ? prof.profile.logo : null;   // real company logo (Finnhub)
   // The drill trail — each crumb is { co, tab } so the path reads
   // Search › SPX › Supply chain › AAPL › Financials. Earlier crumbs (company AND
   // its tab) are clickable to step back to exactly where you were.
@@ -46,9 +47,14 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
       </Mono>
       <div style={{ display:'flex', flexDirection: isMobile?'column':'row', justifyContent:'space-between',
         alignItems: isMobile?'stretch':'flex-start', gap: isMobile?12:0, marginTop:10 }}>
-        <div style={{ display:'flex', alignItems:'baseline', gap: isMobile?10:14, flexWrap:'wrap' }}>
-          <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?34:52, lineHeight:0.9, letterSpacing:'0.01em' }}>{c.ticker}</span>
-          <span style={{ fontFamily:VM.serif, fontSize: isMobile?16:20, color:VM.ink3 }}>{c.name}</span>
+        <div style={{ display:'flex', alignItems:'center', gap: isMobile?10:14 }}>
+          {logo && <img src={logo} alt="" onError={e=>{ e.currentTarget.style.display='none'; }}
+            style={{ width: isMobile?36:48, height: isMobile?36:48, borderRadius:10, objectFit:'contain',
+              background:'#fff', border:`1px solid ${VM.borderHair}`, padding:3, flexShrink:0 }} />}
+          <div style={{ display:'flex', alignItems:'baseline', gap: isMobile?10:14, flexWrap:'wrap' }}>
+            <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?34:52, lineHeight:0.9, letterSpacing:'0.01em' }}>{c.ticker}</span>
+            <span style={{ fontFamily:VM.serif, fontSize: isMobile?16:20, color:VM.ink3 }}>{c.name}</span>
+          </div>
         </div>
         <div style={{ display:'flex', gap: isMobile?20:26, alignItems:'flex-start' }}>
           <div><Label style={{ display:'inline-flex', alignItems:'center', gap:5 }}>Price {live && <span title="Live · cached ≤2 min" style={{ width:6, height:6, borderRadius:999, background:VM.up, display:'inline-block' }}></span>}</Label><div style={{ display:'flex', alignItems:'baseline', gap:8 }}><Mono size={isMobile?18:22} weight={700}>${price}</Mono><Chg dir={dir}>{chgTxt}</Chg></div></div>
