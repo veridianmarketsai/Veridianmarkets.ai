@@ -25,7 +25,7 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
       {curTab === 'Financials'   && <DashFinancials data={known ? data.financials : EMPTY_FIN} c={c} isMobile={isMobile} />}
       {curTab === 'Patents'      && (known ? <DashPatents    data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />)}
       {curTab === 'History'      && (known ? <DashHistory    c={c} data={data.history} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Historical analogues" />)}
-      {curTab === 'News'         && (known ? <DashNews        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Company news" />)}
+      {curTab === 'News'         && (known ? <DashNews        c={c} go={go} isMobile={isMobile} /> : <LiveNewsFeed scope={c.ticker} isMobile={isMobile} emptyLabel={`No recent news for ${c.ticker}.`} />)}
     </div>
   );
 }
@@ -129,6 +129,9 @@ function DashNews({ c, go, isMobile, scn }) {
   const [nsub, setNsub] = React.useState('all');
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const openTicker = (t) => { const co = VM_COMPANIES.find(x => x.ticker === t); if (co) go && go('dashboard', co); };
+  // Real latest headlines for this company (dashboard News tab only, not the
+  // dependency-map view). Shown as a strip above the history-framed stories.
+  const liveCo = typeof useVMNews === 'function' ? useVMNews(scn ? '' : c.ticker) : { cards: [], live: false };
 
   let list;
   if (scn) {
@@ -155,6 +158,24 @@ function DashNews({ c, go, isMobile, scn }) {
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
       </div>
+
+      {!scn && liveCo.live && (
+        <div style={{ marginBottom: 22 }}>
+          <Mono size={9} color={VM.terra} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
+            <span style={{ width:6, height:6, borderRadius:999, background:VM.teal, display:'inline-block' }}></span>Latest headlines · live
+          </Mono>
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap:12 }}>
+            {liveCo.cards.slice(0,4).map((n,i)=>(
+              <a key={n.url||i} href={n.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration:'none', background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:10, padding:'12px 13px', display:'flex', flexDirection:'column' }}>
+                <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14, lineHeight:1.2, color:VM.ink, display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{n.headline}</span>
+                <span style={{ marginTop:8, fontFamily:VM.mono, fontSize:9, color:VM.ink3 }}>{n.source}{n.time?` · ${n.time}`:''} · read ↗</span>
+              </a>
+            ))}
+          </div>
+          <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, margin:'12px 0 0' }}>Below: the same market, read through the lens of history.</div>
+          <div style={{ height:1, background:VM.borderHair, margin:'16px 0 0' }}></div>
+        </div>
+      )}
 
       {scn && (
         <div style={{ marginBottom: 18 }}>
