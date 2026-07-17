@@ -62,6 +62,31 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-17 — Finnhub data build-out (6 Lambdas). Merged to main.
+
+Same read-through-cache recipe each time (DynamoDB key **`pk`**, code-set CORS +
+Function-URL CORS **off**, 30s timeout, `AmazonDynamoDBFullAccess`). All stacked
+branches merged via `earnings-calendar`. Roadmap/tracker: `finnhub-roadmap.md`.
+
+- **`vm-search`** (`/search`) → `symbolsearch.jsx` `SymbolSearchBox` on Home+Search;
+  opens any US ticker (non-curated = real price/financials + `TabUnavailable` for
+  mock-only tabs). Table key `q` (not `pk`).
+- **`vm-profile`** (`/stock/profile2` + `/stock/metric`) → `profile.jsx`: header mkt
+  cap/P/E/yield (replaced hardcoded 37.36), `LiveMetrics` on every Overview,
+  `ProfileOverview` for searched tickers.
+- **`vm-news`** (`/news` + `/company-news`) → `newsfeed.jsx`: Home tiles, News page
+  (source links), company News tab + "Latest headlines" strip. 15m TTL.
+- **`vm-signals`** (recommendation/earnings/peers/insider) → `signals.jsx`
+  `SignalsPanel`; Screener Analyst filter live via `useVMConsensus`.
+- **`vm-patents`** (`/stock/uspto-patent`) → `patents.jsx` `PatentsLive` (stat row,
+  title-classified tech breakdown, filing trend, recent). Free tier caps ~250.
+- **`vm-earnings-cal`** (`/calendar/earnings`) → `earningscal.jsx`: month's biggest
+  reporters (ranked by revenue est — curated-only was too sparse) on the Calendar
+  grid/day-panel/list. Free tier chokes on >~1-month ranges → fetch per month.
+
+**Gotcha:** `news.jsx` collides with `News.jsx` on Windows (case-insensitive FS) —
+the helper is `newsfeed.jsx`. Remaining free endpoints (Phase 2) in `finnhub-roadmap.md`.
+
 ### 2026-07-14
 
 - **`financials-1.1` — financials as reported (cached). Merged to main.** `vm-financials`
