@@ -4,6 +4,12 @@
 function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
   const c    = company || VM_COMPANIES[0];
   const data = resolveCompany(c.ticker);
+  // A ticker reached via symbol search may not be one of our curated companies.
+  // For those we still show the real live price (header) + as-reported financials,
+  // but the mock-only tabs get an honest "not yet available" placeholder instead
+  // of another company's data (resolveCompany falls back to AAPL for unknowns).
+  const known = typeof VM_COMPANY_DATA !== 'undefined' && !!VM_COMPANY_DATA[c.ticker];
+  const EMPTY_FIN = { periods:[], income:[], balance:[], cashflow:[] };
   // Tab is lifted to the app so the breadcrumb trail can record it; fall back to
   // local state if a parent doesn't supply it.
   const [tabLocal, setTabLocal] = React.useState('Overview');
@@ -14,12 +20,27 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
     <div style={{ padding: isMobile ? '16px 14px 80px' : '22px 32px 60px', maxWidth:1180, margin:'0 auto', overflowX: isMobile ? 'hidden' : 'visible' }}>
       <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} />
 
-      {curTab === 'Overview'     && <DashOverview   c={c} data={data} isMobile={isMobile} />}
-      {curTab === 'Supply chain' && <DashScn        c={c} go={go} isMobile={isMobile} />}
-      {curTab === 'Financials'   && <DashFinancials data={data.financials} c={c} isMobile={isMobile} />}
-      {curTab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
-      {curTab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
-      {curTab === 'News'         && <DashNews        c={c} go={go} isMobile={isMobile} />}
+      {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Company profile" />)}
+      {curTab === 'Supply chain' && (known ? <DashScn        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Supply-chain map" />)}
+      {curTab === 'Financials'   && <DashFinancials data={known ? data.financials : EMPTY_FIN} c={c} isMobile={isMobile} />}
+      {curTab === 'Patents'      && (known ? <DashPatents    data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />)}
+      {curTab === 'History'      && (known ? <DashHistory    c={c} data={data.history} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Historical analogues" />)}
+      {curTab === 'News'         && (known ? <DashNews        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Company news" />)}
+    </div>
+  );
+}
+
+// Honest empty state for a searched-but-not-curated ticker: live price + real
+// financials are available elsewhere; this mock-only tab has no data yet.
+function TabUnavailable({ ticker, what }) {
+  return (
+    <div style={{ marginTop:36, border:`1px solid ${VM.borderSoft}`, borderRadius:12, background:VM.paper, padding:'48px 24px', textAlign:'center' }}>
+      <i className="ti ti-file-search" style={{ fontSize:30, color:VM.ink3 }}></i>
+      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginTop:14 }}>{what} not yet available</div>
+      <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, marginTop:8, maxWidth:440, margin:'8px auto 0', lineHeight:1.6 }}>
+        <b>{ticker}</b> isn’t one of our curated companies yet. Its <b>live price</b> (header) and
+        <b> as-reported financials</b> (Financials tab) are available — the rest is coming.
+      </div>
     </div>
   );
 }

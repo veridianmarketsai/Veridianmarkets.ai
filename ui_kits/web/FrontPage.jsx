@@ -112,11 +112,9 @@ function FrontPage({ go, isMobile }) {
               background: screenerHover ? VM.paperDeep : VM.paper,
               transition:'background .15s ease, border-color .15s ease' }}>Open full screener →</span>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:9, background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
-          <i className="ti ti-search" style={{ fontSize:15, color:VM.ink3 }}></i>
-          <input value={companyQuery} onChange={e=>setCompanyQuery(e.target.value)} placeholder="Search by ticker or company name…"
-            style={{ flex:1, border:'none', outline:'none', background:'transparent', fontFamily:VM.serif, fontSize:15, color:VM.ink }} />
-          {companyQuery && <i onClick={()=>setCompanyQuery('')} className="ti ti-x" style={{ fontSize:14, color:VM.ink3, cursor:'pointer' }} title="Clear"></i>}
+        <div style={{ marginBottom:14 }}>
+          <SymbolSearchBox value={companyQuery} onChange={setCompanyQuery} go={go}
+            placeholder="Search any US stock by ticker or company name…" />
         </div>
         <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
           {/* Header grid MUST match CompanyRow's columns + gap so the labels line up with the data. */}
