@@ -20,7 +20,7 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
     <div style={{ padding: isMobile ? '16px 14px 80px' : '22px 32px 60px', maxWidth:1180, margin:'0 auto', overflowX: isMobile ? 'hidden' : 'visible' }}>
       <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} />
 
-      {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Company profile" />)}
+      {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} isMobile={isMobile} /> : <ProfileOverview c={c} isMobile={isMobile} />)}
       {curTab === 'Supply chain' && (known ? <DashScn        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Supply-chain map" />)}
       {curTab === 'Financials'   && <DashFinancials data={known ? data.financials : EMPTY_FIN} c={c} isMobile={isMobile} />}
       {curTab === 'Patents'      && (known ? <DashPatents    data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />)}
