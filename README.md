@@ -315,6 +315,32 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-17 (Finnhub data build-out)
+
+Six cached Lambdas + frontend wiring, all read-through DynamoDB caches (key `pk`,
+Function-URL CORS off, 30s timeout). See [`finnhub-roadmap.md`](finnhub-roadmap.md).
+
+- **Symbol search.** `vm-search` (Finnhub `/search`) → [`symbolsearch.jsx`](ui_kits/web/symbolsearch.jsx)
+  `SymbolSearchBox` live dropdown on Home + Search: curated companies then the whole
+  US universe. Any ticker opens a dashboard — non-curated ones get real price +
+  financials, honest placeholders elsewhere. _(branch: `symbolsearch`)_
+- **Company profile + metrics.** `vm-profile` (`/stock/profile2` + `/stock/metric`) →
+  [`profile.jsx`](ui_kits/web/profile.jsx): real header mkt cap · P/E · yield (kills the
+  hardcoded `37.36`), `LiveMetrics` panel on every Overview, `ProfileOverview` for
+  searched tickers. _(branch: `profile`)_
+- **Market + company news.** `vm-news` (`/news` + `/company-news`) →
+  [`newsfeed.jsx`](ui_kits/web/newsfeed.jsx): real Home story tiles, News page (links to
+  source), company News tab + a live "Latest headlines" strip. _(branch: `news`)_
+- **Company signals.** `vm-signals` (recommendation · earnings · peers · insider) →
+  [`signals.jsx`](ui_kits/web/signals.jsx) `SignalsPanel` in the Overview; the Screener
+  **Analyst filter is now live** (`useVMConsensus`). _(branch: `signals`)_
+- **Real patents.** `vm-patents` (`/stock/uspto-patent`) → [`patents.jsx`](ui_kits/web/patents.jsx)
+  `PatentsLive`: stat row, title-classified technology breakdown, filing trend, recent
+  patents. _(branch: `patents`)_
+- **Earnings calendar.** `vm-earnings-cal` (`/calendar/earnings`, ranked by revenue) →
+  [`earningscal.jsx`](ui_kits/web/earningscal.jsx): the month's biggest reporters on the
+  Calendar grid + day panel + list. _(branch: `earnings-calendar`)_
+
 ### 2026-07-14 (financials as reported)
 
 - **Real financial statements (SEC filings via Finnhub).** The company **Financials**

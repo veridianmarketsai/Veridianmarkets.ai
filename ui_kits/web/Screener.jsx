@@ -1,4 +1,16 @@
 // Veridian Markets — Company search / screener with eye-preview.
+
+// Does a live consensus score satisfy the chosen ANALYST filter value?
+// Unknown score (still loading / no coverage) → keep the row (don't hide).
+function analystMatch(score, v) {
+  if (score == null) return true;
+  if (v === 'Strong buy')     return score >= 4.3;
+  if (v === 'Buy or better')  return score >= 3.5;
+  if (v === 'Hold or better') return score >= 2.5;
+  if (v === 'Underperform')   return score < 2.5;
+  return true;
+}
+
 function Screener({ go, isMobile }) {
   const [open, setOpen] = React.useState(null);
   const [filters, setFilters] = React.useState([
@@ -8,7 +20,15 @@ function Screener({ go, isMobile }) {
   const setFilterVal = (i, v) => setFilters(fs => fs.map((f, j) => j === i ? { ...f, v } : f));
   const removeFilter = (i) => setFilters(fs => fs.filter((_, j) => j !== i));
   const addFilter = (k) => setFilters(fs => [...fs, { k, v: FILTER_DEFS[k][0] }]);
-  const liveMap = useVMQuotes(VM_COMPANIES.map(c => c.ticker));   // live quotes overlay
+  const [query, setQuery] = React.useState('');   // search box (ticker/name filter + symbol dropdown)
+  const ql = query.trim().toLowerCase();
+  const searched = ql ? VM_COMPANIES.filter(c => c.ticker.toLowerCase().includes(ql) || (c.name || '').toLowerCase().includes(ql)) : VM_COMPANIES;
+  // Real analyst filter: when an ANALYST chip is active, fetch each company's
+  // live consensus and keep only those that meet the threshold.
+  const analystFilter = filters.find(f => f.k === 'ANALYST');
+  const consensus = typeof useVMConsensus === 'function' ? useVMConsensus(analystFilter ? searched.map(c => c.ticker) : []) : {};
+  const shown = analystFilter ? searched.filter(c => analystMatch(consensus[c.ticker], analystFilter.v)) : searched;
+  const liveMap = useVMQuotes(shown.map(c => c.ticker));   // live quotes overlay
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Search</b></Mono>
@@ -17,9 +37,9 @@ function Screener({ go, isMobile }) {
       <p style={{ fontFamily:VM.serif, fontSize: isMobile ? 14 : 16, color:VM.ink3, margin:'0 0 18px' }}>Search by ticker, name, or person. Filter by sector, size, fundamentals, or which 5-year historical analogue matches today.</p>
 
       <div data-tour="vm-screener-search" style={{ display:'flex', gap:9, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
-        <div style={{ flex:1, display:'flex', alignItems:'center', gap:9, border:`1px solid ${VM.border}`, borderRadius:999, padding:'9px 16px', background:VM.paper }}>
-          <i className="ti ti-search" style={{ color:VM.ink3 }}></i>
-          <input placeholder="search ticker, company, person, era" style={{ border:0, background:'transparent', outline:0, fontFamily:VM.serif, fontSize:14, color:VM.ink, flex:1 }} />
+        <div style={{ flex:1, minWidth:220 }}>
+          <SymbolSearchBox value={query} onChange={setQuery} go={go} round
+            placeholder="Search any US stock — ticker or company name…" />
         </div>
         <Btn style={{ borderRadius:999 }}>Filter <i className="ti ti-chevron-down" style={{fontSize:12}}></i></Btn>
         <IconBtn icon="arrows-sort" round size={38} title="Sort" />
@@ -40,7 +60,7 @@ function Screener({ go, isMobile }) {
           </span>
         )}
       </div>
-      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {VM_COMPANIES.length} of 487 matches · sort: 5Y analogue match</Mono>
+      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {shown.length} of {VM_COMPANIES.length} companies{ql ? ` · “${query}”` : ''}{analystFilter ? ` · analyst: ${analystFilter.v} (live)` : ''} · sort: 5Y analogue match</Mono>
 
       <div data-tour="vm-screener-results" style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
         {!isMobile && (
@@ -49,10 +69,13 @@ function Screener({ go, isMobile }) {
             <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
           </div>
         )}
-        {VM_COMPANIES.map((c,i)=>{
+        {shown.length === 0 && (
+          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No curated companies match “{query}”. Use the search box above to open any US listing.</div>
+        )}
+        {shown.map((c,i)=>{
           const lc = vmApply(c, liveMap);
           return (
-            <Row key={c.ticker} c={lc} open={open===c.ticker} last={i===VM_COMPANIES.length-1} isMobile={isMobile}
+            <Row key={c.ticker} c={lc} open={open===c.ticker} last={i===shown.length-1} isMobile={isMobile}
               onEye={()=>setOpen(open===c.ticker?null:c.ticker)}
               onNet={()=>go('supply', lc)} onOpen={()=>go('dashboard', lc)} />
           );

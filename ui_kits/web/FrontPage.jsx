@@ -27,6 +27,7 @@ function FrontPage({ go, isMobile }) {
   const liveMap = useVMQuotes(baseCompanyRows.map(c => c.ticker));   // live quotes overlay
   const companyRows = baseCompanyRows.map(c => vmApply(c, liveMap));
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
+  const news = typeof useVMNews === 'function' ? useVMNews('general') : { cards: [] };   // real headlines for the story tiles
   const [screenerHover, setScreenerHover] = React.useState(false);  // hover shade on the 'Open full screener' button
   const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button
 
@@ -41,7 +42,7 @@ function FrontPage({ go, isMobile }) {
           {/* One page of 9 tiles, in an overflow-visible area so hover pop-outs are never clipped.
               Changing page remounts StoryPage (via key), which slides + fades the new tiles in. */}
           <div data-tour="vm-story-tiles" style={{ marginTop:10 }}>
-            <StoryScroller page={page} tileTitles={tileTitles} cols={cols} perPage={perPage} />
+            <StoryScroller page={page} tileTitles={tileTitles} articles={news.cards} cols={cols} perPage={perPage} />
           </div>
           {/* Pager — 'More' is pinned to the page centre (never moves); 'Up' reveals to its left and the box grows leftward only. */}
           <div style={{ position:'relative', height:38, marginTop:16 }}>
@@ -112,11 +113,9 @@ function FrontPage({ go, isMobile }) {
               background: screenerHover ? VM.paperDeep : VM.paper,
               transition:'background .15s ease, border-color .15s ease' }}>Open full screener →</span>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:9, background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
-          <i className="ti ti-search" style={{ fontSize:15, color:VM.ink3 }}></i>
-          <input value={companyQuery} onChange={e=>setCompanyQuery(e.target.value)} placeholder="Search by ticker or company name…"
-            style={{ flex:1, border:'none', outline:'none', background:'transparent', fontFamily:VM.serif, fontSize:15, color:VM.ink }} />
-          {companyQuery && <i onClick={()=>setCompanyQuery('')} className="ti ti-x" style={{ fontSize:14, color:VM.ink3, cursor:'pointer' }} title="Clear"></i>}
+        <div style={{ marginBottom:14 }}>
+          <SymbolSearchBox value={companyQuery} onChange={setCompanyQuery} go={go}
+            placeholder="Search any US stock by ticker or company name…" />
         </div>
         <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
           {/* Header grid MUST match CompanyRow's columns + gap so the labels line up with the data. */}
@@ -186,12 +185,12 @@ function OpenBox({ title, onClick }) {
 }
 
 // One page of tiles (9 on desktop / 3 on mobile).
-function PageGrid({ page, tileTitles, cols, perPage }) {
+function PageGrid({ page, tileTitles, articles, cols, perPage }) {
   const nums = Array.from({ length: perPage }, (_, i) => page * perPage + i + 1);
   return (
     <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols}, 1fr)`, gridAutoRows:'128px', gap:14 }}>
       {nums.map(n => (
-        <StoryTile key={n} n={n} title={tileTitles[(n - 1) % tileTitles.length]} dir={n % 3 === 0 ? 'down' : 'up'} mins={3 + ((n * 2) % 7)} />
+        <StoryTile key={n} n={n} title={tileTitles[(n - 1) % tileTitles.length]} article={articles && articles[n - 1]} dir={n % 3 === 0 ? 'down' : 'up'} mins={3 + ((n * 2) % 7)} />
       ))}
     </div>
   );
@@ -200,7 +199,7 @@ function PageGrid({ page, tileTitles, cols, perPage }) {
 // Scrolls between pages: idle = a single page in an overflow-visible box (so hover pop-outs aren't
 // clipped); during a page change it stacks both pages and slides the track up/down so you see the
 // tiles move. Same easing/speed as the accordion (.38s) for a consistent feel.
-function StoryScroller({ page, tileTitles, cols, perPage }) {
+function StoryScroller({ page, tileTitles, articles, cols, perPage }) {
   const ROW = 128, GAP = 14;
   const VIEW_H = 3 * ROW + 2 * GAP;   // 412 — three rows tall
   const STEP = 3 * (ROW + GAP);       // 426 — one page of travel
@@ -217,7 +216,7 @@ function StoryScroller({ page, tileTitles, cols, perPage }) {
   }, [page]);
 
   if (!armed) {
-    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} cols={cols} perPage={perPage} /></div>;
+    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} /></div>;
   }
 
   const forward = page > display;                       // next page → scroll up
@@ -232,30 +231,35 @@ function StoryScroller({ page, tileTitles, cols, perPage }) {
   return (
     <div style={{ height: VIEW_H, overflow:'hidden' }}>
       <div onTransitionEnd={onEnd} style={{ transform:`translateY(${offset}px)`, transition: run ? EASE : 'none' }}>
-        <PageGrid page={topPage} tileTitles={tileTitles} cols={cols} perPage={perPage} />
+        <PageGrid page={topPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} />
         <div style={{ height: GAP }}></div>
-        <PageGrid page={bottomPage} tileTitles={tileTitles} cols={cols} perPage={perPage} />
+        <PageGrid page={bottomPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} />
       </div>
     </div>
   );
 }
 
 // A story tile — pops out and highlights on hover (matches the company-row feel).
-function StoryTile({ n, title, dir, mins }) {
+// With a real article it shows the live headline + source and opens the source.
+function StoryTile({ n, title, dir, mins, article }) {
   const [hover, setHover] = React.useState(false);
+  const a = article;
+  const headline = a ? a.headline : title;
+  const onClick = a && a.url ? () => window.open(a.url, '_blank', 'noopener') : undefined;
   return (
-    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={onClick}
       style={{ background: hover ? VM.paperWarm : VM.paper,
         border:`1px solid ${hover ? VM.border : VM.borderSoft}`, borderRadius:10, padding:'12px 13px',
         display:'flex', flexDirection:'column', cursor:'pointer', position:'relative', zIndex: hover ? 2 : 1,
         transform: hover ? 'scale(1.03)' : 'scale(1)',
         boxShadow: hover ? '0 6px 16px rgba(31,29,26,0.10)' : 'none',
         transition:'transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease' }}>
-      <Mono size={9} color={VM.ink3}>STORY · {String(n).padStart(2,'0')}</Mono>
-      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:15, lineHeight:1.18, margin:'8px 0 0', color:VM.ink }}>{title}</div>
-      <div style={{ marginTop:'auto', display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:10 }}>
+      <Mono size={9} color={a ? VM.terra : VM.ink3} weight={a ? 700 : 400}>{a ? (a.kicker || 'MARKETS') : `STORY · ${String(n).padStart(2,'0')}`}</Mono>
+      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14.5, lineHeight:1.16, margin:'7px 0 0', color:VM.ink,
+        display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{headline}</div>
+      <div style={{ marginTop:'auto', display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:10, gap:8 }}>
         <Sparkline dir={dir} w={42} h={14} />
-        <Mono size={9} color={VM.ink3}>{mins} min</Mono>
+        <Mono size={9} color={VM.ink3} style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a ? (a.time || a.source) : `${mins} min`}</Mono>
       </div>
     </div>
   );

@@ -6,6 +6,12 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
   const price = live ? live.price.toFixed(2) : c.price;
   const chgTxt = live ? vmFmtPct(live.pct) : c.chg;
   const dir = live ? live.dir : c.dir;
+  // Real profile/metrics (cached) → market cap, P/E, dividend yield, 52-wk.
+  const prof = typeof useVMProfile === 'function' ? useVMProfile(c.ticker) : { profile:null, metric:null };
+  const cap  = prof.profile && prof.profile.marketCap != null ? vmFmtCap(prof.profile.marketCap) : (c.cap || '—');
+  const met  = prof.metric || {};
+  const peTxt = met.peTTM != null ? `P/E ${vmNum2(met.peTTM)}` : 'P/E —';
+  const dyTxt = met.dividendYield != null ? `div ${vmPct1(met.dividendYield)}` : 'div —';
   // The drill trail — each crumb is { co, tab } so the path reads
   // Search › SPX › Supply chain › AAPL › Financials. Earlier crumbs (company AND
   // its tab) are clickable to step back to exactly where you were.
@@ -46,7 +52,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
         </div>
         <div style={{ display:'flex', gap: isMobile?20:26, alignItems:'flex-start' }}>
           <div><Label style={{ display:'inline-flex', alignItems:'center', gap:5 }}>Price {live && <span title="Live · cached ≤2 min" style={{ width:6, height:6, borderRadius:999, background:VM.up, display:'inline-block' }}></span>}</Label><div style={{ display:'flex', alignItems:'baseline', gap:8 }}><Mono size={isMobile?18:22} weight={700}>${price}</Mono><Chg dir={dir}>{chgTxt}</Chg></div></div>
-          <div><Label>Mkt cap</Label><div><Mono size={isMobile?18:22} weight={700}>{c.cap}</Mono></div><Mono size={10} color={VM.ink3}>P/E 37.36 · div 0.34%</Mono></div>
+          <div><Label>Mkt cap</Label><div><Mono size={isMobile?18:22} weight={700}>{cap}</Mono></div><Mono size={10} color={VM.ink3}>{peTxt} · {dyTxt}</Mono></div>
         </div>
       </div>
       <div data-tour="vm-company-tabs" ref={tabsRef} className="vm-noscroll"
