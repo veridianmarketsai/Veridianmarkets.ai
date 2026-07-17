@@ -62,6 +62,21 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-17 — Generic Finnhub proxy + extra calendars. Merged to main.
+
+- **`vm-finnhub`** — ONE generic caching proxy Lambda for many free Finnhub GETs.
+  Call `?endpoint=<key>[&params]`; an `EP` map holds path + **per-endpoint TTL** (no
+  `TTL_SECONDS` env var) + allowed params + default date windows. One table
+  `vm-finnhub` (key `pk`). Endpoints: ipo-calendar, fda-calendar, market-status(5m),
+  market-holiday, insider-sentiment, usa-spending, lobbying, sec-filings. Skips
+  caching payloads >380KB. **This is the pattern for adding more endpoints — edit the
+  EP map, no new Lambda.**
+- **`calendars.jsx`** (`useVMCalendars`) puts **IPO / FDA / market-holiday** onto the
+  Calendar page as new event types (added to `CAL_TYPES` + `CAL_EDU` + `calEduFor`), so
+  filter chips/legend/day-panel/education pick them up automatically. Branch
+  `api-links-2.1.1`. **Still unwired (deployed, on vm-finnhub):** insider-sentiment,
+  usa-spending, lobbying, sec-filings, market-status → belong in Signals/Overview/header.
+
 ### 2026-07-17 — Finnhub data build-out (6 Lambdas). Merged to main.
 
 Same read-through-cache recipe each time (DynamoDB key **`pk`**, code-set CORS +

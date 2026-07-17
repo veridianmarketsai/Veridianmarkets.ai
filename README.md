@@ -315,6 +315,18 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-17 (generic Finnhub proxy + extra calendars)
+
+- **`vm-finnhub` — one generic caching proxy** for many free Finnhub GET endpoints
+  ([`lambda/marketdata/vm-finnhub/`](lambda/marketdata/vm-finnhub/)): call `?endpoint=<key>`;
+  per-endpoint TTL baked in (no env var), one table `vm-finnhub` (key `pk`). Serves
+  ipo-calendar, fda-calendar, market-status, market-holiday, insider-sentiment,
+  usa-spending, lobbying, sec-filings.
+- **Extra calendars on the Calendar page** ([`calendars.jsx`](ui_kits/web/calendars.jsx)):
+  **IPO**, **FDA** advisory committees, and **market holidays** now render as their own
+  colour-coded event types (filter chips, legend, day panel, ⓘ education) alongside
+  earnings. _(branch: `api-links-2.1.1`)_
+
 ### 2026-07-17 (Finnhub data build-out)
 
 Six cached Lambdas + frontend wiring, all read-through DynamoDB caches (key `pk`,
