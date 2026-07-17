@@ -1,4 +1,16 @@
 // Veridian Markets — Company search / screener with eye-preview.
+
+// Does a live consensus score satisfy the chosen ANALYST filter value?
+// Unknown score (still loading / no coverage) → keep the row (don't hide).
+function analystMatch(score, v) {
+  if (score == null) return true;
+  if (v === 'Strong buy')     return score >= 4.3;
+  if (v === 'Buy or better')  return score >= 3.5;
+  if (v === 'Hold or better') return score >= 2.5;
+  if (v === 'Underperform')   return score < 2.5;
+  return true;
+}
+
 function Screener({ go, isMobile }) {
   const [open, setOpen] = React.useState(null);
   const [filters, setFilters] = React.useState([
@@ -10,7 +22,12 @@ function Screener({ go, isMobile }) {
   const addFilter = (k) => setFilters(fs => [...fs, { k, v: FILTER_DEFS[k][0] }]);
   const [query, setQuery] = React.useState('');   // search box (ticker/name filter + symbol dropdown)
   const ql = query.trim().toLowerCase();
-  const shown = ql ? VM_COMPANIES.filter(c => c.ticker.toLowerCase().includes(ql) || (c.name || '').toLowerCase().includes(ql)) : VM_COMPANIES;
+  const searched = ql ? VM_COMPANIES.filter(c => c.ticker.toLowerCase().includes(ql) || (c.name || '').toLowerCase().includes(ql)) : VM_COMPANIES;
+  // Real analyst filter: when an ANALYST chip is active, fetch each company's
+  // live consensus and keep only those that meet the threshold.
+  const analystFilter = filters.find(f => f.k === 'ANALYST');
+  const consensus = typeof useVMConsensus === 'function' ? useVMConsensus(analystFilter ? searched.map(c => c.ticker) : []) : {};
+  const shown = analystFilter ? searched.filter(c => analystMatch(consensus[c.ticker], analystFilter.v)) : searched;
   const liveMap = useVMQuotes(shown.map(c => c.ticker));   // live quotes overlay
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
@@ -43,7 +60,7 @@ function Screener({ go, isMobile }) {
           </span>
         )}
       </div>
-      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {shown.length} of {VM_COMPANIES.length} companies{ql ? ` · “${query}”` : ''} · sort: 5Y analogue match</Mono>
+      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {shown.length} of {VM_COMPANIES.length} companies{ql ? ` · “${query}”` : ''}{analystFilter ? ` · analyst: ${analystFilter.v} (live)` : ''} · sort: 5Y analogue match</Mono>
 
       <div data-tour="vm-screener-results" style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
         {!isMobile && (

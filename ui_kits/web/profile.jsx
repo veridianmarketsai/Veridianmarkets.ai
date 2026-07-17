@@ -54,8 +54,41 @@ function vmFmtCap(m) {   // m = market cap in USD millions
 const vmPct1 = (x) => (x == null ? '—' : `${Number(x).toFixed(2)}%`);
 const vmNum2 = (x) => (x == null ? '—' : Number(x).toFixed(2));
 
+// Real key-metrics grid for any ticker (self-fetches; hides if unavailable).
+// Used on both the searched-ticker Overview and the curated company Overview.
+function LiveMetrics({ ticker, isMobile, title }) {
+  const { profile, metric, live } = useVMProfile(ticker);
+  if (!live || !metric) return null;
+  const p = profile || {}, m = metric;
+  const stats = [
+    ['Market cap',     vmFmtCap(p.marketCap)],
+    ['P/E (TTM)',      vmNum2(m.peTTM)],
+    ['Dividend yield', vmPct1(m.dividendYield)],
+    ['52-wk range',    (m.week52Low != null && m.week52High != null) ? `$${m.week52Low.toFixed(2)} – $${m.week52High.toFixed(2)}` : '—'],
+    ['Beta',           vmNum2(m.beta)],
+    ['EPS (TTM)',      m.epsTTM != null ? `$${m.epsTTM.toFixed(2)}` : '—'],
+    ['Gross margin',   vmPct1(m.grossMarginTTM)],
+    ['Net margin',     vmPct1(m.netMarginTTM)],
+    ['ROE (TTM)',      vmPct1(m.roeTTM)],
+    ['Rev growth YoY', vmPct1(m.revenueGrowthYoY)],
+  ];
+  return (
+    <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'18px 20px' }}>
+      <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:VM.ink3, marginBottom:12 }}>{title || 'Key metrics · live'}</div>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap:'14px 18px' }}>
+        {stats.map(([k, v]) => (
+          <div key={k}>
+            <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.05em', textTransform:'uppercase', color:VM.ink3 }}>{k}</div>
+            <div style={{ fontFamily:VM.mono, fontSize:15, fontWeight:700, color:VM.ink, marginTop:3 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Overview panel for a non-curated ticker — real Finnhub profile + metrics.
-function ProfileOverview({ c, isMobile }) {
+function ProfileOverview({ c, go, isMobile }) {
   const { profile, metric, loading, live } = useVMProfile(c.ticker);
 
   if (loading) return (
@@ -80,18 +113,6 @@ function ProfileOverview({ c, isMobile }) {
     ['Shares out', p.sharesOut != null ? `${(p.sharesOut / 1000).toFixed(2)}B` : null],
     ['Currency',   p.currency],
   ].filter(([, v]) => v);
-  const stats = [
-    ['Market cap',     vmFmtCap(p.marketCap)],
-    ['P/E (TTM)',      vmNum2(m.peTTM)],
-    ['Dividend yield', vmPct1(m.dividendYield)],
-    ['52-wk range',    (m.week52Low != null && m.week52High != null) ? `$${m.week52Low.toFixed(2)} – $${m.week52High.toFixed(2)}` : '—'],
-    ['Beta',           vmNum2(m.beta)],
-    ['EPS (TTM)',      m.epsTTM != null ? `$${m.epsTTM.toFixed(2)}` : '—'],
-    ['Gross margin',   vmPct1(m.grossMarginTTM)],
-    ['Net margin',     vmPct1(m.netMarginTTM)],
-    ['ROE (TTM)',      vmPct1(m.roeTTM)],
-    ['Rev growth YoY', vmPct1(m.revenueGrowthYoY)],
-  ];
   const card = { background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'18px 20px' };
 
   return (
@@ -105,17 +126,7 @@ function ProfileOverview({ c, isMobile }) {
         {p.weburl && <a href={p.weburl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:VM.mono, fontSize:11, color:VM.teal, textDecoration:'none', whiteSpace:'nowrap' }}>Website ↗</a>}
       </div>
 
-      <div style={card}>
-        <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:VM.ink3, marginBottom:12 }}>Key metrics</div>
-        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap:'14px 18px' }}>
-          {stats.map(([k, v]) => (
-            <div key={k}>
-              <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.05em', textTransform:'uppercase', color:VM.ink3 }}>{k}</div>
-              <div style={{ fontFamily:VM.mono, fontSize:15, fontWeight:700, color:VM.ink, marginTop:3 }}>{v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <LiveMetrics ticker={c.ticker} isMobile={isMobile} title="Key metrics" />
 
       <div style={card}>
         <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:VM.ink3, marginBottom:12 }}>Company facts</div>
@@ -129,8 +140,9 @@ function ProfileOverview({ c, isMobile }) {
         </div>
       </div>
       <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.03em' }}>Profile · Finnhub · cached ≤24h</div>
+      {typeof SignalsPanel === 'function' && <SignalsPanel c={c} go={go} isMobile={isMobile} />}
     </div>
   );
 }
 
-Object.assign(window, { VM_PROFILE, vmProfile, useVMProfile, vmFmtCap, vmPct1, vmNum2, ProfileOverview });
+Object.assign(window, { VM_PROFILE, vmProfile, useVMProfile, vmFmtCap, vmPct1, vmNum2, LiveMetrics, ProfileOverview });

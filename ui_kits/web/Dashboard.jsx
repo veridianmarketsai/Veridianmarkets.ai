@@ -20,7 +20,7 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
     <div style={{ padding: isMobile ? '16px 14px 80px' : '22px 32px 60px', maxWidth:1180, margin:'0 auto', overflowX: isMobile ? 'hidden' : 'visible' }}>
       <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} />
 
-      {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} isMobile={isMobile} /> : <ProfileOverview c={c} isMobile={isMobile} />)}
+      {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} go={go} isMobile={isMobile} /> : <ProfileOverview c={c} go={go} isMobile={isMobile} />)}
       {curTab === 'Supply chain' && (known ? <DashScn        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Supply-chain map" />)}
       {curTab === 'Financials'   && <DashFinancials data={known ? data.financials : EMPTY_FIN} c={c} isMobile={isMobile} />}
       {curTab === 'Patents'      && (known ? <DashPatents    data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />)}
@@ -235,7 +235,7 @@ const OV_STEPS = [
     body:'Who runs the company, how long they have been in seat, and their background. Tenure correlates with execution continuity. Note whether key roles are internal promotes or outside hires — it often signals strategy shifts.' },
 ];
 
-function DashOverview({ c, data, isMobile }) {
+function DashOverview({ c, data, go, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
   return (
@@ -321,6 +321,8 @@ function DashOverview({ c, data, isMobile }) {
           </div>
         </div>
       </div>
+      {typeof LiveMetrics === 'function' && <div style={{ marginTop:24 }}><LiveMetrics ticker={c.ticker} isMobile={isMobile} title="Key metrics · live" /></div>}
+      {typeof SignalsPanel === 'function' && <SignalsPanel c={c} go={go} isMobile={isMobile} />}
       {tutorialOpen && <TutorialOverlay steps={OV_STEPS} label="Overview tutorial" onClose={()=>setTutorialOpen(false)} />}
     </div>
   );
