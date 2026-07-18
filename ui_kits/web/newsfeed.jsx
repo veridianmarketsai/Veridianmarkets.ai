@@ -85,6 +85,34 @@ function useVMNews(scope) {
   return state;
 }
 
+// News for a signed-in user's own interest tickers (see interests.jsx) — one
+// vm-news call per ticker (already cached server-side per symbol), merged by
+// recency and deduped. Same { cards, loading, live } shape as useVMNews, so
+// it's a drop-in replacement wherever the general feed is used.
+function useVMPersonalizedNews(tickers) {
+  const key = (tickers || []).join(',');
+  const [state, setState] = React.useState({ cards: [], loading: false, live: false });
+  React.useEffect(() => {
+    if (!VM_NEWS.url || !tickers || !tickers.length) { setState({ cards: [], loading: false, live: false }); return; }
+    let alive = true;
+    setState((s) => ({ ...s, loading: true }));
+    Promise.all(tickers.map(vmNews)).then((results) => {
+      if (!alive) return;
+      const merged = results.flat().sort((a, b) => (b.datetime || 0) - (a.datetime || 0));
+      const seen = new Set();
+      const cards = [];
+      for (const a of merged) {
+        const dedupeKey = a.url || a.headline;
+        if (dedupeKey) { if (seen.has(dedupeKey)) continue; seen.add(dedupeKey); }
+        cards.push(vmNewsCard(a));
+      }
+      setState({ cards, loading: false, live: cards.length > 0 });
+    }).catch(() => { if (alive) setState({ cards: [], loading: false, live: false }); });
+    return () => { alive = false; };
+  }, [key]);
+  return state;
+}
+
 // Reusable real-news card list (used by the company News tab for searched tickers).
 function LiveNewsFeed({ scope, isMobile, emptyLabel }) {
   const { cards, loading, live } = useVMNews(scope);
@@ -113,4 +141,4 @@ function LiveNewsFeed({ scope, isMobile, emptyLabel }) {
   );
 }
 
-Object.assign(window, { VM_NEWS, vmNews, useVMNews, vmNewsCard, vmTimeAgo, LiveNewsFeed });
+Object.assign(window, { VM_NEWS, vmNews, useVMNews, useVMPersonalizedNews, vmNewsCard, vmTimeAgo, LiveNewsFeed });

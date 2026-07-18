@@ -25,16 +25,26 @@ const NEWS = [
     summary: 'Growth-at-any-price is over. The survivors look like the post-dotcom cohort that quietly compounded for a decade.', source: 'The Ledger', time: '18h ago' },
 ];
 
-function News({ go, isMobile }) {
+function News({ go, isMobile, user }) {
+  const signedIn = !!user;
   const [cat, setCat] = useStateNews('All');
   const [searchOpen, setSearchOpen] = useStateNews(false);
   const [query, setQuery] = useStateNews('');
   const [article, setArticle] = useStateNews(null);
   // Real market news (Finnhub, cached) when available; else the editorial mock.
   const liveNews = typeof useVMNews === 'function' ? useVMNews('general') : { cards: [], live: false, loading: false };
-  const source = liveNews.live ? liveNews.cards : NEWS;
+  // Personalization (signed-in only) — same interest tickers that drive the
+  // Home page (interests.jsx); offered here as its own "For you" filter
+  // rather than replacing the general feed outright.
+  const interests = useVMInterests(signedIn);
+  const personalized = useVMPersonalizedNews(interests.tickers);
+  const showForYou = signedIn && interests.tickers.length > 0;
+  const cats = showForYou ? ['For you', ...NEWS_CATS] : NEWS_CATS;
+
+  const isForYou = cat === 'For you' && showForYou;
+  const source = isForYou ? personalized.cards : (liveNews.live ? liveNews.cards : NEWS);
   const q = query.trim().toLowerCase();
-  const list = source.filter(n => (cat === 'All' || n.cat === cat) &&
+  const list = source.filter(n => (isForYou || cat === 'All' || n.cat === cat) &&
     (!q || ((n.headline || '') + ' ' + (n.summary || '') + ' ' + (n.kicker || '')).toLowerCase().includes(q)));
   const lead = list[0];
   const rest = list.slice(1);
@@ -51,7 +61,7 @@ function News({ go, isMobile }) {
       {/* search button + category filter */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, alignItems: 'center' }}>
         <IconBtn icon="search" round size={32} active={searchOpen} title="Search news" onClick={() => setSearchOpen(o => !o)} />
-        {NEWS_CATS.map(c => <Pill key={c} active={cat === c} onClick={() => setCat(c)}>{c}</Pill>)}
+        {cats.map(c => <Pill key={c} active={cat === c} onClick={() => setCat(c)}>{c}</Pill>)}
       </div>
       {searchOpen && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 10, padding: '10px 14px', marginTop: 12 }}>
@@ -62,7 +72,11 @@ function News({ go, isMobile }) {
         </div>
       )}
 
-      {list.length === 0 && <div style={{ marginTop: 20, fontFamily: VM.serif, color: VM.ink3 }}>No stories in {cat}.</div>}
+      {list.length === 0 && (
+        <div style={{ marginTop: 20, fontFamily: VM.serif, color: VM.ink3 }}>
+          {isForYou && personalized.loading ? 'Finding stories for you…' : `No stories in ${cat}.`}
+        </div>
+      )}
 
       {/* featured lead */}
       {lead && (
