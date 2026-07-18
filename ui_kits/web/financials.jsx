@@ -35,18 +35,42 @@ const IC_MAP = [
   { k:'EPS basic',            fmt:'eps',    c:['EarningsPerShareBasic'] },
   { k:'EPS diluted',          fmt:'eps',    c:['EarningsPerShareDiluted'] },
 ];
+// Ordered like Yahoo Finance: Assets → Liabilities → Equity, each subtotal with
+// its components indented beneath it. b=bold subtotal, in=indent depth.
 const BS_MAP = [
-  { k:'Cash & equivalents',   b:false,      c:['CashAndCashEquivalentsAtCarryingValue'] },
-  { k:'Marketable securities',in:1,         c:['MarketableSecuritiesCurrent','ShortTermInvestments'] },
-  { k:'Accounts receivable',  in:1,         c:['AccountsReceivableNetCurrent'] },
-  { k:'Inventories',          in:1,         c:['InventoryNet'] },
-  { k:'Total current assets', b:true,       c:['AssetsCurrent'] },
-  { k:'Total assets',         b:true,       c:['Assets'] },
-  { k:'Accounts payable',     in:1,         c:['AccountsPayableCurrent'] },
-  { k:'Total current liabilities',b:true,   c:['LiabilitiesCurrent'] },
-  { k:'Long-term debt',       in:1,         c:['LongTermDebtNoncurrent','LongTermDebt'] },
-  { k:'Total liabilities',    b:true,       c:['Liabilities'] },
-  { k:'Shareholders equity',  b:true,       c:['StockholdersEquity','StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest'] },
+  // ── Assets ─────────────────────────────────────────────────────────────────
+  { k:'Total assets',                 b:true,        c:['Assets'] },
+  { k:'Total current assets',         b:true, in:1,  c:['AssetsCurrent'] },
+  { k:'Cash & equivalents',           in:2,          c:['CashAndCashEquivalentsAtCarryingValue'] },
+  { k:'Short-term investments',       in:2,          c:['MarketableSecuritiesCurrent','ShortTermInvestments'] },
+  { k:'Accounts receivable',          in:2,          c:['AccountsReceivableNetCurrent'] },
+  { k:'Inventories',                  in:2,          c:['InventoryNet'] },
+  { k:'Other current assets',         in:2,          c:['OtherAssetsCurrent'] },
+  { k:'Total non-current assets',     b:true, in:1,  c:['AssetsNoncurrent'] },
+  { k:'Property, plant & equipment',  in:2,          c:['PropertyPlantAndEquipmentNet'] },
+  { k:'Goodwill',                     in:2,          c:['Goodwill'] },
+  { k:'Intangible assets',            in:2,          c:['IntangibleAssetsNetExcludingGoodwill','FiniteLivedIntangibleAssetsNet'] },
+  { k:'Long-term investments',        in:2,          c:['MarketableSecuritiesNoncurrent','LongTermInvestments'] },
+  { k:'Other non-current assets',     in:2,          c:['OtherAssetsNoncurrent'] },
+  // ── Liabilities ────────────────────────────────────────────────────────────
+  { k:'Total liabilities',            b:true,        c:['Liabilities'] },
+  { k:'Total current liabilities',    b:true, in:1,  c:['LiabilitiesCurrent'] },
+  { k:'Accounts payable',             in:2,          c:['AccountsPayableCurrent'] },
+  { k:'Current debt',                 in:2,          c:['LongTermDebtCurrent','DebtCurrent','CommercialPaper'] },
+  { k:'Deferred revenue',             in:2,          c:['ContractWithCustomerLiabilityCurrent','DeferredRevenueCurrent'] },
+  { k:'Other current liabilities',    in:2,          c:['OtherLiabilitiesCurrent'] },
+  { k:'Total non-current liabilities',b:true, in:1,  c:['LiabilitiesNoncurrent'] },
+  { k:'Long-term debt',               in:2,          c:['LongTermDebtNoncurrent','LongTermDebt'] },
+  { k:'Other non-current liabilities',in:2,          c:['OtherLiabilitiesNoncurrent'] },
+  // ── Equity ─────────────────────────────────────────────────────────────────
+  { k:'Total equity',                 b:true,        c:['StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest','StockholdersEquity'] },
+  { k:"Stockholders' equity",         in:1,          c:['StockholdersEquity'] },
+  { k:'Common stock & paid-in capital',in:1,         c:['CommonStocksIncludingAdditionalPaidInCapital','AdditionalPaidInCapitalCommonStock','CommonStockValue'] },
+  { k:'Retained earnings',            in:1,          c:['RetainedEarningsAccumulatedDeficit'] },
+  { k:'Minority interest',            in:1,          c:['MinorityInterest'] },
+  // ── Shares ─────────────────────────────────────────────────────────────────
+  { k:'Shares issued',                fmt:'shares',  c:['CommonStockSharesIssued'] },
+  { k:'Shares outstanding',           fmt:'shares',  c:['CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding'] },
 ];
 const CF_MAP = [
   { k:'Operating cash flow',  b:true,       c:['NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations'] },
@@ -94,6 +118,54 @@ function vmBuildStatements(payload) {
   return { periods, income, balance, cashflow, asReported: true, filedDate: filings[0] && filings[0].filedDate };
 }
 
+// Quarterly view with Q4 filled from the annual 10-K (US companies file 10-Qs
+// for Q1–Q3 only; Q4/year-end lives in the 10-K):
+//   balance sheet Q4 = the annual year-end snapshot (as filed)
+//   income / cash-flow Q4 = annual − (Q1 + Q2 + Q3)  (derived flow)
+function vmBuildQuarterly(qPayload, aPayload) {
+  const qFilings = (qPayload && qPayload.filings) || [];
+  if (!qFilings.length) return null;
+  const aFilings = (aPayload && aPayload.filings) || [];
+
+  const byYear = {};   // year → { quarter: { ic, bs, cf } } — for deriving Q4
+  const entries = [];  // { label, sort, ic, bs, cf }
+  qFilings.forEach((f) => {
+    const sec = { ic: _indexSection(f.report && f.report.ic), bs: _indexSection(f.report && f.report.bs), cf: _indexSection(f.report && f.report.cf) };
+    entries.push({ label: `${f.year} Q${f.quarter}`, sort: new Date(f.endDate || 0).getTime(), ...sec });
+    (byYear[f.year] ||= {})[f.quarter] = sec;
+  });
+  aFilings.forEach((f) => {
+    const ann = { ic: _indexSection(f.report && f.report.ic), bs: _indexSection(f.report && f.report.bs), cf: _indexSection(f.report && f.report.cf) };
+    entries.push({
+      label: `${f.year} Q4`, sort: new Date(f.endDate || 0).getTime(),
+      bs: ann.bs,                                    // year-end snapshot = Q4
+      ic: _deriveQ4(ann.ic, byYear[f.year], 'ic'),   // annual − Q1−Q2−Q3
+      cf: _deriveQ4(ann.cf, byYear[f.year], 'cf'),
+    });
+  });
+
+  entries.sort((a, b) => b.sort - a.sort);
+  const kept = entries.slice(0, 12);
+  const periods  = kept.map((e) => e.label);
+  const income   = _buildStatement(IC_MAP, kept.map((e) => e.ic));
+  const balance  = _buildStatement(BS_MAP, kept.map((e) => e.bs));
+  const cashflow = _buildStatement(CF_MAP, kept.map((e) => e.cf));
+  if (!income.length && !balance.length && !cashflow.length) return null;
+  return { periods, income, balance, cashflow, asReported: true, filedDate: qFilings[0] && qFilings[0].filedDate };
+}
+
+// Q4 flow = annual − (Q1+Q2+Q3) per concept; {} if the three quarters aren't all present.
+function _deriveQ4(annual, q, kind) {
+  if (!q || !q[1] || !q[2] || !q[3]) return {};
+  const out = {};
+  for (const c in annual) {
+    const q1 = q[1][kind][c], q2 = q[2][kind][c], q3 = q[3][kind][c];
+    if (q1 == null || q2 == null || q3 == null) continue;
+    out[c] = annual[c] - q1 - q2 - q3;
+  }
+  return out;
+}
+
 // Fetch raw filings for a symbol (client-cached). freq: 'annual' | 'quarterly'.
 async function vmFinancials(symbol, freq) {
   const sym = String(symbol || '').toUpperCase();
@@ -118,11 +190,13 @@ function useVMFinancials(ticker, freq) {
     }
     let alive = true;
     setState((s) => ({ ...s, loading: true }));
-    vmFinancials(ticker, freq).then((payload) => {
-      if (!alive) return;
-      const built = payload ? vmBuildStatements(payload) : null;
-      setState({ data: built, loading: false, live: !!built });
-    }).catch(() => { if (alive) setState({ data: null, loading: false, live: false }); });
+    // Quarterly → also pull the annual 10-Ks so we can fill the Q4 columns.
+    const built$ = freq === 'quarterly'
+      ? Promise.all([vmFinancials(ticker, 'quarterly'), vmFinancials(ticker, 'annual')])
+          .then(([q, a]) => (q && q.filings && q.filings.length ? vmBuildQuarterly(q, a) : null))
+      : vmFinancials(ticker, 'annual').then((p) => (p ? vmBuildStatements(p) : null));
+    built$.then((built) => { if (alive) setState({ data: built, loading: false, live: !!built }); })
+          .catch(() => { if (alive) setState({ data: null, loading: false, live: false }); });
     return () => { alive = false; };
   }, [ticker, freq]);
   return state;

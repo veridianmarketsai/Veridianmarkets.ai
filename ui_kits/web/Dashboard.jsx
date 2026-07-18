@@ -500,6 +500,7 @@ const SHEET_LABELS = { income:'Income statement', balance:'Balance sheet', cashf
 function DashFinancials({ data, c, isMobile }) {
   const [sheet, setSheet]     = React.useState('income');
   const [period, setPeriod]   = React.useState('annual');
+  const [unit, setUnit]       = React.useState('relative');   // 'relative' ($94.8B) | 'thousands' (94,846,000)
   const [showPct, setShowPct] = React.useState(false);   // %Δ — percentage change vs prior period
   const [showAbs, setShowAbs] = React.useState(false);   // $Δ — absolute change vs prior period
   const [legend, setLegend]   = React.useState(false);   // "reading the financials" popup
@@ -516,17 +517,24 @@ function DashFinancials({ data, c, isMobile }) {
   const showDelta = showPct || showAbs;
   const deltaCols = showPct + showAbs;
 
+  // Values are stored in USD millions. 'thousands' mode shows plain numbers in
+  // thousands (no $, no B/M suffix), like Yahoo; 'relative' auto-scales to $B/$M.
+  // No $ in the cells — the "Currency in USD" caption states it once. 'thousands'
+  // = plain numbers in thousands; 'relative' = auto-scaled with a B/M size letter.
   function fmt(v, fmtType) {
-    if (fmtType === 'eps') return `$${Math.abs(v).toFixed(2)}`;
+    if (fmtType === 'eps') return v.toFixed(2);
+    if (unit === 'thousands') { const t = Math.round(v * 1000); return t < 0 ? `(${Math.abs(t).toLocaleString()})` : t.toLocaleString(); }
+    if (fmtType === 'shares') { const a = Math.abs(v); return a >= 1000 ? `${(a/1000).toFixed(2)}B` : `${a.toFixed(0)}M`; }
     const abs = Math.abs(v);
-    const s   = abs >= 1000 ? `$${(abs/1000).toFixed(1)}B` : `$${abs.toFixed(0)}M`;
+    const s   = abs >= 1000 ? `${(abs/1000).toFixed(1)}B` : `${abs.toFixed(0)}M`;
     return v < 0 ? `(${s})` : s;
   }
   function fmtAbsDelta(diff, fmtType) {
     const sign = diff < 0 ? '-' : '+';
-    if (fmtType === 'eps') return `${sign}$${Math.abs(diff).toFixed(2)}`;
+    if (fmtType === 'eps') return `${sign}${Math.abs(diff).toFixed(2)}`;
+    if (unit === 'thousands') return `${sign}${Math.round(Math.abs(diff) * 1000).toLocaleString()}`;
     const abs = Math.abs(diff);
-    const s   = abs >= 1000 ? `$${(abs/1000).toFixed(1)}B` : `$${abs.toFixed(0)}M`;
+    const s   = abs >= 1000 ? `${(abs/1000).toFixed(1)}B` : `${abs.toFixed(0)}M`;
     return `${sign}${s}`;
   }
   // negative → orange (terra), positive → green (teal), flat → muted.
@@ -659,6 +667,17 @@ function DashFinancials({ data, c, isMobile }) {
             ))}
           </div>
           <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>
+          <div title="Number format — Relative auto-scales to $B/$M; Thousands shows plain numbers in thousands (no $, no B)" style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+            <span style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.04em', textTransform:'uppercase', marginRight:2 }}>Show in</span>
+            {[['relative','Relative'],['thousands','Thousands']].map(([id,lbl]) => (
+              <span key={id} onClick={()=>setUnit(id)} style={{
+                fontFamily:VM.mono, fontSize:10, padding:'4px 10px', borderRadius:5, cursor:'pointer',
+                border:`1px solid ${unit===id ? VM.forest : VM.border}`,
+                background: unit===id ? VM.forest : VM.paper, color: unit===id ? VM.paperWarm : VM.ink3,
+              }}>{lbl}</span>
+            ))}
+          </div>
+          <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>
           <button data-tour="vm-fin-legend-btn" onClick={()=>setLegend(true)} title="Legend — how to read this" style={{
             display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
             padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink2, cursor:'pointer' }}>
@@ -687,6 +706,12 @@ function DashFinancials({ data, c, isMobile }) {
             ? <><span style={{ width:7, height:7, borderRadius:'50%', background:VM.teal, display:'inline-block' }}></span>
                 As reported · SEC filings via Finnhub{D.filedDate ? ` · latest filed ${String(D.filedDate).slice(0,10)}` : ''} · USD</>
             : <><i className="ti ti-info-circle" style={{ fontSize:12 }}></i>Illustrative figures (live filings unavailable for this ticker)</>}
+      </div>
+      {/* Units caption — states currency/scale so the cells don't repeat $ or B. */}
+      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
+        <span style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink2, letterSpacing:'0.03em' }}>
+          Currency in USD · {unit === 'thousands' ? 'all numbers in thousands' : 'figures in billions (B) / millions (M)'}
+        </span>
       </div>
       <div data-tour="vm-fin-table" ref={scrollRef} onPointerDown={onDragDown} onPointerMove={onDragMove} onPointerUp={onDragUp} onPointerLeave={onDragUp} onPointerCancel={onDragUp}
         style={{ overflowX:'auto', cursor:'grab', userSelect:'none', touchAction:'pan-y' }}>
@@ -717,10 +742,9 @@ function DashFinancials({ data, c, isMobile }) {
           <tbody>
             {rows.map((row, i) => (
               <tr key={i} style={{ borderBottom:`1px solid ${VM.borderHair}`, background: row.b ? VM.paperWarm : 'transparent' }}>
-                <td style={{ padding:'7px 12px', paddingLeft: row.in ? 28 : 12 }}>
-                  {row.in
-                    ? <span style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>{row.k}</span>
-                    : <span style={{ fontFamily:VM.serif, fontSize:13, fontWeight: row.b ? 700 : 400, color:VM.ink }}>{row.k}</span>}
+                <td style={{ padding:'7px 12px', paddingLeft: 12 + (row.in || 0) * 15 }}>
+                  <span style={{ fontFamily:VM.serif, fontSize:13, fontWeight: row.b ? 700 : 400,
+                    color: row.b ? VM.ink : (row.in ? VM.ink3 : VM.ink) }}>{row.k}</span>
                 </td>
                 {cols.map((col, ci) => {
                   if (col.type === 'period') {
@@ -756,7 +780,7 @@ function DashFinancials({ data, c, isMobile }) {
         </table>
       </div>
       <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:10 }}>
-        All figures USD · illustrative mock data · not financial advice{showDelta ? ' · Δ vs prior period' : ''}
+        All figures USD · {fin.live ? 'as reported (SEC filings via Finnhub)' : 'illustrative mock data'}{unit === 'thousands' ? ' · all numbers in thousands' : ''} · not financial advice{showDelta ? ' · Δ vs prior period' : ''}
       </Mono>
       {legend && <FinLegendModal onClose={()=>setLegend(false)} />}
       {exportOpen && <FinExportModal ticker={c.ticker} curSheet={sheet}

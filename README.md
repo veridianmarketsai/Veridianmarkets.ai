@@ -315,6 +315,20 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-18 (financials display — Yahoo-style balance sheet, Q4, units)
+
+- **Balance sheet reordered to Yahoo's hierarchy** (Assets → Liabilities → Equity,
+  subtotals with indented components) and expanded with many us-gaap line items
+  (PP&E, goodwill, intangibles, non-current sections, retained earnings, minority
+  interest, shares). Renderer now supports multi-level indent + bold subtotals.
+- **Q4 in the quarterly view.** US companies file 10-Qs for Q1–Q3 only, so the
+  quarterly view now also pulls the annual 10-K to fill Q4: balance sheet = year-end
+  snapshot (as filed), income/cash-flow = annual − (Q1+Q2+Q3) (derived).
+  ([`financials.jsx`](ui_kits/web/financials.jsx) `vmBuildQuarterly`)
+- **"Show in: Relative / Thousands" toggle** + a **"Currency in USD"** caption; the
+  `$` is dropped from cells (Thousands = plain numbers in thousands, no `$`/`B`).
+- EPS-surprise card now sorts quarters chronologically. _(branch: `fix-earnings-order`)_
+
 ### 2026-07-18 (data-capture-1.2 — admin reports + favourites table)
 
 - **Admin analytics in the panel.** New admin-only **`vm-admin-analytics`** Lambda

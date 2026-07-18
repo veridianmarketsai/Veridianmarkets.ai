@@ -62,6 +62,20 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — financials display fixes (branch `fix-earnings-order`). Merged to main.
+
+- **Balance sheet** BS_MAP reordered to **Yahoo hierarchy** (Assets→Liabilities→Equity;
+  subtotals bold, components indented) + many added us-gaap concepts (PP&E, goodwill,
+  intangibles, non-current sections, retained earnings, minority interest, shares).
+  Dashboard row render now does multi-level indent (`paddingLeft: 12+(in)*15`) + bold at
+  any level; added `shares` fmt (no $).
+- **Q4 in quarterly**: `vmBuildQuarterly(qPayload, aPayload)` — 10-Qs = Q1–Q3 only, so pull
+  annual 10-K too; **balance sheet Q4 = year-end snapshot as-filed**, **income/cashflow Q4 =
+  annual − (Q1+Q2+Q3)** derived (`_deriveQ4`). `useVMFinancials` fetches both freqs on quarterly.
+- **Units:** `unit` state + "Show in: Relative/Thousands" toggle; **$ removed from all cells**,
+  "Currency in USD · …" caption added; Thousands = plain `value×1000` with commas.
+- EPS-surprise card sorts quarters chronologically (`signals.jsx`).
+
 ### 2026-07-18 — data-capture-1.2: admin reports + favourites table. Merged to main.
 
 - **`vm-admin-analytics`** Lambda (`lambda/capture/vm-admin-analytics/`): admin-only (checks
