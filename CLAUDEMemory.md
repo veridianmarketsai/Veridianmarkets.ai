@@ -62,6 +62,28 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — Started `landing-page-3.1`.
+
+New branch (from main) to pick back up Landing page work (`Landing.jsx`, the
+marketing site at root). User asked to number it `3.1` (a new series for this
+feature track, after `landing-page-1.1`/`landing-page-2.1`, both merged).
+
+- **Gated the whole app behind sign-in (`app.jsx`).** Since the landing-page
+  split moved the app to `/home`, every app route (`front`, `screener`,
+  `history`, `learn`, `memoir`, `myportfolio`, `mybusiness`, `admin`,
+  `settings`, `calendar`, `news`, `upgrade`, `/company/<ticker>`) was actually
+  reachable unauthenticated via direct URL — only `mybusiness`/`admin`/the 3
+  paid routes redirected. Found via a real (non-guessed) test: headless Edge
+  with a clean profile hitting `/home` rendered the full FrontPage. New
+  `appGated = !signedIn && route!=='landing' && route!=='signin'` catches
+  everything else → `signin`, replacing the old one-off `gatedFromBusiness`.
+  `SignIn`'s `redirectTo` now sends the user back to whatever route they were
+  gated from (was hardcoded to `admin`/`mybusiness`/`myportfolio`). Also fixed
+  the document-title effect to key off `effRoute` (what's actually on screen)
+  instead of `route` (the requested one) — it was stale/wrong for any gated
+  page. Removes the old "portfolio sign-in guard disabled" testing bypass as
+  a side effect (now covered by the blanket gate).
+
 ### 2026-07-18 — financials display fixes (branch `fix-earnings-order`). Merged to main.
 
 - **Balance sheet** BS_MAP reordered to **Yahoo hierarchy** (Assets→Liabilities→Equity;
