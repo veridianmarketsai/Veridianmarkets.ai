@@ -31,8 +31,10 @@ const A_STATUS_REAL = {
   active:      { label: 'Active',      fg: VM.upInk,  bg: VM.tealTint,           bd: VM.up },
   inactive:    { label: 'Inactive',    fg: VM.ink3,   bg: VM.paperDeep,          bd: VM.border },
   unconfirmed: { label: 'Unconfirmed', fg: VM.terra,  bg: 'rgba(196,106,59,0.12)', bd: VM.terra },
+  suspended:   { label: 'Suspended',   fg: VM.downInk, bg: 'rgba(163,45,45,0.10)', bd: VM.downInk },
 };
 function realUserStatus(u) {
+  if (u.enabled === false) return 'suspended';
   if (u.cognitoStatus && u.cognitoStatus !== 'CONFIRMED') return 'unconfirmed';
   if (u.lastActive && (Date.now() - u.lastActive.getTime()) < 7 * DAY_MS) return 'active';
   return 'inactive';
@@ -42,26 +44,28 @@ function normalizeAdminUser(u) {
   return {
     id: u.sub, name: u.name || (u.email ? u.email.split('@')[0] : 'Member'), email: u.email || '',
     plan: plan.charAt(0).toUpperCase() + plan.slice(1),
+    planRaw: plan,
     cognitoStatus: u.status,
+    enabled: u.enabled !== false,   // Cognito's `Enabled` (defaults true if the analytics Lambda predates this field)
     joined: u.created ? new Date(u.created) : null,
     lastActive: u.lastSeen ? new Date(u.lastSeen) : null,
     eventCount: u.eventCount || 0,
     favourites: u.favourites || [],
   };
 }
-// Real roster, loaded once; { users:null } until it resolves (fetch failed /
-// not configured / not admin) — callers fall back to the mock VM_USERS.
+// Real roster; { users:null } until it resolves (fetch failed / not
+// configured / not admin) — callers fall back to the mock VM_USERS.
+// `refresh()` re-fetches — called after an admin action mutates a user.
 function useRealAdminUsers() {
   const [state, setState] = useStateAdmin({ users: null, loading: true });
-  React.useEffect(() => {
-    let alive = true;
+  const load = React.useCallback(() => {
+    setState(s => ({ ...s, loading: true }));
     vmAdminAnalytics('users').then(d => {
-      if (!alive) return;
       setState({ users: (d && Array.isArray(d.users)) ? d.users.map(normalizeAdminUser) : null, loading: false });
     });
-    return () => { alive = false; };
   }, []);
-  return state;
+  React.useEffect(() => { load(); }, [load]);
+  return { ...state, refresh: load };
 }
 
 function adminDownloadCSV(filename, headers, rows) {
@@ -810,20 +814,22 @@ function AdminDonut({ data, size = 140, thickness = 19, center, centerLabel }) {
 // ── Users ───────────────────────────────────────────────────────────────────
 const A_USER_COLS = '1.7fr 0.6fr 0.8fr 0.9fr 0.7fr 34px';   // User · Plan · Status · Joined · Active · ⋮ (no Country — not real data)
 function UsersTab({ onAccess, isMobile }) {
-  const { users: realUsers, loading: realLoading } = useRealAdminUsers();
+  const { users: realUsers, loading: realLoading, refresh: refreshRealUsers } = useRealAdminUsers();
   const real = !!realUsers;
   const source = real ? realUsers : VM_USERS;
   const statusMap = real ? A_STATUS_REAL : A_STATUS;
-  const statusFilters = real ? ['all', 'active', 'inactive', 'unconfirmed'] : ['all', 'active', 'trial', 'churned'];
+  const statusFilters = real ? ['all', 'active', 'inactive', 'unconfirmed', 'suspended'] : ['all', 'active', 'trial', 'churned'];
   const statusOf = (u) => real ? realUserStatus(u) : u.status;
 
   const [q, setQ] = useStateAdmin('');
   const [status, setStatus] = useStateAdmin('all');
   const [shown, setShown] = useStateAdmin(40);
   const [detail, setDetail] = useStateAdmin(null);   // user shown in the detail modal
+  const [pendingAction, setPendingAction] = useStateAdmin(null);   // { type, user } awaiting confirmation
   const [toast, setToast] = useStateAdmin('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
   const access = (u) => { setDetail(null); onAccess(u); };
+  const actionDone = (msg) => { setPendingAction(null); setDetail(null); if (real) refreshRealUsers(); showToast(msg); };
   const term = q.trim().toLowerCase();
   const rows = source.filter(u => {
     if (status !== 'all' && statusOf(u) !== status) return false;
@@ -854,7 +860,8 @@ function UsersTab({ onAccess, isMobile }) {
             {['User', 'Plan', 'Status', 'Joined', 'Active', ''].map((h, i) => <Label key={i} style={{ textAlign: i === 1 || i === 2 ? 'center' : 'left' }}>{h}</Label>)}
           </div>
           {visible.map((u, i) => (
-            <UserRow key={u.id} u={u} real={real} last={i === visible.length - 1} onView={setDetail} onAccess={access} onToast={showToast} />
+            <UserRow key={u.id} u={u} real={real} last={i === visible.length - 1} onView={setDetail} onAccess={access}
+              onAction={(type) => setPendingAction({ type, user: u })} onToast={showToast} />
           ))}
           {visible.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>No users match.</div>}
         </div>
@@ -864,19 +871,19 @@ function UsersTab({ onAccess, isMobile }) {
           <Btn onClick={() => setShown(s => s + 40)}><i className="ti ti-chevron-down" style={{ fontSize: 15 }}></i>Show more</Btn>
         </div>
       )}
-      {detail && <UserDetailModal u={detail} real={real} onClose={() => setDetail(null)} onAccess={access} onToast={showToast} />}
+      {detail && <UserDetailModal u={detail} real={real} onClose={() => setDetail(null)} onAccess={access}
+        onAction={(type) => setPendingAction({ type, user: detail })} onToast={showToast} />}
+      {pendingAction && <AdminActionModal pending={pendingAction} onClose={() => setPendingAction(null)} onDone={actionDone} onToast={showToast} />}
       {toast && <AdminToast text={toast} />}
     </div>
   );
 }
 
-// One user row + its ⋮ actions menu (rendered fixed-position so it isn't clipped).
-// Real rows only offer actions that are genuinely wired (view details, the
-// existing simulated "access account", and a real Cognito password-reset
-// email) — mutating actions (change plan, suspend, delete) still need their
-// own admin-privileged Lambda and stay mock-only for now, so they're hidden
-// rather than shown as fake buttons next to real account data.
-function UserRow({ u, real, last, onView, onAccess, onToast }) {
+// One user row + its ⋮ actions menu (rendered fixed-position so it isn't
+// clipped). Real rows' mutating actions (suspend/reactivate/delete/change
+// plan) route through `onAction` → AdminActionModal for confirmation before
+// anything actually happens — none of them fire directly from this menu.
+function UserRow({ u, real, last, onView, onAccess, onAction, onToast }) {
   const [open, setOpen] = useStateAdmin(false);
   const [pos, setPos] = useStateAdmin({ top: 0, left: 0 });
   const btnRef = React.useRef(null);
@@ -918,7 +925,15 @@ function UserRow({ u, real, last, onView, onAccess, onToast }) {
             <MenuItem icon="login-2" label="Access account" tint={VM.teal} onClick={() => act(() => onAccess(u))} />
             <div style={{ height: 1, background: VM.borderHair, margin: '5px 4px' }}></div>
             {real ? (
-              <MenuItem icon="key" label="Send password reset" onClick={() => act(sendReset)} />
+              <React.Fragment>
+                <MenuItem icon="mail" label="Email user" onClick={() => act(() => { window.location.href = 'mailto:' + u.email; })} />
+                <MenuItem icon="key" label="Send password reset" onClick={() => act(sendReset)} />
+                <MenuItem icon="arrows-exchange" label="Change plan" onClick={() => act(() => onAction('plan'))} />
+                <div style={{ height: 1, background: VM.borderHair, margin: '5px 4px' }}></div>
+                <MenuItem icon="ban" label={statusKey === 'suspended' ? 'Reactivate user' : 'Suspend user'} danger
+                  onClick={() => act(() => onAction(statusKey === 'suspended' ? 'reactivate' : 'suspend'))} />
+                <MenuItem icon="trash" label="Delete user" danger onClick={() => act(() => onAction('delete'))} />
+              </React.Fragment>
             ) : (
               <React.Fragment>
                 <MenuItem icon="mail" label="Email user" onClick={() => act(() => onToast('Opened email composer (mock).'))} />
@@ -974,7 +989,7 @@ function useAdminUserActivity(sub, enabled) {
 
 // Full account details + admin actions. Real users get a real recent-activity
 // timeline instead of the mock's fabricated "Personal profits".
-function UserDetailModal({ u, real, onClose, onAccess, onToast }) {
+function UserDetailModal({ u, real, onClose, onAccess, onAction, onToast }) {
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
   const activity = useAdminUserActivity(u.id, real);   // always called (rules of hooks); no-op when !real
 
@@ -1031,6 +1046,13 @@ function UserDetailModal({ u, real, onClose, onAccess, onToast }) {
             <Btn solid onClick={() => onAccess(u)}><i className="ti ti-login-2" style={{ fontSize: 15 }}></i>Access account</Btn>
             <Btn onClick={async () => { try { await vmForgotPassword(u.email); onToast('Password reset email sent.'); } catch (e) { onToast(e.message || 'Could not send reset email.'); } }}>
               <i className="ti ti-key" style={{ fontSize: 15 }}></i>Send password reset
+            </Btn>
+            <Btn onClick={() => onAction('plan')}><i className="ti ti-arrows-exchange" style={{ fontSize: 15 }}></i>Change plan</Btn>
+            <Btn onClick={() => onAction(realUserStatus(u) === 'suspended' ? 'reactivate' : 'suspend')} style={{ color: VM.downInk, borderColor: VM.downInk }}>
+              <i className="ti ti-ban" style={{ fontSize: 15 }}></i>{realUserStatus(u) === 'suspended' ? 'Reactivate' : 'Suspend'}
+            </Btn>
+            <Btn onClick={() => onAction('delete')} style={{ color: VM.downInk, borderColor: VM.downInk, marginLeft: 'auto' }}>
+              <i className="ti ti-trash" style={{ fontSize: 15 }}></i>Delete
             </Btn>
           </div>
         </div>
@@ -1091,6 +1113,81 @@ function UserDetailModal({ u, real, onClose, onAccess, onToast }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Confirmation for every real, mutating admin action (suspend/reactivate/
+// delete/change plan) — nothing in UserRow or UserDetailModal calls
+// vmAdminAction directly; it all routes through here first. Delete requires
+// typing DELETE (matches the account's own self-delete flow); suspend/delete
+// get a plain-language warning either way.
+function AdminActionModal({ pending, onClose, onDone, onToast }) {
+  const { type, user } = pending;
+  const [busy, setBusy] = useStateAdmin(false);
+  const [confirmText, setConfirmText] = useStateAdmin('');
+  const [plan, setPlan] = useStateAdmin(user.planRaw || 'free');
+
+  const needsTypedConfirm = type === 'delete';
+  const ready = !needsTypedConfirm || confirmText.trim().toUpperCase() === 'DELETE';
+
+  const COPY = {
+    suspend:    { title: 'Suspend this account?', body: `${user.name} won't be able to sign in until reactivated. No data is deleted.`, actionLabel: 'Suspend', danger: true },
+    reactivate: { title: 'Reactivate this account?', body: `${user.name} will be able to sign in again immediately.`, actionLabel: 'Reactivate', danger: false },
+    delete:     { title: 'Permanently delete this account?', body: `This deletes ${user.name}'s real Cognito account. This cannot be undone.`, actionLabel: 'Delete account', danger: true },
+    plan:       { title: 'Change plan', body: `Sets the plan Veridian shows ${user.name}. This does NOT touch Stripe — no subscription is created, changed, or charged; it's an app-side override (e.g. for comps or support).`, actionLabel: 'Save plan', danger: false },
+  }[type];
+
+  const run = async () => {
+    if (busy || !ready) return;
+    setBusy(true);
+    const action = type === 'plan' ? 'setPlan' : type;
+    const r = await vmAdminAction(action, user.id, type === 'plan' ? { plan } : {});
+    setBusy(false);
+    if (r.ok) onDone(COPY.actionLabel + ' — done.');
+    else onToast(r.error || 'Could not complete that action.');
+  };
+
+  return ReactDOM.createPortal(
+    <div onClick={busy ? undefined : onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(31,29,26,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: VM.paper, borderRadius: 14, boxShadow: '0 24px 60px rgba(31,29,26,0.3)', padding: 22 }}>
+        <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18, color: VM.ink, marginBottom: 8 }}>{COPY.title}</div>
+        <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.5, marginBottom: 16 }}>{COPY.body}</div>
+
+        {type === 'plan' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+            {['free', 'plus', 'pro', 'business'].map(p => (
+              <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VM.serif, fontSize: 14, color: VM.ink, cursor: 'pointer' }}>
+                <input type="radio" name="admin-plan" checked={plan === p} onChange={() => setPlan(p)} />
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </label>
+            ))}
+          </div>
+        )}
+
+        {needsTypedConfirm && (
+          <div style={{ marginBottom: 18 }}>
+            <Mono size={11} color={VM.ink3} style={{ display: 'block', marginBottom: 6 }}>Type <strong style={{ color: VM.ink }}>DELETE</strong> to confirm</Mono>
+            <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DELETE"
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: VM.mono, fontSize: 14, padding: '9px 12px', borderRadius: 8,
+                border: `1.5px solid ${ready ? VM.downInk : VM.border}`, background: VM.paper, color: VM.ink, outline: 'none' }} />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={busy ? undefined : onClose}
+            style={{ flex: 1, fontFamily: VM.serif, fontSize: 14, padding: '10px 0', borderRadius: 999, border: `1px solid ${VM.border}`, background: 'transparent', color: VM.ink2, cursor: busy ? 'default' : 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={ready && !busy ? run : undefined}
+            style={{ flex: 1, fontFamily: VM.serif, fontSize: 14, fontWeight: 600, padding: '10px 0', borderRadius: 999, border: 'none',
+              background: (ready && !busy) ? (COPY.danger ? VM.downInk : VM.forest) : VM.faint,
+              color: (ready && !busy) ? '#fff' : VM.ink3, cursor: (ready && !busy) ? 'pointer' : 'default', transition: 'all .15s' }}>
+            {busy ? 'Working…' : COPY.actionLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 

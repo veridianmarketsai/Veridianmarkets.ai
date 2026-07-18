@@ -62,6 +62,57 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — Started `admin-actions-1.1`.
+
+User picked the deferred item from the Admin Users pass: real mutating
+row/detail-modal actions (Suspend / Reactivate / Delete / Change plan / Email
+user) — previously hidden for real users since they were destructive and had
+no admin-privileged backend. Treated with more care than usual given Delete
+is genuinely irreversible.
+
+- **New `vm-admin-actions` Lambda** (`lambda/admin/vm-admin-actions/`) — admin-
+  group-gated (same JWKS+`cognito:groups` check as vm-admin-analytics), takes
+  `{action, sub, plan?}`. `suspend`/`reactivate`/`delete` call Cognito's
+  `AdminDisableUser`/`AdminEnableUser`/`AdminDeleteUser` directly with the
+  target's `sub` (Cognito's Admin* APIs accept sub as an alternative to
+  Username — this pool's real Username is the sign-up email, not the sub, so
+  this avoids a separate lookup). `setPlan` is an app-side override —
+  UpdateItem on `vm-subscriptions`, **not** a Stripe call (no subscription
+  created/changed/charged); the confirmation copy says so explicitly so it's
+  never mistaken for real billing. **Safety guard in the Lambda itself:** an
+  admin can't suspend/delete their *own* account through this endpoint.
+- **`vm-admin-analytics` extended** to also return each user's Cognito
+  `Enabled` flag (it didn't capture this before — needed to know who's
+  currently suspended so the UI can offer "Reactivate" instead of "Suspend").
+  New `A_STATUS_REAL.suspended` status + filter pill.
+- **Every mutating action routes through one `AdminActionModal`** — nothing
+  in `UserRow`/`UserDetailModal` calls `vmAdminAction` directly. Delete
+  requires typing **DELETE** (matches the account's own self-delete flow);
+  Suspend/Reactivate/Change-plan get a plain-language confirmation. On
+  success, `useRealAdminUsers` gets a `refresh()` (re-fetches the roster so
+  the change shows immediately) instead of a stale local patch.
+  "Email user" needed no Lambda at all — a plain `mailto:` link.
+- **Testing approach, given the stakes:** never attempted the real success
+  path against actual AWS (a real click could permanently delete a real
+  account). Verified two ways instead: (1) the normal fake-token path, same
+  as every other Lambda this session — confirms graceful `"not configured"`/
+  auth-failure handling, no crash; (2) **injected fake `vmAdminAnalytics`/
+  `vmAdminAction` implementations** (real-shaped synthetic users, a local
+  in-memory action log) to drive the *entire* real-user UI end-to-end —
+  confirmed: Suspend/Reactivate label correctly toggles per user status,
+  Change plan modal shows all 4 plans and calls `setPlan` with the picked
+  one, and — the important one — clicking "Delete account" **before** typing
+  DELETE is a genuine no-op (verified the action log stayed empty), only
+  firing after the exact confirmation text is entered. No JS errors.
+- **AWS steps needed by the user:** deploy the new `vm-admin-actions` Lambda
+  (Function URL, admin-group check built into the code) with IAM for
+  `cognito-idp:AdminDisableUser`/`AdminEnableUser`/`AdminDeleteUser` on the
+  pool ARN + `dynamodb:UpdateItem` on `vm-subscriptions`; redeploy the updated
+  `vm-admin-analytics` code (adds the `Enabled` field — needs no new IAM,
+  `cognito-idp:ListUsers` already returns it); fill the new Lambda's URL into
+  `adminactions.jsx`'s `VM_ADMIN_ACTIONS.url` (currently blank, so all four
+  actions correctly no-op with "not configured" until then).
+
 ### 2026-07-18 — Started `admin-users-and-avatar-sync-1.1`.
 
 User picked 3 items off the bug/gap list from the earlier audit: Admin →

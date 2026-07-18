@@ -94,9 +94,9 @@ async function aggregate() {
   const users = roster.length
     ? roster.map(u => { const p = bySub[u.sub] || {}; return {
         sub: u.sub, email: u.email || p.email || '', name: u.name || p.name || '',
-        created: u.created, status: u.status, plan: p.plan || 'free',
+        created: u.created, status: u.status, enabled: u.enabled, plan: p.plan || 'free',
         lastSeen: p.lastSeen || null, eventCount: p.eventCount || 0, favourites: favsFor('u#' + u.sub) }; })
-    : Object.values(profiles).map(p => ({ ...p, created: null, status: 'CAPTURED', favourites: favsFor(p.userId) }));
+    : Object.values(profiles).map(p => ({ ...p, created: null, status: 'CAPTURED', enabled: true, favourites: favsFor(p.userId) }));
 
   const now = Date.now(), week = 7 * 86400 * 1000;
   const overview = {
@@ -138,7 +138,7 @@ async function listCognitoUsers() {
     const r = await cog.send(new ListUsersCommand({ UserPoolId: POOL, Limit: 60, PaginationToken: token }));
     for (const u of r.Users || []) {
       const a = Object.fromEntries((u.Attributes || []).map(x => [x.Name, x.Value]));
-      users.push({ sub: a.sub, email: a.email || '', name: a.name || a.given_name || '', status: u.UserStatus, created: u.UserCreateDate });
+      users.push({ sub: a.sub, email: a.email || '', name: a.name || a.given_name || '', status: u.UserStatus, enabled: u.Enabled, created: u.UserCreateDate });
     }
     token = r.PaginationToken;
   } while (token && users.length < 500);
