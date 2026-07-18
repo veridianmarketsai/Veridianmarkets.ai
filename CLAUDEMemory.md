@@ -62,6 +62,44 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — Started `personalization-1.1`.
+
+New branch (from `personal.settings.1.2`, uncommitted at the time — branched
+off before merging) for "tailor news and recommendations to a signed-in
+user's interests." Distinct feature area from the settings work, so its own
+branch/track rather than folding into `personal.settings.*`.
+
+- **New `interests.jsx`** — the personalization core, no new backend:
+  `vmGetInterestTickers()` combines real favourites (`vmFavs()`, capture.jsx)
+  + real recently-viewed companies (`vmFetchMyActivity()`, activity.jsx),
+  favourites ranked first. `vmRecommendCompanies(tickers, limit)` is a simple
+  content-based recommender over `VM_COMPANIES`' existing `sector` field
+  ("Tech · Semiconductors") — exact-sector matches first, broadening to the
+  sector prefix ("Tech") if that doesn't fill the quota. Deliberately not
+  ML/embeddings — a transparent heuristic that's honest about what it is.
+- **Personalized news** — new `useVMPersonalizedNews(tickers)` in
+  newsfeed.jsx calls the *existing* `vm-news` Lambda once per interest ticker
+  (it already supports per-symbol queries, cached server-side — no new
+  Lambda), merges by recency, dedupes. Same `{cards,loading,live}` shape as
+  `useVMNews` so it drops in anywhere.
+  - **Home page:** `FrontPage` now takes a `user` prop; when signed in with
+    interest data, the "Global News" tiles + kicker switch to "For you"
+    automatically. Also added a new **"Recommended for you"** section
+    (sector-overlap companies, reusing the existing `CompanyRow`/live-quotes
+    machinery) — signed-in-only, hidden when there's nothing to recommend
+    yet (blank-slate new users still just see the general feed).
+  - **News page:** `News` now takes `user` too; signed-in users with interest
+    data get a **"For you"** pill prepended to the category filters — a
+    parallel option alongside the existing feed, not a replacement.
+- Verified live end-to-end with a scripted CDP/headless-Edge run (seeded
+  `vm_favs:['NVDA']`): recommends AVGO (exact sector match) + others (broader
+  "Tech" match); Home shows "Recommended for you" and personalized tiles;
+  News page's "For you" pill switches to NVDA-related live articles. No JS
+  errors. (Hit — and this time correctly diagnosed rather than re-chased —
+  the recurring test-harness false alarm where `Kicker`/`Label`'s CSS
+  `text-transform:uppercase` makes case-sensitive `innerText` checks miss
+  real content; always compare lower-cased in these smoke tests.)
+
 ### 2026-07-18 — `personal.settings.1.2` continued: Learning, toggles, real 2FA.
 
 User picked 3 of the "bigger, new integrations" list (explicitly skipped SMS

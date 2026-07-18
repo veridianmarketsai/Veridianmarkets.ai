@@ -1,5 +1,12 @@
 // Veridian Markets — Front page (editorial home).
-function FrontPage({ go, isMobile }) {
+function FrontPage({ go, isMobile, user }) {
+  const signedIn = !!user;
+  // Personalization (signed-in only): interest tickers from real favourites +
+  // view history (interests.jsx) drive both the news mix below and the
+  // "Recommended for you" row. New/blank-slate users just see the general feed.
+  const interests = useVMInterests(signedIn);
+  const personalizedNews = useVMPersonalizedNews(interests.tickers);
+  const recommended = React.useMemo(() => vmRecommendCompanies(interests.tickers, 4), [interests.tickers.join(',')]);
   const recap = [
     { k:'Forex', chg:'+0.12%', dir:'up' }, { k:'Bonds', chg:'-0.08%', dir:'down' },
     { k:'Commodities', chg:'+0.94%', dir:'up' }, { k:'Stocks', chg:'+0.41%', dir:'up' },
@@ -26,8 +33,12 @@ function FrontPage({ go, isMobile }) {
     .slice(0, 10);
   const liveMap = useVMQuotes(baseCompanyRows.map(c => c.ticker));   // live quotes overlay
   const companyRows = baseCompanyRows.map(c => vmApply(c, liveMap));
+  const [recOpenRow, setRecOpenRow] = React.useState(null);     // "Recommended for you" row's own eye-preview state
+  const recLiveMap = useVMQuotes(recommended.map(c => c.ticker));
+  const recommendedRows = recommended.map(c => vmApply(c, recLiveMap));
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
-  const news = typeof useVMNews === 'function' ? useVMNews('general') : { cards: [] };   // real headlines for the story tiles
+  const generalNews = typeof useVMNews === 'function' ? useVMNews('general') : { cards: [] };
+  const news = personalizedNews.live ? personalizedNews : generalNews;   // real headlines for the story tiles, tailored when we have interest data
   const [screenerHover, setScreenerHover] = React.useState(false);  // hover shade on the 'Open full screener' button
   const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button
 
@@ -38,7 +49,7 @@ function FrontPage({ go, isMobile }) {
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
         {/* STORY TILES — fixed 3×3 window; the button slides through 3 pages of 9 (27 total). Placeholder scaffold. */}
         <div>
-          <Kicker>Global News</Kicker>
+          <Kicker>{personalizedNews.live ? 'For you' : 'Global News'}</Kicker>
           {/* One page of 9 tiles, in an overflow-visible area so hover pop-outs are never clipped.
               Changing page remounts StoryPage (via key), which slides + fades the new tiles in. */}
           <div data-tour="vm-story-tiles" style={{ marginTop:10 }}>
@@ -101,6 +112,23 @@ function FrontPage({ go, isMobile }) {
           </div>
         </div>
       </div>
+
+      {/* RECOMMENDED FOR YOU — signed-in, sector-overlap with favourites/recently viewed (interests.jsx). */}
+      {signedIn && recommendedRows.length > 0 && (
+        <div data-tour="vm-recommended" style={{ marginTop:44 }}>
+          <Kicker>Recommended for you</Kicker>
+          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:'8px 0 16px' }}>Companies you might like.</h2>
+          <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px 70px 110px', gap:10, padding: isMobile ? '6px 14px' : '6px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
+              <Label>Ticker</Label><Label>Sector · Market cap</Label><div style={{ textAlign:'left' }}><Label>Price</Label></div><div style={{ textAlign:'left' }}><Label>Change</Label></div>
+            </div>
+            {recommendedRows.map((c,i)=>(
+              <CompanyRow key={c.ticker} c={c} last={i===recommendedRows.length-1} go={go} isMobile={isMobile}
+                open={recOpenRow===c.ticker} onEye={()=>setRecOpenRow(recOpenRow===c.ticker?null:c.ticker)} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* TOP COMPANIES PREVIEW */}
       <div data-tour="vm-company-list" style={{ marginTop:44 }}>

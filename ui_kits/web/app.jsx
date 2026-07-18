@@ -341,7 +341,7 @@ function App() {
 
   let screen;
   if(effRoute==='landing') screen = <VMLanding />;
-  else if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} />;
+  else if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='screener') screen = <Screener go={go} isMobile={isMobile} />;
   else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
   else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} trail={dashTrail} tab={dashTab} onTabChange={setDashTab} />;
@@ -353,7 +353,7 @@ function App() {
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
-  else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
+  else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} confirmMfa={confirmMfa} redirectTo={appGated ? route : 'myportfolio'} isMobile={isMobile} />;
 
