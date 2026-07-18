@@ -62,6 +62,22 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — data-capture-1.2: admin reports + favourites table. Merged to main.
+
+- **`vm-admin-analytics`** Lambda (`lambda/capture/vm-admin-analytics/`): admin-only (checks
+  `cognito:groups` includes `admin`); Scans `vm-events` + Cognito **ListUsers** → views
+  `overview`/`users`/`user&id=`. Env TABLE, COGNITO_POOL_ID, COGNITO_REGION. IAM needs
+  **AmazonDynamoDBReadOnlyAccess + AmazonCognitoReadOnly**. Uses AWS SDK v3
+  `@aws-sdk/client-cognito-identity-provider` (bundled in Node 20; Cognito call wrapped in
+  try/catch so it degrades to events-only if not).
+- **`adminanalytics.jsx`** (`useAdminAnalytics`) + `LiveCapturePanel` atop Admin→Overview:
+  real users/active-7d/plans/top-favourites/top-viewed/funnel. Hidden if not admin (403).
+- **`vm-favourites`** table (pk+sk = userId, TICKER): `vm-capture` now mirrors favourite
+  add/remove there (best-effort). **Two AWS steps still needed by user: create `vm-favourites`
+  table + redeploy `vm-capture`.** **Data lives in DynamoDB us-east-1** — report via Explore
+  items/Scan→CSV, PartiQL, the admin Lambda, or (later) S3 export + Athena. Cognito ≠ database.
+  **Next idea: wire Admin Users tab to the real Cognito+activity roster.**
+
 ### 2026-07-18 — data-capture-1.1: first-party analytics → DynamoDB. Merged to main.
 
 - **`vm-capture`** Lambda (`lambda/capture/vm-capture/`): batched event ingest → **`vm-events`**

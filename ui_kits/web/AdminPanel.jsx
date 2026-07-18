@@ -125,6 +125,7 @@ function OverviewTab({ stats, isMobile }) {
   const maxC = Math.max(...stats.topCountries.map(c => c.n), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <LiveCapturePanel isMobile={isMobile} />
       <div data-tour="vm-admin-kpis" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         {kpis.map((k, i) => <AdminKpi key={i} {...k} onClick={() => setKpiModal(k.id)} />)}
       </div>
@@ -158,6 +159,62 @@ function OverviewTab({ stats, isMobile }) {
       </AdminCard>
       {kpiModal && <AdminKpiModal kpiKey={kpiModal} stats={stats} onClose={() => setKpiModal(null)} />}
       {chartModal && <AdminChartModal chartKey={chartModal} stats={stats} onClose={() => setChartModal(null)} />}
+    </div>
+  );
+}
+
+// Real captured data (vm-events via vm-admin-analytics). Hidden if not admin /
+// not configured / no data yet — the mock KPIs below still render.
+function LiveCapturePanel({ isMobile }) {
+  const { data, loading } = typeof useAdminAnalytics === 'function' ? useAdminAnalytics('overview') : { data: null, loading: false };
+  if (loading) return (
+    <div style={{ border: `1px solid ${VM.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: VM.mono, fontSize: 11, color: VM.ink3 }}>
+      <i className="ti ti-loader-2" style={{ fontSize: 13 }}></i> Loading real captured data…
+    </div>
+  );
+  if (!data) return null;
+  const f = data.funnel || {}, plans = data.plans || {};
+  const kpis = [['Users (live)', data.totalUsers], ['Active · 7d', data.activeUsers7d], ['Paying', (plans.plus || 0) + (plans.pro || 0)], ['Events', data.totalEvents]];
+  const box = { background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 10, padding: '11px 13px' };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, border: `1px solid ${VM.tealTint2 || VM.teal}`, borderRadius: 14, padding: 16, background: VM.tealTint }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <span style={{ width: 7, height: 7, borderRadius: 999, background: VM.teal }}></span>
+        <span style={{ fontFamily: VM.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: VM.tealInk }}>Live · captured data (real)</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+        {kpis.map(([l, v]) => <div key={l} style={box}><Label>{l}</Label><div style={{ fontFamily: VM.mono, fontSize: 22, fontWeight: 700, color: VM.ink, marginTop: 3 }}>{v ?? 0}</div></div>)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+        <LiveTopList title="Most favourited" rows={data.topFavourites} />
+        <LiveTopList title="Most viewed" rows={data.topViewed} />
+      </div>
+      <div style={box}>
+        <Label>Funnel</Label>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 8 }}>
+          {[['Sessions', f.sessions], ['Company views', f.companyViews], ['Paywall hits', f.paywallHits], ['Checkout starts', f.checkoutStarts]].map(([l, v]) => (
+            <div key={l} style={{ flex: '1 1 110px' }}><Mono size={20} weight={700}>{v || 0}</Mono><div><Label>{l}</Label></div></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+function LiveTopList({ title, rows }) {
+  const list = (rows || []).slice(0, 8);
+  return (
+    <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 10, padding: '11px 13px' }}>
+      <Label>{title}</Label>
+      {!list.length && <div style={{ fontFamily: VM.serif, fontSize: 13, color: VM.ink3, marginTop: 8 }}>No data yet.</div>}
+      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {list.map((r, i) => (
+          <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.ink3, width: 14 }}>{i + 1}</span>
+            <span style={{ flex: 1, fontFamily: VM.mono, fontSize: 12, fontWeight: 700, color: VM.ink }}>{r.key}</span>
+            <Mono size={11} color={VM.ink2}>{r.n}</Mono>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
