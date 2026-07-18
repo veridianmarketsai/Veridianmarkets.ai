@@ -3,7 +3,7 @@
 // global via Object.assign.
 
 const VM_ACTIVITY = {
-  apiBase: '',   // vm-my-activity Lambda Function URL — fill in once deployed
+  apiBase: 'https://oh3bjpbnrw2g64tplpicg4yam40wiybz.lambda-url.us-east-1.on.aws/',   // vm-my-activity Lambda
 };
 
 // Fetch the signed-in user's own recent searches + viewed companies. Returns

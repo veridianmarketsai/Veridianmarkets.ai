@@ -98,14 +98,13 @@ Saved, Your activity, Change password, Delete account.
   `vm-events` for `type:"search_select"` and `type:"navigate"` (route
   "dashboard") events, dedupes, returns the 8 most recent of each. New
   `activity.jsx` (`VM_ACTIVITY` config + `vmFetchMyActivity`, same shape as
-  avatar.jsx/billing.jsx) — **`apiBase` left blank**, so `ActivitySection`
-  gracefully keeps showing the mock preview until the Lambda is deployed and
-  the URL filled in (same not-yet-wired fallback pattern as everywhere else).
-  **AWS steps still needed by the user:** create the Lambda (Node.js 22.x),
-  env vars `TABLE=vm-events` + `COGNITO_POOL_ID` + `COGNITO_REGION`, attach
-  `AmazonDynamoDBReadOnlyAccess` to its role (matches the sibling
-  `vm-admin-analytics` read-Lambda's IAM), Function URL Auth NONE / CORS off,
-  then send me the URL to fill into `activity.jsx`.
+  avatar.jsx/billing.jsx). **Deployed** — Function URL
+  `https://oh3bjpbnrw2g64tplpicg4yam40wiybz.lambda-url.us-east-1.on.aws/`,
+  wired into `activity.jsx`. Verified live: manual fetch to the Lambda
+  confirms it's reachable and JWKS-verifying; `vmFetchMyActivity()` correctly
+  returns `null` on an invalid token and `ActivitySection` falls back to the
+  mock cleanly (couldn't test the real-data success path from here — needs a
+  real signed-in session, same limitation as the other Cognito-gated flows).
 - Verified all four together with one scripted CDP/headless-Edge run (fake
   session): Saved renders real favourited tickers; Activity falls back to
   mock cleanly (Lambda not deployed yet); Change password surfaces "Incorrect
