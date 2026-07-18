@@ -62,6 +62,57 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — Started `personal.settings.1.2`.
+
+New branch (from main, after `personal.settings.1.1` merged) continuing the
+"de-mock Settings" pass — user picked the first 4 of the "quick wins" list:
+Saved, Your activity, Change password, Delete account.
+
+- **Change password — real Cognito `ChangePassword`.** Was checking against a
+  fake password in `localStorage` (`vm_mock_password`, removed). Now a real
+  self-service call (`vmChangePassword` in auth.jsx); a wrong current password
+  surfaces as an inline field error same as before. Deliberately **not**
+  routed through the `vmSelfService()` NotAuthorizedException re-mapping added
+  last round — here that exception code genuinely does mean "wrong current
+  password," not an expired session, so remapping it would've been wrong in
+  the other direction.
+- **Delete account — real Cognito `DeleteUser`.** Previously only cleared
+  `localStorage` and signed out — never actually deleted the account despite
+  the modal's copy promising permanent removal. Now calls `vmDeleteAccount()`
+  first; only clears local data + signs out if that succeeds. Modal gained a
+  `busy` state (Cancel/backdrop/Confirm all disabled mid-request) so a slow or
+  failing call can't be raced. Verified live (fake token): shows "session
+  expired" and — importantly — does NOT sign out or clear local data when the
+  delete call fails, so a real user is never (falsely) shown "deleted" while
+  their account still exists.
+- **Saved — reads real favourites.** Was hardcoded to the first 4 companies in
+  the database. New `SavedSection` reads `vmFavs()` (capture.jsx) — the same
+  localStorage source of truth the ⭐ on company pages already uses — and maps
+  tickers back to full company objects. No new backend needed; this data
+  already existed.
+- **Your activity — new `vm-my-activity` Lambda (real, needs deploy).**
+  Was hardcoded `MOCK_SEARCHES`/`MOCK_VIEWED`. New Lambda
+  (`lambda/activity/vm-my-activity/index.mjs`, same recipe as
+  vm-avatar-upload: Function URL Auth NONE, verifies the Cognito access token
+  itself via JWKS) **Queries** (not Scans — scoped to the caller's own `pk`)
+  `vm-events` for `type:"search_select"` and `type:"navigate"` (route
+  "dashboard") events, dedupes, returns the 8 most recent of each. New
+  `activity.jsx` (`VM_ACTIVITY` config + `vmFetchMyActivity`, same shape as
+  avatar.jsx/billing.jsx) — **`apiBase` left blank**, so `ActivitySection`
+  gracefully keeps showing the mock preview until the Lambda is deployed and
+  the URL filled in (same not-yet-wired fallback pattern as everywhere else).
+  **AWS steps still needed by the user:** create the Lambda (Node.js 22.x),
+  env vars `TABLE=vm-events` + `COGNITO_POOL_ID` + `COGNITO_REGION`, attach
+  `AmazonDynamoDBReadOnlyAccess` to its role (matches the sibling
+  `vm-admin-analytics` read-Lambda's IAM), Function URL Auth NONE / CORS off,
+  then send me the URL to fill into `activity.jsx`.
+- Verified all four together with one scripted CDP/headless-Edge run (fake
+  session): Saved renders real favourited tickers; Activity falls back to
+  mock cleanly (Lambda not deployed yet); Change password surfaces "Incorrect
+  password" correctly on a bad token; Delete account shows the session-expired
+  toast and — confirmed — does not sign out or wipe local data on failure. No
+  JS errors.
+
 ### 2026-07-18 — Started `personal.settings.1.1`.
 
 New branch (from main) for personal/account settings work. Branch name given

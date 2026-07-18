@@ -188,6 +188,22 @@ async function vmConfirmEmailChange(code) {
   if (!s || !s.access) throw new Error('Not signed in.');
   await vmSelfService(cognito('VerifyUserAttribute', { AccessToken: s.access, AttributeName: 'email', Code: code }));
 }
+// Real password change (Settings → Password & security). Cognito itself
+// checks `prev` is correct — a wrong current password comes back as
+// NotAuthorizedException, which here genuinely does mean "incorrect password"
+// (unlike the profile-edit calls above), so it's deliberately NOT routed
+// through vmSelfService's re-mapping.
+async function vmChangePassword(prev, next) {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  await cognito('ChangePassword', { AccessToken: s.access, PreviousPassword: prev, ProposedPassword: next });
+}
+// Permanently deletes the signed-in Cognito user (Settings → Delete account).
+async function vmDeleteAccount() {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  await vmSelfService(cognito('DeleteUser', { AccessToken: s.access }));
+}
 
 Object.assign(window, {
   VM_AUTH, cognito,
@@ -196,4 +212,5 @@ Object.assign(window, {
   vmRefresh, vmEnsureFreshSession,
   vmLoadUser, vmClearSession, vmUserFromClaims,
   vmUpdateAttributes, vmRequestEmailChange, vmResendEmailCode, vmConfirmEmailChange,
+  vmChangePassword, vmDeleteAccount,
 });

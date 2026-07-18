@@ -72,11 +72,11 @@ function StAvatar({ name, src, size, radius }) {
   );
 }
 
-function DeleteAccountModal({ email, onConfirm, onClose }) {
+function DeleteAccountModal({ email, busy, onConfirm, onClose }) {
   const [typed, setTyped] = useStateSettings('');
-  const ready = typed === 'DELETE';
+  const ready = typed === 'DELETE' && !busy;
   return ReactDOM.createPortal(
-    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+    <div onClick={busy ? undefined : onClose} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
       <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:460, width:'100%', boxShadow:'0 24px 64px rgba(31,29,26,0.32)' }}>
         <div style={{ padding:'22px 22px 0', display:'flex', alignItems:'flex-start', gap:14 }}>
           <div style={{ width:42, height:42, borderRadius:10, background:'#FDE8E8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -104,12 +104,12 @@ function DeleteAccountModal({ email, onConfirm, onClose }) {
             />
           </div>
           <div style={{ display:'flex', gap:10 }}>
-            <button onClick={onClose} style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor:'pointer' }}>
+            <button onClick={busy ? undefined : onClose} style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor: busy ? 'default' : 'pointer' }}>
               Cancel
             </button>
             <button onClick={ready ? onConfirm : undefined} style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 0', borderRadius:999, border:'none',
               background: ready ? VM.downInk : VM.faint, color: ready ? '#fff' : VM.ink3, cursor: ready ? 'pointer' : 'default', transition:'all .15s' }}>
-              Delete account
+              {busy ? 'Deleting…' : 'Delete account'}
             </button>
           </div>
         </div>
@@ -279,6 +279,7 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
   const [section, setSection] = useStateSettings(initSection);
   const [toast, setToast] = useStateSettings('');
   const [showDelete, setShowDelete] = useStateSettings(false);
+  const [deleting, setDeleting] = useStateSettings(false);
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 2800); };
   const u = user || { name: 'Guest', email: 'not signed in', tier: 'Free' };
   // Real plan comes from the backend (app-level `plan`); fall back to the mock tier.
@@ -308,13 +309,23 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
     navTo(item.id);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await vmDeleteAccount();   // real Cognito DeleteUser — permanently removes the account
+    } catch (e) {
+      showToast(e.message || 'Could not delete your account — try again.');
+      setDeleting(false);
+      return;
+    }
     // Clear all local data (prototype — admin credentials remain hardcoded in app.jsx)
     try {
       ['vm_session','vm_theme','vm_2fa_app','vm_2fa_sms','vm_2fa_phone',
-       'vm_other_sessions','vm_pf_brokers','vm_mock_password','vm_account_mode',
+       'vm_other_sessions','vm_pf_brokers','vm_account_mode',
        vmAvatarKey(u.sub), vmUsernameKey(u.sub)].forEach(k => localStorage.removeItem(k));
     } catch(e) {}
+    setDeleting(false);
     setShowDelete(false);
     onSignOut && onSignOut();
   };
@@ -325,7 +336,7 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
         ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, onAvatarChange, onUserRefresh })}</StSubPage>
         : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} avatar={avatar} />}
       {toast && <StToast text={toast} />}
-      {showDelete && <DeleteAccountModal email={u.email} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
+      {showDelete && <DeleteAccountModal email={u.email} busy={deleting} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
     </div>
   );
 }
@@ -697,6 +708,7 @@ function StSecuritySection({ u, showToast }) {
   const [showConf, setShowConf] = useStateSettings(false);
   const [errors, setErrors]     = useStateSettings({});
   const [pwSaved, setPwSaved]   = useStateSettings(false);
+  const [pwBusy, setPwBusy]     = useStateSettings(false);
 
   const [authApp, setAuthApp]   = useStateSettings(() => { try { return JSON.parse(localStorage.getItem('vm_2fa_app') || 'false'); } catch { return false; } });
   const [smsBak, setSmsBak]     = useStateSettings(() => { try { return JSON.parse(localStorage.getItem('vm_2fa_sms') || 'false'); } catch { return false; } });
@@ -731,20 +743,29 @@ function StSecuritySection({ u, showToast }) {
   const SW_COLOR = [VM.faint, VM.down, VM.down, VM.terra, VM.up, VM.up];
   const SW_LABEL = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 
-  const savePw = () => {
-    const stored = localStorage.getItem('vm_mock_password') || 'password';
+  const savePw = async () => {
+    if (pwBusy) return;
     const errs = {};
     if (!cur)               errs.cur   = 'Required';
-    else if (cur !== stored) errs.cur   = 'Incorrect password';
     if (!newPw)             errs.newPw = 'Required';
     else if (newPw.length < 8) errs.newPw = 'Minimum 8 characters';
     if (!conf)              errs.conf  = 'Required';
     else if (newPw !== conf) errs.conf  = 'Passwords do not match';
     setErrors(errs);
-    if (!Object.keys(errs).length) {
-      localStorage.setItem('vm_mock_password', newPw);
+    if (Object.keys(errs).length) return;
+
+    setPwBusy(true);
+    try {
+      await vmChangePassword(cur, newPw);
       setCur(''); setNewPw(''); setConf('');
       setPwSaved(true); setTimeout(() => setPwSaved(false), 3000);
+    } catch (e) {
+      // Cognito's own NotAuthorizedException here genuinely means "wrong
+      // current password" — show it inline like the other field errors.
+      if (e.code === 'NotAuthorizedException') setErrors({ cur: 'Incorrect password' });
+      else showToast(e.message || 'Could not change your password.');
+    } finally {
+      setPwBusy(false);
     }
   };
 
@@ -830,9 +851,8 @@ function StSecuritySection({ u, showToast }) {
         ? <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'10px 16px', background:VM.tealTint, border:`1px solid ${VM.up}`, borderRadius:10, fontFamily:VM.serif, fontSize:14, color:VM.upInk, marginBottom:16 }}>
             <i className="ti ti-circle-check-filled" style={{fontSize:16}}></i>Password updated
           </div>
-        : <StSave onClick={savePw} />
+        : <StSave onClick={pwBusy ? undefined : savePw} label={pwBusy ? 'Saving…' : 'Save changes'} />
       }
-      <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:6, marginBottom:18 }}>Mock default: "password"</Mono>
 
       <StCard title="Two-factor authentication">
         <div style={{ padding:'13px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
@@ -1075,21 +1095,58 @@ function HelpSection() {
   );
 }
 
+// Real favourites (the ⭐ on any company page) — vmFavs() is the same
+// localStorage-backed source of truth CompanyHead reads for the star itself
+// (mirrored best-effort to the vm-favourites DynamoDB table server-side).
+function SavedSection({ go }) {
+  const [favs] = useStateSettings(() => {
+    const tickers = typeof vmFavs === 'function' ? vmFavs() : [];
+    return tickers.map(t => VM_COMPANIES.find(c => c.ticker === t)).filter(Boolean);
+  });
+  return (
+    <React.Fragment>
+      <StNote>Companies you've saved — tap the ★ on any company page to add or remove one.</StNote>
+      {favs.length
+        ? <StCard>{favs.map((c, i, a) => <StLink key={c.ticker} label={`${c.ticker} · ${c.name}`} value="View" onClick={() => go('dashboard', c)} last={i === a.length - 1} />)}</StCard>
+        : <Mono size={11} color={VM.ink3} style={{ display: 'block', padding: '13px 0' }}>No saved companies yet.</Mono>
+      }
+    </React.Fragment>
+  );
+}
+
 const MOCK_SEARCHES  = ['oil prices', 'AAPL supply chain', 'interest rates', 'NVDA'];
 const MOCK_VIEWED    = VM_COMPANIES.slice(0, 3);
 
 function ActivitySection({ go, showToast }) {
   const [confirming, setConfirming] = useStateSettings(false);
   const [cleared, setCleared]       = useStateSettings(false);
+  // Seed with the mock preview; replaced by the real vm-my-activity data once
+  // it loads (falls back to staying on the mock if that Lambda isn't
+  // configured/deployed yet, or the call fails).
   const [searches, setSearches]     = useStateSettings(MOCK_SEARCHES);
   const [viewed, setViewed]         = useStateSettings(MOCK_VIEWED);
+  const initial = useRefSettings({ searches: MOCK_SEARCHES, viewed: MOCK_VIEWED });
+
+  useEffectSettings(() => {
+    let live = true;
+    (async () => {
+      const data = typeof vmFetchMyActivity === 'function' ? await vmFetchMyActivity() : null;
+      if (!live || !data) return;
+      const realSearches = data.searches || [];
+      const realViewed = (data.viewed || []).map(v => VM_COMPANIES.find(c => c.ticker === v.ticker) || v);
+      initial.current = { searches: realSearches, viewed: realViewed };
+      setSearches(realSearches);
+      setViewed(realViewed);
+    })();
+    return () => { live = false; };
+  }, []);
 
   const doClear = () => {
     setSearches([]); setViewed([]);
     setCleared(true); setConfirming(false);
   };
   const doRestore = () => {
-    setSearches(MOCK_SEARCHES); setViewed(MOCK_VIEWED);
+    setSearches(initial.current.searches); setViewed(initial.current.viewed);
     setCleared(false);
     showToast('Activity restored.');
   };
@@ -1345,14 +1402,7 @@ function renderSection(id, ctx) {
         </StCard>
       </React.Fragment>
     );
-    case 'saved': return (
-      <React.Fragment>
-        <StNote>Companies and stories you've saved for later.</StNote>
-        <StCard>
-          {VM_COMPANIES.slice(0, 4).map((c, i, a) => <StLink key={c.ticker} label={`${c.ticker} · ${c.name}`} value="View" onClick={() => go('dashboard', c)} last={i === a.length - 1} />)}
-        </StCard>
-      </React.Fragment>
-    );
+    case 'saved': return <SavedSection go={go} />;
     case 'activity': return <ActivitySection go={go} showToast={showToast} />;
     case 'learning': return (
       <React.Fragment>
