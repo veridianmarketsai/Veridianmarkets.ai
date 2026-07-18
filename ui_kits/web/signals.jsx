@@ -105,7 +105,9 @@ function RecommendationCard({ rows }) {
 
 // Last few quarters of EPS actual vs estimate.
 function EarningsCard({ rows }) {
-  const list = rows.slice(0, 4);
+  // Take the 4 most recent quarters, then show them in chronological order
+  // (oldest → newest) so they read in sequence instead of newest-first.
+  const list = rows.slice(0, 4).sort((a, b) => (a.year - b.year) || (a.quarter - b.quarter));
   if (!list.length) return null;
   return (
     <SigCard title="Earnings — EPS surprise">
