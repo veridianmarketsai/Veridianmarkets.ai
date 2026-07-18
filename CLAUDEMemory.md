@@ -62,6 +62,65 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — Started `admin-users-and-avatar-sync-1.1`.
+
+User picked 3 items off the bug/gap list from the earlier audit: Admin →
+Users real data, real session tracking, avatar cross-device sync. Did #1 and
+#3; #2 needs a scoping answer before building (Cognito has no native
+per-session list+revoke — only all-or-nothing `GlobalSignOut` — so "make
+sessions real" has two very different possible builds).
+
+- **Admin → Users tab reads real data.** New `useRealAdminUsers()` calls the
+  already-built `vm-admin-analytics?view=users` (built for Overview, never
+  wired to Users) — falls back to the mock `VM_USERS` if that fails/isn't
+  reachable, with a visible "· live (Cognito + activity)" vs "· mock" label so
+  it's never ambiguous which one's showing. Real users get their own status
+  taxonomy (`A_STATUS_REAL`: active/inactive/unconfirmed, from Cognito status +
+  real last-seen recency — the mock's active/trial/churned is a subscription-
+  lifecycle concept with no real backing data) and their own relative-time
+  helper (`aRelReal`, anchored to actual `Date.now()` — the mock's `aRel` is
+  anchored to a **fixed** fake "now" of 2026-05-31, which would make real
+  timestamps read as nonsensical/future-dated if reused). Dropped the
+  **Country** column/search (no real data source — never captured). The detail
+  modal's fabricated "Personal profits" (no real portfolio data exists for
+  anyone) is replaced with a **real recent-activity timeline** for real users,
+  via `vm-admin-analytics?view=user&id=` (also already built, also never
+  wired to anything). Row/modal actions: kept only what's genuinely real —
+  "Send password reset" now calls the real (self-service, no admin rights
+  needed) `vmForgotPassword` — and **hid** Change plan/Suspend/Delete/Email
+  for real users rather than leaving them as fake buttons next to real
+  account data (mutating admin actions need their own admin-privileged Lambda,
+  not built this round). The separate Analytics tab (retention/growth/
+  revenue/etc.) is untouched — still deterministic mock derived from
+  `VM_USERS`, out of scope (that's a much bigger, differently-shaped project).
+- **Avatar cross-device sync.** New `vmAvatarS3Url(sub)` (avatar.jsx) builds
+  the deterministic public S3 URL (`avatars/<sub>.jpg`) client-side — no round
+  trip needed to know it. `StAvatar` now tries that first, falls back to the
+  browser's cached copy (`fallbackSrc`) only if the real one 404s/errors
+  (plain `<img>` needs no bucket CORS, unlike a `fetch()` HEAD check would),
+  and finally initials. Exposes `onResolved(hasPhoto)` so "Remove" only shows
+  once it's confirmed a photo actually exists (the URL is always a
+  *candidate* now, not proof). **Bug found by testing, not inspection:** first
+  wiring attempt silently always fell through to initials even with a valid
+  local fallback cached — `renderSection()`'s ctx destructuring dropped
+  `avatarFallback` before it reached `StProfileSection`; caught via a
+  scripted CDP run that polled the DOM every 200ms and saw the fallback phase
+  never appear, fixed, re-verified frame-by-frame (200ms→400ms: S3 404s →
+  local photo appears → Remove button shows).
+  **Also fixed the same feature exposed:** "Remove" only ever cleared the
+  local cache, never the real S3 object — with remote-first loading, a
+  "removed" photo would've reappeared on next load/other devices. Extended
+  the existing `vm-avatar-upload` Lambda with a `{action:'delete'}` branch
+  (`DeleteObjectCommand`) + new `vmDeleteAvatar()`; Remove now calls it
+  best-effort. **AWS step needed by the user:** redeploy the Lambda's updated
+  code, and add `s3:DeleteObject` to the existing inline role policy
+  (`vm-avatar-s3-write`) — it currently only has `s3:PutObject`.
+- Verified both live with scripted CDP/headless-Edge runs (fake session):
+  Admin Users correctly attempts the real call and falls back to mock
+  cleanly; avatar sync tries S3 → falls back to local → falls back to
+  initials correctly in both the has-a-photo and never-uploaded cases, frame
+  by frame. No JS errors.
+
 ### 2026-07-18 — Started `personalization-1.1`.
 
 New branch (from `personal.settings.1.2`, uncommitted at the time — branched

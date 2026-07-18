@@ -1,8 +1,10 @@
 // Veridian Markets — Admin control panel (admin role only).
-// Three tabs: Overview (user metrics dashboard), Users (the 100-strong temp DB),
-// and Courses (add/remove Learn courses — writes through to the live Learn page
-// via the course store in Learn.jsx). All data is temporary/mock — see
-// admin_data.jsx (users) and the vm*Course store (courses). Backend wiring TBD.
+// Four tabs: Overview (mock metrics dashboard), Users (real Cognito + vm-events
+// roster via vm-admin-analytics, falling back to the 100-strong temp DB in
+// admin_data.jsx if that call fails/isn't reachable), Courses (add/remove Learn
+// courses — writes through to the live Learn page via the course store in
+// Learn.jsx), and Analytics (retention/growth/revenue/etc., still deterministic
+// mock derived from VM_USERS — real event-stream-backed metrics TBD).
 const { useState: useStateAdmin } = React;
 
 const A_PLAN_COLOR = { Free: VM.faint, Plus: VM.teal, Pro: VM.forest };
@@ -14,8 +16,53 @@ const A_STATUS = {
 const aMoney = (n) => '$' + Number(n).toLocaleString('en-US');
 const aDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 const aRel = (d) => { const days = Math.round((VM_NOW - d) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
+// Real timestamps (Cognito/vm-events) are anchored to the actual current time,
+// unlike the mock dataset's fixed VM_NOW — a separate "ago" helper avoids
+// real users' join dates reading as "in the future" against the mock clock.
+const aRelReal = (d) => { const days = Math.round((Date.now() - d.getTime()) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
 const A_PLAN_PRICE = { Plus: 9, Pro: 19 };
 const DAY_MS = 86400000;
+
+// ── real user roster (Cognito + vm-events, via vm-admin-analytics) ───────────
+// Status here is necessarily different from the mock's subscription-lifecycle
+// concept (active/trial/churned) — that data isn't captured anywhere. This is
+// Cognito account state + real activity recency instead.
+const A_STATUS_REAL = {
+  active:      { label: 'Active',      fg: VM.upInk,  bg: VM.tealTint,           bd: VM.up },
+  inactive:    { label: 'Inactive',    fg: VM.ink3,   bg: VM.paperDeep,          bd: VM.border },
+  unconfirmed: { label: 'Unconfirmed', fg: VM.terra,  bg: 'rgba(196,106,59,0.12)', bd: VM.terra },
+};
+function realUserStatus(u) {
+  if (u.cognitoStatus && u.cognitoStatus !== 'CONFIRMED') return 'unconfirmed';
+  if (u.lastActive && (Date.now() - u.lastActive.getTime()) < 7 * DAY_MS) return 'active';
+  return 'inactive';
+}
+function normalizeAdminUser(u) {
+  const plan = u.plan || 'free';
+  return {
+    id: u.sub, name: u.name || (u.email ? u.email.split('@')[0] : 'Member'), email: u.email || '',
+    plan: plan.charAt(0).toUpperCase() + plan.slice(1),
+    cognitoStatus: u.status,
+    joined: u.created ? new Date(u.created) : null,
+    lastActive: u.lastSeen ? new Date(u.lastSeen) : null,
+    eventCount: u.eventCount || 0,
+    favourites: u.favourites || [],
+  };
+}
+// Real roster, loaded once; { users:null } until it resolves (fetch failed /
+// not configured / not admin) — callers fall back to the mock VM_USERS.
+function useRealAdminUsers() {
+  const [state, setState] = useStateAdmin({ users: null, loading: true });
+  React.useEffect(() => {
+    let alive = true;
+    vmAdminAnalytics('users').then(d => {
+      if (!alive) return;
+      setState({ users: (d && Array.isArray(d.users)) ? d.users.map(normalizeAdminUser) : null, loading: false });
+    });
+    return () => { alive = false; };
+  }, []);
+  return state;
+}
 
 function adminDownloadCSV(filename, headers, rows) {
   const escape = v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
@@ -761,8 +808,15 @@ function AdminDonut({ data, size = 140, thickness = 19, center, centerLabel }) {
 }
 
 // ── Users ───────────────────────────────────────────────────────────────────
-const A_USER_COLS = '1.7fr 0.6fr 0.8fr 1fr 0.9fr 0.7fr 34px';
+const A_USER_COLS = '1.7fr 0.6fr 0.8fr 0.9fr 0.7fr 34px';   // User · Plan · Status · Joined · Active · ⋮ (no Country — not real data)
 function UsersTab({ onAccess, isMobile }) {
+  const { users: realUsers, loading: realLoading } = useRealAdminUsers();
+  const real = !!realUsers;
+  const source = real ? realUsers : VM_USERS;
+  const statusMap = real ? A_STATUS_REAL : A_STATUS;
+  const statusFilters = real ? ['all', 'active', 'inactive', 'unconfirmed'] : ['all', 'active', 'trial', 'churned'];
+  const statusOf = (u) => real ? realUserStatus(u) : u.status;
+
   const [q, setQ] = useStateAdmin('');
   const [status, setStatus] = useStateAdmin('all');
   const [shown, setShown] = useStateAdmin(40);
@@ -771,34 +825,36 @@ function UsersTab({ onAccess, isMobile }) {
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
   const access = (u) => { setDetail(null); onAccess(u); };
   const term = q.trim().toLowerCase();
-  const rows = VM_USERS.filter(u => {
-    if (status !== 'all' && u.status !== status) return false;
-    if (term && !(u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term) || u.country.toLowerCase().includes(term))) return false;
+  const rows = source.filter(u => {
+    if (status !== 'all' && statusOf(u) !== status) return false;
+    if (term && !(u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))) return false;
     return true;
   });
   const visible = rows.slice(0, shown);
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, flex: 1, minWidth: 220, background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 10, padding: '9px 13px' }}>
           <i className="ti ti-search" style={{ fontSize: 15, color: VM.ink3 }}></i>
-          <input value={q} onChange={e => { setQ(e.target.value); setShown(40); }} placeholder="Search name, email or country…"
+          <input value={q} onChange={e => { setQ(e.target.value); setShown(40); }} placeholder="Search name or email…"
             style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontFamily: VM.serif, fontSize: 14, color: VM.ink }} />
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {['all', 'active', 'trial', 'churned'].map(s => (
-            <Pill key={s} active={status === s} onClick={() => { setStatus(s); setShown(40); }}>{s === 'all' ? 'All' : A_STATUS[s].label}</Pill>
+          {statusFilters.map(s => (
+            <Pill key={s} active={status === s} onClick={() => { setStatus(s); setShown(40); }}>{s === 'all' ? 'All' : statusMap[s].label}</Pill>
           ))}
         </div>
       </div>
-      <Mono size={10.5} color={VM.ink3} style={{ display: 'block', marginBottom: 8 }}>{rows.length} of {VM_USERS.length} users</Mono>
+      <Mono size={10.5} color={real ? VM.upInk : VM.ink3} style={{ display: 'block', marginBottom: 8 }}>
+        {rows.length} of {source.length} users{real ? ' · live (Cognito + activity)' : realLoading ? ' · loading live data…' : ' · mock (live data unavailable)'}
+      </Mono>
       <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 12, overflowX: 'auto' }}>
-        <div style={{ minWidth: isMobile ? 640 : 'auto' }}>
+        <div style={{ minWidth: isMobile ? 560 : 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: A_USER_COLS, gap: 8, padding: '9px 16px', background: VM.paperWarm, borderBottom: `1px solid ${VM.borderSoft}`, borderRadius: '12px 12px 0 0' }}>
-            {['User', 'Plan', 'Status', 'Country', 'Joined', 'Active', ''].map((h, i) => <Label key={i} style={{ textAlign: i === 1 || i === 2 ? 'center' : 'left' }}>{h}</Label>)}
+            {['User', 'Plan', 'Status', 'Joined', 'Active', ''].map((h, i) => <Label key={i} style={{ textAlign: i === 1 || i === 2 ? 'center' : 'left' }}>{h}</Label>)}
           </div>
           {visible.map((u, i) => (
-            <UserRow key={u.id} u={u} last={i === visible.length - 1} onView={setDetail} onAccess={access} onToast={showToast} />
+            <UserRow key={u.id} u={u} real={real} last={i === visible.length - 1} onView={setDetail} onAccess={access} onToast={showToast} />
           ))}
           {visible.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>No users match.</div>}
         </div>
@@ -808,14 +864,19 @@ function UsersTab({ onAccess, isMobile }) {
           <Btn onClick={() => setShown(s => s + 40)}><i className="ti ti-chevron-down" style={{ fontSize: 15 }}></i>Show more</Btn>
         </div>
       )}
-      {detail && <UserDetailModal u={detail} onClose={() => setDetail(null)} onAccess={access} onToast={showToast} />}
+      {detail && <UserDetailModal u={detail} real={real} onClose={() => setDetail(null)} onAccess={access} onToast={showToast} />}
       {toast && <AdminToast text={toast} />}
     </div>
   );
 }
 
 // One user row + its ⋮ actions menu (rendered fixed-position so it isn't clipped).
-function UserRow({ u, last, onView, onAccess, onToast }) {
+// Real rows only offer actions that are genuinely wired (view details, the
+// existing simulated "access account", and a real Cognito password-reset
+// email) — mutating actions (change plan, suspend, delete) still need their
+// own admin-privileged Lambda and stay mock-only for now, so they're hidden
+// rather than shown as fake buttons next to real account data.
+function UserRow({ u, real, last, onView, onAccess, onToast }) {
   const [open, setOpen] = useStateAdmin(false);
   const [pos, setPos] = useStateAdmin({ top: 0, left: 0 });
   const btnRef = React.useRef(null);
@@ -825,6 +886,13 @@ function UserRow({ u, last, onView, onAccess, onToast }) {
     setOpen(true);
   };
   const act = (fn) => { setOpen(false); fn(); };
+  const statusMap = real ? A_STATUS_REAL : A_STATUS;
+  const statusKey = real ? realUserStatus(u) : u.status;
+  const st = statusMap[statusKey];
+  const sendReset = async () => {
+    try { await vmForgotPassword(u.email); onToast('Password reset email sent to ' + u.email + '.'); }
+    catch (e) { onToast(e.message || 'Could not send reset email.'); }
+  };
   return (
     <React.Fragment>
       <div style={{ display: 'grid', gridTemplateColumns: A_USER_COLS, gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: last ? 'none' : `1px solid ${VM.borderHair}` }}>
@@ -832,13 +900,12 @@ function UserRow({ u, last, onView, onAccess, onToast }) {
           <div style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 600, color: VM.ink }}>{u.name}</div>
           <Mono size={10} color={VM.ink3} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{u.email}</Mono>
         </div>
-        <div style={{ textAlign: 'center' }}><Mono size={10.5} weight={600} color={A_PLAN_COLOR[u.plan]}>{u.plan}</Mono></div>
+        <div style={{ textAlign: 'center' }}><Mono size={10.5} weight={600} color={A_PLAN_COLOR[u.plan] || VM.ink2}>{u.plan}</Mono></div>
         <div style={{ textAlign: 'center' }}>
-          <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5, color: A_STATUS[u.status].fg, background: A_STATUS[u.status].bg, border: `1px solid ${A_STATUS[u.status].bd}` }}>{A_STATUS[u.status].label}</span>
+          <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5, color: st.fg, background: st.bg, border: `1px solid ${st.bd}` }}>{st.label}</span>
         </div>
-        <Mono size={11} color={VM.ink2}>{u.country}</Mono>
-        <Mono size={11} color={VM.ink3}>{aDate(u.joined)}</Mono>
-        <Mono size={10.5} color={VM.ink3}>{aRel(u.lastActive)}</Mono>
+        <Mono size={11} color={VM.ink3}>{u.joined ? aDate(u.joined) : '—'}</Mono>
+        <Mono size={10.5} color={VM.ink3}>{u.lastActive ? (real ? aRelReal(u.lastActive) : aRel(u.lastActive)) : 'never'}</Mono>
         <button ref={btnRef} title="More" onClick={openMenu} style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${open ? VM.border : 'transparent'}`, background: open ? VM.paperWarm : 'transparent', color: VM.ink2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, justifySelf: 'end' }}>
           <i className="ti ti-dots-vertical" style={{ fontSize: 16 }}></i>
         </button>
@@ -850,12 +917,18 @@ function UserRow({ u, last, onView, onAccess, onToast }) {
             <MenuItem icon="user-circle" label="View account details" onClick={() => act(() => onView(u))} />
             <MenuItem icon="login-2" label="Access account" tint={VM.teal} onClick={() => act(() => onAccess(u))} />
             <div style={{ height: 1, background: VM.borderHair, margin: '5px 4px' }}></div>
-            <MenuItem icon="mail" label="Email user" onClick={() => act(() => onToast('Opened email composer (mock).'))} />
-            <MenuItem icon="key" label="Reset password" onClick={() => act(() => onToast('Password reset link sent (mock).'))} />
-            <MenuItem icon="arrows-exchange" label="Change plan" onClick={() => act(() => onToast('Plan change (mock).'))} />
-            <div style={{ height: 1, background: VM.borderHair, margin: '5px 4px' }}></div>
-            <MenuItem icon="ban" label={u.status === 'churned' ? 'Reactivate user' : 'Suspend user'} danger onClick={() => act(() => onToast((u.status === 'churned' ? 'Reactivated' : 'Suspended') + ' ' + u.name + ' (mock).'))} />
-            <MenuItem icon="trash" label="Delete user" danger onClick={() => act(() => onToast('Deleted ' + u.name + ' (mock).'))} />
+            {real ? (
+              <MenuItem icon="key" label="Send password reset" onClick={() => act(sendReset)} />
+            ) : (
+              <React.Fragment>
+                <MenuItem icon="mail" label="Email user" onClick={() => act(() => onToast('Opened email composer (mock).'))} />
+                <MenuItem icon="key" label="Reset password" onClick={() => act(() => onToast('Password reset link sent (mock).'))} />
+                <MenuItem icon="arrows-exchange" label="Change plan" onClick={() => act(() => onToast('Plan change (mock).'))} />
+                <div style={{ height: 1, background: VM.borderHair, margin: '5px 4px' }}></div>
+                <MenuItem icon="ban" label={u.status === 'churned' ? 'Reactivate user' : 'Suspend user'} danger onClick={() => act(() => onToast((u.status === 'churned' ? 'Reactivated' : 'Suspended') + ' ' + u.name + ' (mock).'))} />
+                <MenuItem icon="trash" label="Delete user" danger onClick={() => act(() => onToast('Deleted ' + u.name + ' (mock).'))} />
+              </React.Fragment>
+            )}
           </div>
         </React.Fragment>
       )}
@@ -883,10 +956,90 @@ function AdminToast({ text }) {
   );
 }
 
-// Full account details + personal profits + admin actions.
-function UserDetailModal({ u, onClose, onAccess, onToast }) {
-  const p = vmUserProfits(u);
+// Real per-user event timeline (vm-admin-analytics ?view=user&id=) — a real
+// substitute for the mock's fabricated "Personal profits" (no real portfolio
+// data exists for any user, so showing invented numbers next to real Cognito
+// account details would be actively misleading rather than just illustrative).
+function useAdminUserActivity(sub, enabled) {
+  const [state, setState] = useStateAdmin({ events: null, loading: !!enabled });
+  React.useEffect(() => {
+    if (!enabled || !sub) { setState({ events: null, loading: false }); return; }
+    let alive = true;
+    setState(s => ({ ...s, loading: true }));
+    vmAdminAnalytics('user', sub).then(d => { if (alive) setState({ events: (d && d.events) || [], loading: false }); });
+    return () => { alive = false; };
+  }, [sub, enabled]);
+  return state;
+}
+
+// Full account details + admin actions. Real users get a real recent-activity
+// timeline instead of the mock's fabricated "Personal profits".
+function UserDetailModal({ u, real, onClose, onAccess, onToast }) {
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+  const activity = useAdminUserActivity(u.id, real);   // always called (rules of hooks); no-op when !real
+
+  if (real) {
+    const st = A_STATUS_REAL[realUserStatus(u)];
+    const detail = [
+      ['User ID', u.id], ['Plan', u.plan], ['Status', st.label],
+      ['Joined', u.joined ? aDate(u.joined) : '—'],
+      ['Last active', u.lastActive ? aRelReal(u.lastActive) : 'never'],
+      ['Events captured', u.eventCount.toLocaleString('en-US')],
+    ];
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(31,29,26,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 16, boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 22px', borderBottom: `1px solid ${VM.borderHair}` }}>
+            <span style={{ width: 48, height: 48, borderRadius: 12, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{initials}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 20 }}>{u.name}</div>
+              <Mono size={11} color={VM.ink3}>{u.email}</Mono>
+            </div>
+            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink2, cursor: 'pointer' }}><i className="ti ti-x" style={{ fontSize: 15 }}></i></button>
+          </div>
+          <div style={{ padding: '18px 22px' }}>
+            <Label>Account details</Label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 10 }}>
+              {detail.map(([k, v]) => (
+                <div key={k}><Mono size={9.5} color={VM.ink3} style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>{k}</Mono>
+                  <div style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink, marginTop: 2, wordBreak: 'break-all' }}>{v}</div></div>
+              ))}
+            </div>
+            {u.favourites.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <Mono size={9.5} color={VM.ink3} style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Favourited</Mono>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                  {u.favourites.map(t => <span key={t} style={{ fontFamily: VM.mono, fontSize: 11, padding: '3px 8px', borderRadius: 999, background: VM.paperWarm, border: `1px solid ${VM.border}`, color: VM.ink2 }}>{t}</span>)}
+                </div>
+              </div>
+            )}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${VM.borderHair}` }}>
+              <Label>Recent activity</Label>
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column' }}>
+                {activity.loading && <Mono size={11} color={VM.ink3}>Loading…</Mono>}
+                {!activity.loading && activity.events && activity.events.length === 0 && <Mono size={11} color={VM.ink3}>No events captured yet.</Mono>}
+                {!activity.loading && activity.events && activity.events.slice(0, 12).map((e, i, a) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '6px 0', borderBottom: i < a.length - 1 ? `1px solid ${VM.borderHair}` : 'none' }}>
+                    <Mono size={11} color={VM.ink2}>{e.type}{e.props && e.props.ticker ? ` · ${e.props.ticker}` : ''}{e.page ? ` · ${e.page}` : ''}</Mono>
+                    <Mono size={10} color={VM.ink3} style={{ flexShrink: 0 }}>{aRelReal(new Date(e.ts))}</Mono>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '14px 22px', borderTop: `1px solid ${VM.borderHair}`, background: VM.paperWarm, borderRadius: '0 0 16px 16px' }}>
+            <Btn solid onClick={() => onAccess(u)}><i className="ti ti-login-2" style={{ fontSize: 15 }}></i>Access account</Btn>
+            <Btn onClick={async () => { try { await vmForgotPassword(u.email); onToast('Password reset email sent.'); } catch (e) { onToast(e.message || 'Could not send reset email.'); } }}>
+              <i className="ti ti-key" style={{ fontSize: 15 }}></i>Send password reset
+            </Btn>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── mock fallback (unchanged) ──
+  const p = vmUserProfits(u);
   const detail = [
     ['User ID', '#' + u.id], ['Country', u.country], ['Plan', u.plan], ['Status', A_STATUS[u.status].label],
     ['Joined', aDate(u.joined)], ['Last active', aRel(u.lastActive)], ['Courses enrolled', u.enrolled], ['Lessons completed', u.lessons],
