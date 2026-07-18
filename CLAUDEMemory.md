@@ -62,6 +62,21 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — data-capture-1.1: first-party analytics → DynamoDB. Merged to main.
+
+- **`vm-capture`** Lambda (`lambda/capture/vm-capture/`): batched event ingest → **`vm-events`**
+  table (COMPOSITE key **`pk`+`sk`** — first table with a sort key; pk=`u#<sub>`/`a#<anonId>`,
+  sk=`<ts>#rand` for events or `#profile` for the rolling identity+counter row). Public POST
+  beacon, no auth, TTL_DAYS. **Gotcha fixed: `plan` (like `name`) is a DynamoDB reserved word**
+  — alias in UpdateExpression (`#pl`). Env TABLE, TTL_DAYS. IAM: BatchWriteItem+UpdateItem.
+- **`capture.jsx`** (`vmCapture`/`vmIdentify`/`vmFavs`/`vmToggleFav`): batched (flush every 2.5s
+  or 12 events, `sendBeacon` on pagehide), sent as text/plain = no CORS preflight; no-op until
+  `VM_CAPTURE.url` set.
+- **Wired:** ⭐ favourite star in `CompanyHead` (persists localStorage + logs); global `click`
+  listener; `navigate`/`session_start`(+referrer/UTM/device)/`paywall_hit`/`checkout_start` in
+  app.jsx & billing.jsx; `search_select`, `tab_view`, `feature`(export). Next ideas: search
+  no-results, dwell time, cancel-reason, an Admin "Users & activity" view reading `vm-events`.
+
 ### 2026-07-18 — payments-1.3: proper checkout (no duplicate customers). Merged to main.
 
 - **`vm-billing-checkout`** Lambda (`lambda/billing/checkout/`): JWT verify → reuse ONE

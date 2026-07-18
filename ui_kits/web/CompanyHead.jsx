@@ -13,6 +13,9 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
   const peTxt = met.peTTM != null ? `P/E ${vmNum2(met.peTTM)}` : 'P/E —';
   const dyTxt = met.dividendYield != null ? `div ${vmPct1(met.dividendYield)}` : 'div —';
   const logo = prof.profile && prof.profile.logo ? prof.profile.logo : null;   // real company logo (Finnhub)
+  // Favourite (star) — persists locally + captured to vm-events.
+  const [fav, setFav] = React.useState(() => typeof vmIsFav === 'function' && vmIsFav(c.ticker));
+  React.useEffect(() => { setFav(typeof vmIsFav === 'function' && vmIsFav(c.ticker)); }, [c.ticker]);
   // The drill trail — each crumb is { co, tab } so the path reads
   // Search › SPX › Supply chain › AAPL › Financials. Earlier crumbs (company AND
   // its tab) are clickable to step back to exactly where you were.
@@ -55,6 +58,11 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
             <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?34:52, lineHeight:0.9, letterSpacing:'0.01em' }}>{c.ticker}</span>
             <span style={{ fontFamily:VM.serif, fontSize: isMobile?16:20, color:VM.ink3 }}>{c.name}</span>
           </div>
+          <button onClick={() => { if (typeof vmToggleFav === 'function') setFav(vmToggleFav(c.ticker)); }}
+            title={fav ? 'Remove from favourites' : 'Add to favourites'} data-cap="favourite-toggle"
+            style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:1, flexShrink:0, color: fav ? '#E0A93B' : VM.ink3 }}>
+            <i className={fav ? 'ti ti-star-filled' : 'ti ti-star'} style={{ fontSize: isMobile?20:24 }}></i>
+          </button>
         </div>
         <div style={{ display:'flex', gap: isMobile?20:26, alignItems:'flex-start' }}>
           <div><Label style={{ display:'inline-flex', alignItems:'center', gap:5 }}>Price {live && <span title="Live · cached ≤2 min" style={{ width:6, height:6, borderRadius:999, background:VM.up, display:'inline-block' }}></span>}</Label><div style={{ display:'flex', alignItems:'baseline', gap:8 }}><Mono size={isMobile?18:22} weight={700}>${price}</Mono><Chg dir={dir}>{chgTxt}</Chg></div></div>
@@ -68,7 +76,7 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
         {tabs.map(t=>{
           const active = t===tab;
           const hov = hoverTab===t && !active;
-          return <span key={t} onClick={()=>{ if (movedRef.current) { movedRef.current = false; return; } onTabChange(t); }}
+          return <span key={t} onClick={()=>{ if (movedRef.current) { movedRef.current = false; return; } if (typeof vmCapture === 'function') vmCapture('tab_view', { ticker: c.ticker, tab: t }); onTabChange(t); }}
             onMouseEnter={()=>setHoverTab(t)} onMouseLeave={()=>setHoverTab(h=>h===t?null:h)} style={{
             fontFamily:VM.serif, fontSize: isMobile?15:16, padding:'4px 8px 10px', cursor:'pointer', whiteSpace:'nowrap', borderRadius:'6px 6px 0 0',
             color: active?VM.ink:(hov?VM.teal:VM.ink2), fontWeight: active?700:(hov?600:400),

@@ -67,6 +67,7 @@ function SymbolSearchBox({ value, onChange, go, placeholder, round, autoFocus })
 
   const pick = (co) => {
     setFocused(false);
+    if (typeof vmCapture === 'function') vmCapture('search_select', { query: q.trim(), ticker: co.ticker });
     if (go) go('dashboard', co);
   };
 

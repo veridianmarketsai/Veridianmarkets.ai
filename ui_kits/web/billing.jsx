@@ -28,6 +28,7 @@ const VM_BILLING = {
 // caller falls back to its mock). Tags the checkout with the signed-in user so the
 // webhook can grant the plan.
 async function vmStartCheckout(planId) {
+  if (typeof vmCapture === 'function') vmCapture('checkout_start', { plan: planId });
   if (planId === 'free' || planId === 'business') return false;
   const user = typeof vmLoadUser === 'function' ? vmLoadUser() : null;
   let session = null; try { session = JSON.parse(localStorage.getItem('vm_session') || 'null'); } catch {}
