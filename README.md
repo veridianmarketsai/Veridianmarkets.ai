@@ -315,6 +315,17 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-18 (data-capture-1.2 — admin reports + favourites table)
+
+- **Admin analytics in the panel.** New admin-only **`vm-admin-analytics`** Lambda
+  ([`lambda/capture/vm-admin-analytics/`](lambda/capture/vm-admin-analytics/)) joins the
+  **Cognito** roster (ListUsers) with **`vm-events`** behaviour; enforces the `admin`
+  group. A **"Live · captured data"** panel now tops **Admin → Overview**
+  ([`adminanalytics.jsx`](ui_kits/web/adminanalytics.jsx) + [`AdminPanel.jsx`](ui_kits/web/AdminPanel.jsx)):
+  real users / active-7d / plan split / **most-favourited** & **most-viewed** companies / funnel.
+- **Dedicated `vm-favourites` table** — the star now also writes `(user, ticker)` rows
+  via `vm-capture`, so "who favourited what" is a direct lookup. _(branch: `data-capture-1.2`)_
+
 ### 2026-07-18 (data-capture-1.1 — first-party analytics)
 
 - **Silent data capture → DynamoDB.** New **`vm-capture`** Lambda

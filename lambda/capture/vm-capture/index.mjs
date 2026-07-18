@@ -14,11 +14,12 @@
 // Env vars: TABLE=vm-events, TTL_DAYS (default 180)
 // IAM:      the function role needs DynamoDB BatchWriteItem + UpdateItem on TABLE.
 
-import { DynamoDBClient, BatchWriteItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, BatchWriteItemCommand, UpdateItemCommand, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 
 const db = new DynamoDBClient({});
-const TABLE   = process.env.TABLE || 'vm-events';
-const TTL_DAYS = Number(process.env.TTL_DAYS) || 180;
+const TABLE     = process.env.TABLE || 'vm-events';
+const FAV_TABLE = process.env.FAV_TABLE || 'vm-favourites';   // dedicated favourites (pk=userId, sk=ticker)
+const TTL_DAYS  = Number(process.env.TTL_DAYS) || 180;
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -60,6 +61,7 @@ export const handler = async (event) => {
       await db.send(new BatchWriteItemCommand({ RequestItems: { [TABLE]: puts } }));
     }
     await upsertProfile(userId, u, now, events.length);
+    await syncFavourites(userId, u, events, now);   // dedicated favourites table (best-effort)
     return resp(200, { ok: true, stored: events.length });
   } catch (err) {
     console.warn('capture error', err.message);
@@ -83,6 +85,26 @@ async function upsertProfile(userId, u, now, n) {
   };
   if (Object.keys(names).length) cmd.ExpressionAttributeNames = names;
   await db.send(new UpdateItemCommand(cmd));
+}
+
+// Mirror favourite add/remove into the dedicated vm-favourites table so "who
+// favourited what" is a direct lookup (pk=userId, sk=TICKER). Best-effort: a
+// failure here (e.g. table not created yet) never fails the capture call.
+async function syncFavourites(userId, u, events, now) {
+  const favs = events.filter((e) => e.type === 'favourite' && e.props && e.props.ticker);
+  if (!favs.length) return;
+  try {
+    await Promise.all(favs.map((e) => {
+      const t = String(e.props.ticker).toUpperCase();
+      const Key = { pk: { S: userId }, sk: { S: t } };
+      if (e.props.action === 'remove') return db.send(new DeleteItemCommand({ TableName: FAV_TABLE, Key }));
+      return db.send(new PutItemCommand({ TableName: FAV_TABLE, Item: {
+        ...Key, ticker: { S: t }, addedAt: { N: String(now) },
+        ...(u.email ? { email: { S: String(u.email) } } : {}),
+        ...(u.sub ? { sub: { S: String(u.sub) } } : {}),
+      } }));
+    }));
+  } catch (e) { console.warn('fav sync', e.message); }
 }
 
 const resp = (statusCode, body) => ({ statusCode, headers: { 'content-type': 'application/json', ...CORS }, body: JSON.stringify(body) });
