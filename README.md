@@ -315,6 +315,18 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-18 (payments-1.2 — portal + admin access)
+
+- **Billing portal (cancel / switch).** New **`vm-billing-portal`** Lambda
+  ([`lambda/billing/portal/`](lambda/billing/portal/)) verifies the Cognito JWT, looks
+  up the user's stored `stripeCustomerId`, and opens a **Stripe Customer Portal**
+  session. Wired to a **"Manage / cancel subscription"** button in Settings
+  ([`billing.jsx`](ui_kits/web/billing.jsx) `vmOpenPortal` + [`AccountSettings.jsx`](ui_kits/web/AccountSettings.jsx)).
+- **Admins bypass the paywall** — `isPaying` now also true for admins, so News /
+  Calendar / Dependency map open regardless of plan.
+- **Fixed** a pre-existing crash: `StList` used `planTier` without receiving it as a
+  prop (blanked the Settings menu on direct `/settings` load). _(branch: `payments-1.2`)_
+
 ### 2026-07-17 (generic Finnhub proxy + extra calendars)
 
 - **`vm-finnhub` — one generic caching proxy** for many free Finnhub GET endpoints

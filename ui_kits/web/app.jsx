@@ -267,7 +267,8 @@ function App() {
   // Source of truth = the backend (vm-billing-status). On load / after sign-in,
   // fetch the real plan and reconcile the local cache. No-op until statusUrl is set.
   useEffectApp(() => { if (signedIn && typeof vmFetchPlan === 'function') vmFetchPlan().then(p => { if (p) setPlan(p); }); }, [signedIn]);
-  const isPaying = signedIn && plan !== 'free';
+  // Admins always have full access (never paywalled), regardless of plan.
+  const isPaying = signedIn && (plan !== 'free' || (user && user.role === 'admin'));
   // Where to send the user back after they upgrade (the page they were blocked from).
   const [pendingRoute, setPendingRoute] = useStateApp(null);
   const onLockedClick = (id) => { setPendingRoute(id); go('upgrade'); };
