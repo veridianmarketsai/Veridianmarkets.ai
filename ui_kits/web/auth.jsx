@@ -267,6 +267,17 @@ async function vmGetMfaStatus() {
   const out = await vmSelfService(cognito('GetUser', { AccessToken: s.access }));
   return (out.UserMFASettingList || []).includes('SOFTWARE_TOKEN_MFA');
 }
+// Real "sign out of all other sessions" (Settings → Security). Cognito has no
+// concept of individual sessions to selectively revoke — GlobalSignOut
+// invalidates every refresh token issued to this user at once, including
+// this browser's. The current access/ID token keeps working until it
+// naturally expires (short-lived), but won't refresh after that, so this
+// browser will also need a fresh sign-in soon — callers should say so.
+async function vmGlobalSignOut() {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  await vmSelfService(cognito('GlobalSignOut', { AccessToken: s.access }));
+}
 
 Object.assign(window, {
   VM_AUTH, cognito,
@@ -277,4 +288,5 @@ Object.assign(window, {
   vmUpdateAttributes, vmRequestEmailChange, vmResendEmailCode, vmConfirmEmailChange,
   vmChangePassword, vmDeleteAccount,
   vmAssociateSoftwareToken, vmVerifySoftwareToken, vmSetSoftwareMfaPreference, vmGetMfaStatus,
+  vmGlobalSignOut,
 });

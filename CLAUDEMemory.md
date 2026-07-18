@@ -62,6 +62,88 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — Started `admin-users-and-avatar-sync-1.1`.
+
+User picked 3 items off the bug/gap list from the earlier audit: Admin →
+Users real data, real session tracking, avatar cross-device sync. Did #1 and
+#3 first; user then confirmed #2's scope: real sign-in history (no per-
+session revoke — that would mean building a whole custom session-tracking
+layer Cognito doesn't provide) + real all-or-nothing `GlobalSignOut`.
+
+- **Real sign-in history (Settings → Security).** Old mock: a hardcoded
+  2-device list, per-row fake "Sign out". New: `session_start` events (already
+  captured on every load) now also carry a real `device` string
+  (`vmDeviceString()`, new shared helper in capture.jsx — "OS · Browser" from
+  the user agent; same logic `currentDevice` already used, now reused instead
+  of duplicated). `vm-my-activity` extended to also return `sessions:
+  [{device,ts}]` from those events (was only search/viewed). Section renamed
+  "Active sessions" → **"Sign-in history"** since it's honestly informational
+  now, not a list of revocable sessions — `SessionRow` dropped its per-row
+  "Sign out" button (deleted dead code from the first pass at this, not just
+  hidden). Skips the single most-recent history entry if it's <60s old (this
+  page load's own `session_start`), so "This device · now" doesn't duplicate
+  right above it.
+- **Real "sign out of all sessions."** New `vmGlobalSignOut()` (auth.jsx) →
+  Cognito `GlobalSignOut`, self-service. Copy is explicit that this is
+  all-or-nothing and will eventually log out *this* browser too (once its
+  current access token naturally expires) — Cognito has no lesser option.
+- Verified live (fake session): Security page shows a real parsed device
+  string + "No earlier sign-ins recorded yet." (correct — fake token means
+  vm-my-activity returns null); clicking "Sign out of all sessions" correctly
+  attempts the real call and surfaces the session-expired message on an
+  invalid token. No JS errors.
+
+- **Admin → Users tab reads real data.** New `useRealAdminUsers()` calls the
+  already-built `vm-admin-analytics?view=users` (built for Overview, never
+  wired to Users) — falls back to the mock `VM_USERS` if that fails/isn't
+  reachable, with a visible "· live (Cognito + activity)" vs "· mock" label so
+  it's never ambiguous which one's showing. Real users get their own status
+  taxonomy (`A_STATUS_REAL`: active/inactive/unconfirmed, from Cognito status +
+  real last-seen recency — the mock's active/trial/churned is a subscription-
+  lifecycle concept with no real backing data) and their own relative-time
+  helper (`aRelReal`, anchored to actual `Date.now()` — the mock's `aRel` is
+  anchored to a **fixed** fake "now" of 2026-05-31, which would make real
+  timestamps read as nonsensical/future-dated if reused). Dropped the
+  **Country** column/search (no real data source — never captured). The detail
+  modal's fabricated "Personal profits" (no real portfolio data exists for
+  anyone) is replaced with a **real recent-activity timeline** for real users,
+  via `vm-admin-analytics?view=user&id=` (also already built, also never
+  wired to anything). Row/modal actions: kept only what's genuinely real —
+  "Send password reset" now calls the real (self-service, no admin rights
+  needed) `vmForgotPassword` — and **hid** Change plan/Suspend/Delete/Email
+  for real users rather than leaving them as fake buttons next to real
+  account data (mutating admin actions need their own admin-privileged Lambda,
+  not built this round). The separate Analytics tab (retention/growth/
+  revenue/etc.) is untouched — still deterministic mock derived from
+  `VM_USERS`, out of scope (that's a much bigger, differently-shaped project).
+- **Avatar cross-device sync.** New `vmAvatarS3Url(sub)` (avatar.jsx) builds
+  the deterministic public S3 URL (`avatars/<sub>.jpg`) client-side — no round
+  trip needed to know it. `StAvatar` now tries that first, falls back to the
+  browser's cached copy (`fallbackSrc`) only if the real one 404s/errors
+  (plain `<img>` needs no bucket CORS, unlike a `fetch()` HEAD check would),
+  and finally initials. Exposes `onResolved(hasPhoto)` so "Remove" only shows
+  once it's confirmed a photo actually exists (the URL is always a
+  *candidate* now, not proof). **Bug found by testing, not inspection:** first
+  wiring attempt silently always fell through to initials even with a valid
+  local fallback cached — `renderSection()`'s ctx destructuring dropped
+  `avatarFallback` before it reached `StProfileSection`; caught via a
+  scripted CDP run that polled the DOM every 200ms and saw the fallback phase
+  never appear, fixed, re-verified frame-by-frame (200ms→400ms: S3 404s →
+  local photo appears → Remove button shows).
+  **Also fixed the same feature exposed:** "Remove" only ever cleared the
+  local cache, never the real S3 object — with remote-first loading, a
+  "removed" photo would've reappeared on next load/other devices. Extended
+  the existing `vm-avatar-upload` Lambda with a `{action:'delete'}` branch
+  (`DeleteObjectCommand`) + new `vmDeleteAvatar()`; Remove now calls it
+  best-effort. **AWS step needed by the user:** redeploy the Lambda's updated
+  code, and add `s3:DeleteObject` to the existing inline role policy
+  (`vm-avatar-s3-write`) — it currently only has `s3:PutObject`.
+- Verified both live with scripted CDP/headless-Edge runs (fake session):
+  Admin Users correctly attempts the real call and falls back to mock
+  cleanly; avatar sync tries S3 → falls back to local → falls back to
+  initials correctly in both the has-a-photo and never-uploaded cases, frame
+  by frame. No JS errors.
+
 ### 2026-07-18 — Started `personalization-1.1`.
 
 New branch (from `personal.settings.1.2`, uncommitted at the time — branched

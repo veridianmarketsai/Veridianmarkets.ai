@@ -11,10 +11,12 @@
 //
 // Trigger:  Lambda Function URL (Auth type = NONE — we verify the token ourselves).
 // Env vars: BUCKET (e.g. veridianmarkets-avatars), COGNITO_POOL_ID, COGNITO_REGION=us-east-1
-// IAM:      the function role needs s3:PutObject on arn:aws:s3:::<BUCKET>/avatars/*
+// IAM:      the function role needs s3:PutObject AND s3:DeleteObject on
+//           arn:aws:s3:::<BUCKET>/avatars/* (DeleteObject added for the
+//           remove-photo action — update the inline role policy).
 
 import crypto from 'node:crypto';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const s3 = new S3Client({});
 const BUCKET = process.env.BUCKET;
@@ -43,12 +45,18 @@ export const handler = async (event) => {
     const claims = await verifyJwt(auth.replace(/^Bearer\s+/i, ''));
 
     const body = JSON.parse(event.body || '{}');
+    const key = `avatars/${claims.sub}.jpg`;
+
+    if (body.action === 'delete') {
+      await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+      return resp(200, { ok: true });
+    }
+
     const m = String(body.image || '').match(/^data:image\/(jpeg|png);base64,(.+)$/);
     if (!m) return resp(400, { error: 'expected a data:image/jpeg or png base64 string' });
     const bytes = Buffer.from(m[2], 'base64');
     if (bytes.length > 2 * 1024 * 1024) return resp(400, { error: 'image too large' });
 
-    const key = `avatars/${claims.sub}.jpg`;
     await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: bytes, ContentType: 'image/jpeg' }));
 
     // Cache-bust query param so the browser doesn't keep showing the old photo.

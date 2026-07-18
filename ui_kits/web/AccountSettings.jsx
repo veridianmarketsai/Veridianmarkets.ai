@@ -68,11 +68,25 @@ function vmCropImageToDataUrl(img, sx, sy, swidth, sheight, outSize = 320) {
   canvas.getContext('2d').drawImage(img, sx, sy, swidth, sheight, 0, 0, outSize, outSize);
   return canvas.toDataURL('image/jpeg', 0.85);
 }
-// Profile photo if set, else the initials square — used on the settings list card
-// and the Personal details page.
-function StAvatar({ name, src, size, radius }) {
+// Profile photo if set, else the initials square — used on the settings list
+// card and the Personal details page. `src` is tried first (the real S3 URL,
+// for cross-device sync); if it 404s/errors (never uploaded from this
+// account, or offline), falls back to `fallbackSrc` (this browser's cached
+// copy); if that's empty too, shows initials. Resets whenever the candidates
+// change (e.g. right after a fresh upload, or switching users). `src`/
+// `fallbackSrc` are just URL *candidates*, not proof a photo exists — callers
+// that need to know whether one actually resolved (e.g. to show/hide a
+// "Remove photo" action) can pass `onResolved(hasPhoto)`.
+function StAvatar({ name, src, fallbackSrc, size, radius, onResolved }) {
+  const [phase, setPhase] = useStateSettings(src ? 'primary' : fallbackSrc ? 'fallback' : 'initials');
+  useEffectSettings(() => { setPhase(src ? 'primary' : fallbackSrc ? 'fallback' : 'initials'); }, [src, fallbackSrc]);
+  useEffectSettings(() => { onResolved && onResolved(phase !== 'initials'); }, [phase]);
   const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, overflow: 'hidden' };
-  if (src) return <img src={src} alt="" style={{ ...base, objectFit: 'cover' }} />;
+  const current = phase === 'primary' ? src : phase === 'fallback' ? fallbackSrc : null;
+  if (current) {
+    const onError = () => setPhase(p => p === 'primary' && fallbackSrc ? 'fallback' : 'initials');
+    return <img src={current} onError={onError} alt="" style={{ ...base, objectFit: 'cover' }} />;
+  }
   return (
     <span style={{ ...base, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center',
       justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: Math.round(size * 0.375) }}>
@@ -293,7 +307,11 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
   const u = user || { name: 'Guest', email: 'not signed in', tier: 'Free' };
   // Real plan comes from the backend (app-level `plan`); fall back to the mock tier.
   const planTier = { free: 'Free', plus: 'Plus', pro: 'Pro' }[plan] || u.tier || 'Free';
-  const [avatar, setAvatarState] = useStateSettings(() => vmGetAvatar(u.sub));
+  // Try the real S3 photo first (works on any device/browser); fall back to
+  // this browser's cached copy if that 404s (offline, or uploaded before this
+  // synced) — see StAvatar's onError handling.
+  const [avatar, setAvatarState] = useStateSettings(() => vmAvatarS3Url(u.sub) || vmGetAvatar(u.sub));
+  const avatarFallback = vmGetAvatar(u.sub);
   const onAvatarChange = (dataUrl) => { setAvatarState(dataUrl); vmSetAvatar(u.sub, dataUrl); };
 
   const navTo = (id) => {
@@ -331,7 +349,7 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
     // Clear all local data (prototype — admin credentials remain hardcoded in app.jsx)
     try {
       ['vm_session','vm_theme','vm_2fa_sms','vm_2fa_phone',
-       'vm_other_sessions','vm_pf_brokers','vm_account_mode',
+       'vm_pf_brokers','vm_account_mode',
        vmAvatarKey(u.sub), vmUsernameKey(u.sub)].forEach(k => localStorage.removeItem(k));
     } catch(e) {}
     setDeleting(false);
@@ -342,8 +360,8 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
   return (
     <div data-tour="vm-settings-nav" style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
-        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, onAvatarChange, onUserRefresh })}</StSubPage>
-        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} avatar={avatar} />}
+        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh })}</StSubPage>
+        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} avatar={avatar} avatarFallback={avatarFallback} />}
       {toast && <StToast text={toast} />}
       {showDelete && <DeleteAccountModal email={u.email} busy={deleting} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
     </div>
@@ -363,7 +381,7 @@ const ACCT_STEPS = [
 ];
 
 // ── the main list ───────────────────────────────────────────────────────────
-function StList({ u, onRow, isMobile, planTier, avatar }) {
+function StList({ u, onRow, isMobile, planTier, avatar, avatarFallback }) {
   const [tutorialOpen, setTutorialOpen] = useStateSettings(false);
   const tutBtn = {
     display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
@@ -384,7 +402,7 @@ function StList({ u, onRow, isMobile, planTier, avatar }) {
 
       <div data-tour="vm-settings-profile" onClick={() => onRow({ id: 'profile' })} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', cursor: 'pointer',
         background: `linear-gradient(100deg, ${VM.tealTint} 0%, ${VM.paper} 75%)`, border: `1px solid ${VM.borderSoft}`, borderRadius: 14 }}>
-        <StAvatar name={u.name} src={avatar} size={52} radius={14} />
+        <StAvatar name={u.name} src={avatar} fallbackSrc={avatarFallback} size={52} radius={14} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{u.name}</div>
           <Mono size={11} color={VM.ink3}>{u.email}</Mono>
@@ -686,31 +704,24 @@ function BrokerRow({ b, on, last, confirming, onClick, onConfirmDisconnect, onCa
   );
 }
 
-function SessionRow({ s, last, onSignOut }) {
-  const [hover, setHover] = useStateSettings(false);
+// Real sign-in history (from captured session_start events) — informational
+// only. Cognito has no concept of individual sessions to selectively revoke,
+// so unlike the old mock there's no per-row "Sign out" here; only the
+// all-or-nothing GlobalSignOut button below the list is real.
+function SessionRow({ s, last }) {
   const isMobile = /iPhone|Android/i.test(s.label);
   return (
-    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
-      style={{ display:'flex', alignItems:'center', gap:10,
-        borderBottom: last ? 'none' : `1px solid ${VM.borderHair}`,
-        background: hover ? VM.paperWarm : 'transparent', transition:'background .12s',
-        borderRadius: hover ? 8 : 0, padding:'11px 8px', margin:'0 -8px' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:10,
+        borderBottom: last ? 'none' : `1px solid ${VM.borderHair}`, padding:'11px 8px', margin:'0 -8px' }}>
       <i className={'ti ti-'+(isMobile?'device-mobile':'device-laptop')} style={{ fontSize:16, color:VM.ink3, flexShrink:0 }}></i>
       <span style={{ flex:1, fontFamily:VM.serif, fontSize:15, color:VM.ink2 }}>{s.label}</span>
-      {hover
-        ? <button onClick={onSignOut} style={{ display:'inline-flex', alignItems:'center', gap:5, fontFamily:VM.serif, fontSize:12,
-            padding:'5px 11px', borderRadius:999, border:`1px solid ${VM.downInk}`, background:'transparent',
-            color:VM.downInk, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-            <i className="ti ti-logout" style={{fontSize:13}}></i>Sign out
-          </button>
-        : <Mono size={11} color={VM.ink3} style={{flexShrink:0}}>{s.time}</Mono>
-      }
+      <Mono size={11} color={VM.ink3} style={{ flexShrink:0 }}>{s.time}</Mono>
     </div>
   );
 }
 
-// ── security sub-page — password + 2FA are real (Cognito); other sessions
-// list is still local-only ──
+// ── security sub-page — password + 2FA + sign-in history are real (Cognito /
+// vm-events); GlobalSignOut is all-or-nothing (no per-session revoke exists) ──
 function StSecuritySection({ u, showToast }) {
   const [cur, setCur]           = useStateSettings('');
   const [newPw, setNewPw]       = useStateSettings('');
@@ -740,18 +751,24 @@ function StSecuritySection({ u, showToast }) {
     return () => { live = false; };
   }, []);
 
-  const [otherSessions, setOtherSessions] = useStateSettings(() => {
-    try { return JSON.parse(localStorage.getItem('vm_other_sessions') || 'null') ||
-      [{ id:1, label:'iPhone · Veridian app', time:'2d ago' }, { id:2, label:'MacBook · Safari', time:'5d ago' }];
-    } catch { return []; }
-  });
-
-  const currentDevice = React.useMemo(() => {
-    const ua = navigator.userAgent;
-    const os = /Win/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : /iPhone/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : 'Linux';
-    const br = /Edg/.test(ua) ? 'Edge' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Browser';
-    return `This device · ${os} · ${br}`;
+  // Real sign-in history (session_start events, via vm-my-activity) — replaces
+  // the old fake 2-device list. { items:null } while loading/unavailable.
+  const [sessions, setSessions] = useStateSettings({ items: null, loading: true });
+  useEffectSettings(() => {
+    let live = true;
+    (async () => {
+      const data = typeof vmFetchMyActivity === 'function' ? await vmFetchMyActivity() : null;
+      if (live) setSessions({ items: (data && data.sessions) || [], loading: false });
+    })();
+    return () => { live = false; };
   }, []);
+  const sessRel = (ts) => {
+    if (!ts) return '';
+    const days = Math.floor((Date.now() - ts) / 86400000);
+    return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago';
+  };
+  const [signingOutAll, setSigningOutAll] = useStateSettings(false);
+  const currentDevice = React.useMemo(() => `This device · ${typeof vmDeviceString === 'function' ? vmDeviceString() : 'Unknown'}`, []);
 
   const strength = React.useMemo(() => {
     if (!newPw) return 0;
@@ -837,9 +854,17 @@ function StSecuritySection({ u, showToast }) {
     setSmsBak(true); localStorage.setItem('vm_2fa_sms','true'); localStorage.setItem('vm_2fa_phone', phone);
     setShowSmsIn(false); showToast('SMS backup enabled.');
   };
-  const signOutEverywhere = () => {
-    setOtherSessions([]); localStorage.setItem('vm_other_sessions','[]');
-    showToast('Signed out of all other sessions.');
+  const signOutEverywhere = async () => {
+    if (signingOutAll) return;
+    setSigningOutAll(true);
+    try {
+      await vmGlobalSignOut();   // real Cognito GlobalSignOut — all-or-nothing, no per-session revoke exists
+      showToast('Signed out everywhere — this browser may need a fresh sign-in soon too.');
+    } catch (e) {
+      showToast(e.message || 'Could not sign out of other sessions.');
+    } finally {
+      setSigningOutAll(false);
+    }
   };
 
   const eyeBtn = (on, toggle) => (
@@ -956,28 +981,28 @@ function StSecuritySection({ u, showToast }) {
         </div>
       </StCard>
 
-      <StCard title="Active sessions">
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 0', borderBottom: otherSessions.length ? `1px solid ${VM.borderHair}` : 'none' }}>
+      <StCard title="Sign-in history">
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
           <i className="ti ti-device-laptop" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
           <span style={{ flex:1, fontFamily:VM.serif, fontSize:15 }}>{currentDevice}</span>
           <Mono size={11} color={VM.upInk}>now</Mono>
         </div>
-        {otherSessions.length === 0
-          ? <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>No other active sessions.</Mono>
-          : otherSessions.map((s,i) => <SessionRow key={s.id||i} s={s} last={i===otherSessions.length-1}
-              onSignOut={()=>{
-                const next = otherSessions.filter((_,j)=>j!==i);
-                setOtherSessions(next);
-                localStorage.setItem('vm_other_sessions', JSON.stringify(next));
-                showToast(`Signed out of ${s.label}.`);
-              }} />)
-        }
+        {(() => {
+          // Skip the single most-recent entry if it's this same page load's own
+          // session_start (captured moments ago) — otherwise "This device · now"
+          // would duplicate right above it.
+          const items = (sessions.items || []).filter((s, i) => !(i === 0 && s.ts && (Date.now() - s.ts) < 60000));
+          if (sessions.loading) return <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>Loading…</Mono>;
+          if (items.length === 0) return <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>No earlier sign-ins recorded yet.</Mono>;
+          return items.map((s, i) => <SessionRow key={i} s={{ label: s.device, time: sessRel(s.ts) }} last={i === items.length - 1} />);
+        })()}
       </StCard>
-      {otherSessions.length > 0 && (
-        <Btn onClick={signOutEverywhere} style={{ color:VM.downInk, borderColor:VM.downInk }}>
-          <i className="ti ti-logout" style={{fontSize:15}}></i>Sign out everywhere else
-        </Btn>
-      )}
+      <Btn onClick={signingOutAll ? undefined : signOutEverywhere} style={{ color:VM.downInk, borderColor:VM.downInk }}>
+        <i className="ti ti-logout" style={{fontSize:15}}></i>{signingOutAll ? 'Signing out…' : 'Sign out of all sessions'}
+      </Btn>
+      <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:8, maxWidth:440 }}>
+        Cognito can't sign out one specific session — this signs out everywhere, including this browser once its current session expires.
+      </Mono>
 
     </React.Fragment>
   );
@@ -1257,10 +1282,14 @@ function ActivitySection({ go, showToast }) {
   );
 }
 
-function StProfileSection({ u, avatar, onAvatarChange, onUserRefresh, showToast }) {
+function StProfileSection({ u, avatar, avatarFallback, onAvatarChange, onUserRefresh, showToast }) {
   const fileRef = useRefSettings(null);
   const [busy, setBusy] = useStateSettings(false);
   const [pendingFile, setPendingFile] = useStateSettings(null);   // File awaiting crop confirmation
+  // `avatar` is always a URL *candidate* (the deterministic S3 URL) once
+  // signed in, even if nothing's been uploaded — so "does a photo actually
+  // exist" comes from StAvatar's onResolved, not truthiness of `avatar` itself.
+  const [hasPhoto, setHasPhoto] = useStateSettings(false);
 
   const [nameInput, setNameInput] = useStateSettings(u.name || '');
   const [emailInput, setEmailInput] = useStateSettings(u.email || '');
@@ -1328,14 +1357,17 @@ function StProfileSection({ u, avatar, onAvatarChange, onUserRefresh, showToast 
   return (
     <React.Fragment>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-        <StAvatar name={u.name} src={avatar} size={64} radius={16} />
+        <StAvatar name={u.name} src={avatar} fallbackSrc={avatarFallback} size={64} radius={16} onResolved={setHasPhoto} />
         <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
         <Btn onClick={() => fileRef.current && fileRef.current.click()}>
           <i className="ti ti-camera" style={{ fontSize: 15 }}></i>Change photo
         </Btn>
-        {avatar && (
-          <button onClick={() => { onAvatarChange(''); showToast('Profile photo removed.'); }}
-            style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+        {hasPhoto && (
+          <button onClick={async () => {
+            onAvatarChange(''); setHasPhoto(false); showToast('Profile photo removed.');
+            const r = await vmDeleteAvatar();   // best-effort — keeps a "removed" photo from reappearing via the S3 URL elsewhere
+            if (!r.ok && r.error !== 'not configured') showToast('Removed here, but the stored copy may still exist elsewhere.');
+          }} style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
             Remove
           </button>
         )}
@@ -1360,10 +1392,10 @@ function StProfileSection({ u, avatar, onAvatarChange, onUserRefresh, showToast 
 
 // ── per-section content ───────────────────────────────────────────────────────
 function renderSection(id, ctx) {
-  const { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, onAvatarChange, onUserRefresh } = ctx;
+  const { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh } = ctx;
   const tier = planTier || u.tier || 'Free';   // current plan (backend-driven)
   switch (id) {
-    case 'profile': return <StProfileSection u={u} avatar={avatar} onAvatarChange={onAvatarChange} onUserRefresh={onUserRefresh} showToast={showToast} />;
+    case 'profile': return <StProfileSection u={u} avatar={avatar} avatarFallback={avatarFallback} onAvatarChange={onAvatarChange} onUserRefresh={onUserRefresh} showToast={showToast} />;
     case 'security': return <StSecuritySection u={u} showToast={showToast} />;
     case 'subscription': return (
       <React.Fragment>
