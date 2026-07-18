@@ -222,7 +222,8 @@ function App() {
     setRoute(r); setMenuOpen(false);
     const path = stateToPath(r, nextCompany);
     if (path !== window.location.pathname) window.history.pushState({}, '', path);
-
+    // Silent capture: every navigation (route + company, if any).
+    if (typeof vmCapture === 'function') vmCapture('navigate', { route: r, ticker: c && c.ticker, name: c && c.name });
     scrollTop();
   };
   goRef.current = go;
@@ -267,11 +268,24 @@ function App() {
   // Source of truth = the backend (vm-billing-status). On load / after sign-in,
   // fetch the real plan and reconcile the local cache. No-op until statusUrl is set.
   useEffectApp(() => { if (signedIn && typeof vmFetchPlan === 'function') vmFetchPlan().then(p => { if (p) setPlan(p); }); }, [signedIn]);
+  // Silent data capture: identify who the user is (name/email/plan) and mark the
+  // session start. Keeps identity fresh as the user signs in / changes plan.
+  useEffectApp(() => {
+    if (typeof vmIdentify === 'function') vmIdentify(user, plan);
+    if (typeof vmCapture === 'function') vmCapture('session_start', {
+      signedIn: !!user,
+      ref: (document.referrer || '').slice(0, 120),
+      utm: new URLSearchParams(location.search).get('utm_source') || '',
+      mobile: window.innerWidth < 900,
+      landing: location.pathname,
+    });
+  }, []);
+  useEffectApp(() => { if (typeof vmIdentify === 'function') vmIdentify(user, plan); }, [user, plan]);
   // Admins always have full access (never paywalled), regardless of plan.
   const isPaying = signedIn && (plan !== 'free' || (user && user.role === 'admin'));
   // Where to send the user back after they upgrade (the page they were blocked from).
   const [pendingRoute, setPendingRoute] = useStateApp(null);
-  const onLockedClick = (id) => { setPendingRoute(id); go('upgrade'); };
+  const onLockedClick = (id) => { if (typeof vmCapture === 'function') vmCapture('paywall_hit', { feature: id }); setPendingRoute(id); go('upgrade'); };
   // Mock "purchase": set the plan, then return to the blocked page (paid plans
   // only — a downgrade to free would just re-hit the paywall, so go home).
   const upgradePlan = (p) => { setPlan(p); const back = pendingRoute; setPendingRoute(null); go(p !== 'free' && back && back !== 'upgrade' ? back : 'front'); };

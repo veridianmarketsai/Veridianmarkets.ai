@@ -568,6 +568,7 @@ function DashFinancials({ data, c, isMobile }) {
   // Export the chosen statement(s) as CSV or Excel.
   //   multiple sheets → CSV: stacked sections (extra rows); Excel: separate tabs.
   function runExport(kind, sheetIds, pct, abs) {
+    if (typeof vmCapture === 'function') vmCapture('feature', { name: 'export_financials', ticker: c.ticker, kind, sheets: sheetIds.length });
     const perLabel  = period === 'annual' ? 'Annual' : 'Quarterly';
     const tag       = sheetIds.length === 3 ? 'all' : sheetIds.join('-');
     const base      = `${c.ticker}_${tag}_${period}_financials`;

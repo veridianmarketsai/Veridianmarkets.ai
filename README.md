@@ -315,6 +315,18 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-18 (data-capture-1.1 — first-party analytics)
+
+- **Silent data capture → DynamoDB.** New **`vm-capture`** Lambda
+  ([`lambda/capture/vm-capture/`](lambda/capture/vm-capture/)) ingests batched events
+  into **`vm-events`** (composite key `pk`+`sk`: per-user event stream + a rolling
+  `#profile` row with identity + counters). Frontend [`capture.jsx`](ui_kits/web/capture.jsx)
+  (`vmCapture`/`vmIdentify`, batched, `sendBeacon` on page-hide, no-preflight).
+- **Captured for every client:** `favourite` (new ⭐ star button in the company
+  header), global `click` stream, `navigate` (pages + companies), `session_start`
+  (+ referrer/UTM/device), `paywall_hit`, `checkout_start`, `search_select`,
+  `tab_view`, `feature` (financials export), and identity (name/email/plan). _(branch: `data-capture-1.1`)_
+
 ### 2026-07-18 (payments-1.3 — proper checkout, no duplicate customers)
 
 - **`vm-billing-checkout` Lambda** ([`lambda/billing/checkout/`](lambda/billing/checkout/)):
