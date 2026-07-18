@@ -254,6 +254,10 @@ function App() {
     setAccountMode('personal');
     go('landing');   // sign-out returns to the marketing landing page
   };
+  // Re-pull the session after a profile edit (name/email) so the fresh Cognito
+  // claims (and everywhere `user` is read — rail greeting, etc.) reflect it
+  // without asking the visitor to sign in again.
+  const refreshUser = async () => { const u = await vmRefresh(); if (u) setUser(u); return u; };
   // On load: if a session exists, refresh the token when near expiry (keeps you
   // logged in across days without re-entering the password).
   useEffectApp(() => { vmEnsureFreshSession().then(u => { if (u) setUser(u); }); }, []);
@@ -335,7 +339,7 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;

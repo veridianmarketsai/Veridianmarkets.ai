@@ -3,7 +3,7 @@
 // in the VM editorial style: a profile summary, sectioned rows with icon chips +
 // chevrons, each row drilling into its own sub-page. Sub-navigation is internal
 // state (one /settings route); a back arrow returns to the list. Mock/scaffold.
-const { useState: useStateSettings, useEffect: useEffectSettings } = React;
+const { useState: useStateSettings, useEffect: useEffectSettings, useRef: useRefSettings } = React;
 
 // ── settings model: groups → rows. `action` rows fire a handler instead of a page.
 const SETTINGS_GROUPS = [
@@ -36,6 +36,41 @@ const SETTINGS_GROUPS = [
 ];
 const SETTINGS_TITLES = SETTINGS_GROUPS.flatMap(g => g.items).reduce((m, i) => (m[i.id] = i.label, m), {});
 const initials = name => (name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+
+// ── profile photo (mock — stored as a data URL in localStorage, keyed by the
+// stable Cognito `sub`, not email, since email can now change) ──
+const vmAvatarKey = sub => 'vm_avatar_' + (sub || 'guest');
+const vmGetAvatar = sub => { try { return localStorage.getItem(vmAvatarKey(sub)) || ''; } catch { return ''; } };
+const vmSetAvatar = (sub, dataUrl) => {
+  try { dataUrl ? localStorage.setItem(vmAvatarKey(sub), dataUrl) : localStorage.removeItem(vmAvatarKey(sub)); } catch {}
+};
+// ── username (mock — Cognito's real username is the fixed sign-up email and
+// can't be renamed; this is a purely local display handle, keyed by `sub`) ──
+const vmUsernameKey = sub => 'vm_username_' + (sub || 'guest');
+const vmGetUsername = (sub, email) => {
+  try { return localStorage.getItem(vmUsernameKey(sub)) || (email || 'you').split('@')[0]; } catch { return (email || 'you').split('@')[0]; }
+};
+const vmSetUsername = (sub, name) => { try { localStorage.setItem(vmUsernameKey(sub), name); } catch {} };
+// Draw the given source rect (from a loaded <img>) into a square JPEG data URL
+// — used by AvatarCropModal once the user's pan/zoom picks the crop region.
+function vmCropImageToDataUrl(img, sx, sy, swidth, sheight, outSize = 320) {
+  const canvas = document.createElement('canvas');
+  canvas.width = outSize; canvas.height = outSize;
+  canvas.getContext('2d').drawImage(img, sx, sy, swidth, sheight, 0, 0, outSize, outSize);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+// Profile photo if set, else the initials square — used on the settings list card
+// and the Personal details page.
+function StAvatar({ name, src, size, radius }) {
+  const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, overflow: 'hidden' };
+  if (src) return <img src={src} alt="" style={{ ...base, objectFit: 'cover' }} />;
+  return (
+    <span style={{ ...base, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: Math.round(size * 0.375) }}>
+      {initials(name)}
+    </span>
+  );
+}
 
 function DeleteAccountModal({ email, onConfirm, onClose }) {
   const [typed, setTyped] = useStateSettings('');
@@ -84,7 +119,159 @@ function DeleteAccountModal({ email, onConfirm, onClose }) {
   );
 }
 
-function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange, plan }) {
+// Preview + adjust popup shown after picking a photo: drag to reposition, a
+// zoom slider to scale, then Save crops exactly what's framed in the square
+// into the final avatar (matches the app's square/rounded-square avatar style).
+function AvatarCropModal({ file, busy, onCancel, onConfirm }) {
+  const VP = 240;   // crop viewport, CSS px (square)
+  const [imgUrl] = useStateSettings(() => URL.createObjectURL(file));
+  const [natural, setNatural] = useStateSettings(null);   // { w, h }
+  const [zoom, setZoom] = useStateSettings(1);
+  const [pos, setPos] = useStateSettings({ x: 0, y: 0 }); // displayed-image offset within the viewport
+  const imgRef = useRefSettings(null);
+  const dragRef = useRefSettings(null);
+
+  useEffectSettings(() => () => URL.revokeObjectURL(imgUrl), [imgUrl]);
+
+  const baseScale = natural ? VP / Math.min(natural.w, natural.h) : 1;
+  const scale = baseScale * zoom;
+
+  const clampAt = (x, y, sc) => {
+    const dw = natural.w * sc, dh = natural.h * sc;
+    return {
+      x: Math.min(0, Math.max(Math.min(0, VP - dw), x)),
+      y: Math.min(0, Math.max(Math.min(0, VP - dh), y)),
+    };
+  };
+
+  const onImgLoad = (e) => {
+    const w = e.target.naturalWidth, h = e.target.naturalHeight;
+    setNatural({ w, h });
+    const bs = VP / Math.min(w, h);
+    setPos({ x: (VP - w * bs) / 2, y: (VP - h * bs) / 2 });
+  };
+
+  const onPointerDown = (e) => {
+    if (!natural) return;
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX, dy = e.clientY - dragRef.current.startY;
+    setPos(clampAt(dragRef.current.origX + dx, dragRef.current.origY + dy, scale));
+  };
+  const onPointerUp = () => { dragRef.current = null; };
+
+  const onZoom = (e) => {
+    const z = parseFloat(e.target.value);
+    setZoom(z);
+    if (natural) setPos(p => clampAt(p.x, p.y, baseScale * z));
+  };
+
+  const save = () => {
+    if (!natural) return;
+    const sx = -pos.x / scale, sy = -pos.y / scale;
+    const swh = VP / scale;
+    onConfirm(vmCropImageToDataUrl(imgRef.current, sx, sy, swh, swh, 320));
+  };
+
+  return ReactDOM.createPortal(
+    <div onClick={busy ? undefined : onCancel} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:340, width:'100%', boxShadow:'0 24px 64px rgba(31,29,26,0.32)', padding:'22px' }}>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginBottom:4 }}>Adjust photo</div>
+        <Mono size={11} color={VM.ink3} style={{ display:'block', marginBottom:14 }}>Drag to reposition, use the slider to zoom.</Mono>
+        <div
+          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
+          style={{ width:VP, height:VP, margin:'0 auto', borderRadius:16, overflow:'hidden', position:'relative',
+            background:VM.paperDeep, border:`1px solid ${VM.borderSoft}`, cursor: natural ? 'grab' : 'default', touchAction:'none' }}>
+          <img ref={imgRef} src={imgUrl} alt="" onLoad={onImgLoad} draggable={false}
+            style={{ position:'absolute', left:0, top:0, transformOrigin:'top left',
+              transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`,
+              width: natural ? natural.w : VP, height: natural ? natural.h : VP,
+              opacity: natural ? 1 : 0 }} />
+        </div>
+        <input type="range" min="1" max="3" step="0.02" value={zoom} onChange={onZoom} disabled={!natural}
+          style={{ width:'100%', margin:'14px 0 4px' }} />
+        <div style={{ display:'flex', gap:10, marginTop:14 }}>
+          <button onClick={busy ? undefined : onCancel}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor: busy ? 'default' : 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={natural && !busy ? save : undefined}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 0', borderRadius:999, border:'none',
+              background: natural && !busy ? VM.forest : VM.faint, color: natural && !busy ? VM.paperWarm : VM.ink3,
+              cursor: natural && !busy ? 'pointer' : 'default', transition:'all .15s' }}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// Shown after saving a new email: Cognito sent a code to it, and the change
+// isn't final until it's confirmed here.
+function VerifyEmailModal({ email, onCancel, onConfirmed, showToast }) {
+  const [code, setCode] = useStateSettings('');
+  const [busy, setBusy] = useStateSettings(false);
+  const ready = code.trim().length >= 4;
+
+  const confirm = async () => {
+    if (!ready || busy) return;
+    setBusy(true);
+    try {
+      await vmConfirmEmailChange(code.trim());
+      showToast('Email updated.');
+      onConfirmed();
+    } catch (e) {
+      showToast(e.message || 'That code didn’t work — try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const resend = async () => {
+    try { await vmResendEmailCode(); showToast('Sent a new code.'); }
+    catch (e) { showToast(e.message || 'Could not resend the code.'); }
+  };
+
+  return ReactDOM.createPortal(
+    <div onClick={busy ? undefined : onCancel} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:360, width:'100%', boxShadow:'0 24px 64px rgba(31,29,26,0.32)', padding:'22px' }}>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginBottom:6 }}>Confirm your new email</div>
+        <Mono size={12} color={VM.ink2} style={{ display:'block', lineHeight:1.5, marginBottom:16 }}>
+          We sent a code to <strong style={{color:VM.ink}}>{email}</strong>. Enter it below to finish changing your email.
+        </Mono>
+        <label style={{ display:'block', marginBottom:14 }}>
+          <span style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.06em', textTransform:'uppercase', color:VM.ink3, display:'block', marginBottom:5 }}>Verification code</span>
+          <input value={code} onChange={e => setCode(e.target.value)} placeholder="123456" autoFocus
+            style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:`1.5px solid ${ready ? VM.tealInk : VM.border}`, background:VM.paper, color:VM.ink, outline:'none', fontFamily:VM.mono, fontSize:16, letterSpacing:'0.08em' }} />
+        </label>
+        <button onClick={busy ? undefined : resend}
+          style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3, background:'transparent', border:'none', cursor: busy ? 'default' : 'pointer', textDecoration:'underline', padding:0, marginBottom:16 }}>
+          Resend code
+        </button>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={busy ? undefined : onCancel}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor: busy ? 'default' : 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={ready && !busy ? confirm : undefined}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 0', borderRadius:999, border:'none',
+              background: ready && !busy ? VM.forest : VM.faint, color: ready && !busy ? VM.paperWarm : VM.ink3,
+              cursor: ready && !busy ? 'pointer' : 'default', transition:'all .15s' }}>
+            {busy ? 'Confirming…' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, onThemeChange, plan }) {
   const initSection = () => {
     const m = window.location.pathname.match(/^\/settings\/(.+)$/);
     return m ? m[1] : null;
@@ -96,6 +283,8 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange, 
   const u = user || { name: 'Guest', email: 'not signed in', tier: 'Free' };
   // Real plan comes from the backend (app-level `plan`); fall back to the mock tier.
   const planTier = { free: 'Free', plus: 'Plus', pro: 'Pro' }[plan] || u.tier || 'Free';
+  const [avatar, setAvatarState] = useStateSettings(() => vmGetAvatar(u.sub));
+  const onAvatarChange = (dataUrl) => { setAvatarState(dataUrl); vmSetAvatar(u.sub, dataUrl); };
 
   const navTo = (id) => {
     setSection(id);
@@ -123,7 +312,8 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange, 
     // Clear all local data (prototype — admin credentials remain hardcoded in app.jsx)
     try {
       ['vm_session','vm_theme','vm_2fa_app','vm_2fa_sms','vm_2fa_phone',
-       'vm_other_sessions','vm_pf_brokers','vm_mock_password','vm_account_mode'].forEach(k => localStorage.removeItem(k));
+       'vm_other_sessions','vm_pf_brokers','vm_mock_password','vm_account_mode',
+       vmAvatarKey(u.sub), vmUsernameKey(u.sub)].forEach(k => localStorage.removeItem(k));
     } catch(e) {}
     setShowDelete(false);
     onSignOut && onSignOut();
@@ -132,8 +322,8 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange, 
   return (
     <div data-tour="vm-settings-nav" style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
-        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier })}</StSubPage>
-        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} />}
+        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, onAvatarChange, onUserRefresh })}</StSubPage>
+        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} avatar={avatar} />}
       {toast && <StToast text={toast} />}
       {showDelete && <DeleteAccountModal email={u.email} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
     </div>
@@ -153,7 +343,7 @@ const ACCT_STEPS = [
 ];
 
 // ── the main list ───────────────────────────────────────────────────────────
-function StList({ u, onRow, isMobile, planTier }) {
+function StList({ u, onRow, isMobile, planTier, avatar }) {
   const [tutorialOpen, setTutorialOpen] = useStateSettings(false);
   const tutBtn = {
     display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
@@ -174,7 +364,7 @@ function StList({ u, onRow, isMobile, planTier }) {
 
       <div data-tour="vm-settings-profile" onClick={() => onRow({ id: 'profile' })} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', cursor: 'pointer',
         background: `linear-gradient(100deg, ${VM.tealTint} 0%, ${VM.paper} 75%)`, border: `1px solid ${VM.borderSoft}`, borderRadius: 14 }}>
-        <span style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 20 }}>{initials(u.name)}</span>
+        <StAvatar name={u.name} src={avatar} size={52} radius={14} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{u.name}</div>
           <Mono size={11} color={VM.ink3}>{u.email}</Mono>
@@ -254,12 +444,11 @@ function StCard({ title, children, style }) {
     </div>
   );
 }
-function StField({ label, value, placeholder, type = 'text' }) {
-  const [v, setV] = useStateSettings(value || '');
+function StField({ label, value, onChange, placeholder, type = 'text' }) {
   return (
     <label style={{ display: 'block', padding: '11px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
       <span style={{ fontFamily: VM.mono, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: VM.ink3, display: 'block', marginBottom: 5 }}>{label}</span>
-      <input type={type} value={v} placeholder={placeholder} onChange={e => setV(e.target.value)}
+      <input type={type} value={value} placeholder={placeholder} onChange={e => onChange && onChange(e.target.value)}
         style={{ width: '100%', boxSizing: 'border-box', border: 'none', outline: 'none', background: 'transparent', fontFamily: VM.serif, fontSize: 16, color: VM.ink }} />
     </label>
   );
@@ -963,25 +1152,113 @@ function ActivitySection({ go, showToast }) {
   );
 }
 
+function StProfileSection({ u, avatar, onAvatarChange, onUserRefresh, showToast }) {
+  const fileRef = useRefSettings(null);
+  const [busy, setBusy] = useStateSettings(false);
+  const [pendingFile, setPendingFile] = useStateSettings(null);   // File awaiting crop confirmation
+
+  const [nameInput, setNameInput] = useStateSettings(u.name || '');
+  const [emailInput, setEmailInput] = useStateSettings(u.email || '');
+  const [usernameInput, setUsernameInput] = useStateSettings(() => vmGetUsername(u.sub, u.email));
+  const [saving, setSaving] = useStateSettings(false);
+  const [pendingEmail, setPendingEmail] = useStateSettings(null);   // set once a code has been sent
+
+  const onSaveProfile = async () => {
+    const name = nameInput.trim(), email = emailInput.trim(), username = usernameInput.trim();
+    if (!name || !email) { showToast('Name and email can’t be empty.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('That email doesn’t look right.'); return; }
+
+    const nameChanged = name !== u.name;
+    const emailChanged = email !== u.email;
+    const usernameChanged = username !== vmGetUsername(u.sub, u.email);
+
+    if (!nameChanged && !emailChanged && !usernameChanged) { showToast('Nothing to save.'); return; }
+
+    setSaving(true);
+    try {
+      if (usernameChanged) vmSetUsername(u.sub, username);
+      if (nameChanged) {
+        await vmUpdateAttributes({ name });
+        if (typeof onUserRefresh === 'function') await onUserRefresh();
+      }
+      if (emailChanged) {
+        await vmRequestEmailChange(email);
+        setPendingEmail(email);
+        showToast(`We sent a code to ${email} — confirm it to finish changing your email.`);
+      } else {
+        showToast('Profile saved.');
+      }
+    } catch (e) {
+      showToast(e.message || 'Could not save changes.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';   // allow re-picking the same file later
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Please choose an image file.'); return; }
+    if (file.size > 8 * 1024 * 1024) { showToast('That image is too large (max 8MB).'); return; }
+    setPendingFile(file);   // opens AvatarCropModal
+  };
+
+  const onCropConfirm = async (dataUrl) => {
+    setBusy(true);
+    try {
+      // Try the real backend (S3 via vm-avatar-upload) first; fall back to a
+      // local-only copy (this browser only) if it's not configured or fails.
+      const uploaded = typeof vmUploadAvatar === 'function' ? await vmUploadAvatar(dataUrl) : { ok: false };
+      onAvatarChange(uploaded.ok ? uploaded.url : dataUrl);
+      showToast(uploaded.ok ? 'Profile photo updated.' : 'Profile photo updated (saved on this device only).');
+    } catch {
+      showToast('Could not save that photo — try again.');
+    } finally {
+      setBusy(false);
+      setPendingFile(null);
+    }
+  };
+
+  return (
+    <React.Fragment>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+        <StAvatar name={u.name} src={avatar} size={64} radius={16} />
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
+        <Btn onClick={() => fileRef.current && fileRef.current.click()}>
+          <i className="ti ti-camera" style={{ fontSize: 15 }}></i>Change photo
+        </Btn>
+        {avatar && (
+          <button onClick={() => { onAvatarChange(''); showToast('Profile photo removed.'); }}
+            style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+            Remove
+          </button>
+        )}
+      </div>
+      {pendingFile && (
+        <AvatarCropModal file={pendingFile} busy={busy} onCancel={() => setPendingFile(null)} onConfirm={onCropConfirm} />
+      )}
+      {pendingEmail && (
+        <VerifyEmailModal email={pendingEmail} showToast={showToast}
+          onCancel={() => setPendingEmail(null)}
+          onConfirmed={async () => { if (typeof onUserRefresh === 'function') await onUserRefresh(); setPendingEmail(null); }} />
+      )}
+      <StCard>
+        <StField label="Full name" value={nameInput} onChange={setNameInput} />
+        <StField label="Email" value={emailInput} onChange={setEmailInput} type="email" />
+        <StField label="Username" value={usernameInput} onChange={setUsernameInput} />
+      </StCard>
+      <StSave onClick={saving ? undefined : onSaveProfile} label={saving ? 'Saving…' : 'Save changes'} />
+    </React.Fragment>
+  );
+}
+
 // ── per-section content ───────────────────────────────────────────────────────
 function renderSection(id, ctx) {
-  const { go, u, showToast, isMobile, theme, onThemeChange, planTier } = ctx;
+  const { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, onAvatarChange, onUserRefresh } = ctx;
   const tier = planTier || u.tier || 'Free';   // current plan (backend-driven)
   switch (id) {
-    case 'profile': return (
-      <React.Fragment>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <span style={{ width: 64, height: 64, borderRadius: 16, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 24 }}>{initials(u.name)}</span>
-          <Btn onClick={() => showToast('Photo upload (mock).')}><i className="ti ti-camera" style={{ fontSize: 15 }}></i>Change photo</Btn>
-        </div>
-        <StCard>
-          <StField label="Full name" value={u.name} />
-          <StField label="Email" value={u.email} type="email" />
-          <StField label="Username" value={(u.email || 'you').split('@')[0]} />
-        </StCard>
-        <StSave onClick={() => showToast('Profile saved (mock).')} />
-      </React.Fragment>
-    );
+    case 'profile': return <StProfileSection u={u} avatar={avatar} onAvatarChange={onAvatarChange} onUserRefresh={onUserRefresh} showToast={showToast} />;
     case 'security': return <StSecuritySection u={u} showToast={showToast} />;
     case 'subscription': return (
       <React.Fragment>

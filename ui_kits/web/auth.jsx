@@ -150,10 +150,50 @@ async function vmEnsureFreshSession() {
   return vmUserFromClaims(s.id);
 }
 
+// ── self-service profile edits (Settings → Personal details) ────────────────
+// `cognitoMessage()`'s NotAuthorizedException wording ("Incorrect email or
+// password") is written for the sign-in form — wrong here, where it actually
+// means the access token expired mid-session. Re-map it for these calls.
+async function vmSelfService(promise) {
+  try { return await promise; }
+  catch (e) {
+    if (e.code === 'NotAuthorizedException') throw new Error('Your session has expired — please sign in again.');
+    throw e;
+  }
+}
+// Update non-contact attributes (e.g. `name`) — takes effect immediately, no
+// verification step. `attrs` is a plain { AttributeName: value } map.
+async function vmUpdateAttributes(attrs) {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  await vmSelfService(cognito('UpdateUserAttributes', {
+    AccessToken: s.access,
+    UserAttributes: Object.entries(attrs).map(([Name, Value]) => ({ Name, Value })),
+  }));
+}
+// Email is a verified-contact attribute: Cognito accepts the new value right
+// away but marks it unverified until the user confirms a code sent to it.
+async function vmRequestEmailChange(newEmail) {
+  await vmUpdateAttributes({ email: newEmail });
+  const s = vmGetSession();
+  await vmSelfService(cognito('GetUserAttributeVerificationCode', { AccessToken: s.access, AttributeName: 'email' }));
+}
+async function vmResendEmailCode() {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  await vmSelfService(cognito('GetUserAttributeVerificationCode', { AccessToken: s.access, AttributeName: 'email' }));
+}
+async function vmConfirmEmailChange(code) {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  await vmSelfService(cognito('VerifyUserAttribute', { AccessToken: s.access, AttributeName: 'email', Code: code }));
+}
+
 Object.assign(window, {
   VM_AUTH, cognito,
   vmSignUp, vmConfirmSignUp, vmResendCode, vmSignIn,
   vmForgotPassword, vmConfirmForgotPassword,
   vmRefresh, vmEnsureFreshSession,
   vmLoadUser, vmClearSession, vmUserFromClaims,
+  vmUpdateAttributes, vmRequestEmailChange, vmResendEmailCode, vmConfirmEmailChange,
 });

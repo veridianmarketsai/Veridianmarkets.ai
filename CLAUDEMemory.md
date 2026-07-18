@@ -62,6 +62,105 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — Started `personal.settings.1.1`.
+
+New branch (from main) for personal/account settings work. Branch name given
+verbatim by the user (dotted form, not the usual kebab-case slug — honoured
+as-is).
+
+- **Profile photo upload (`AccountSettings.jsx`).** "Change photo" on the
+  Personal details page was a toast-only mock. Now a real client-side upload,
+  stored as a data URL in `vm_avatar_<sub>` → new shared `StAvatar` renders
+  it (falling back to the initials square) on both the settings-list profile
+  card and the Personal details page. Added a Remove-photo link; wired
+  avatar-key cleanup into Delete account.
+
+- **`AvatarCropModal` — pick-a-photo preview/adjust popup.** Picking a file no
+  longer auto-crops silently; it opens a modal (same portal/overlay pattern as
+  `DeleteAccountModal`) with a 240px square viewport showing the photo — drag
+  to reposition, a slider (1×–3×) to zoom, Cancel/Save. Save reads the exact
+  pan/zoom back into source-image coordinates and crops a 320px JPEG via
+  `vmCropImageToDataUrl` (replaced the old auto-centre-crop `vmResizeImageFile`,
+  now dead code since the modal always drives the crop). Verified end-to-end
+  with a scripted CDP/headless-Edge run: file picked → modal opens → slider
+  dragged to 2× (confirmed the resulting CSS transform scale doubled, so the
+  pan/zoom math is correct) → simulated a drag pan via `Input.dispatchMouseEvent`
+  → Save → uploads/falls back → modal closes → avatar renders. No JS errors.
+
+- **`vm-avatar-upload` — real S3-backed photo storage.** New Lambda
+  (`lambda/avatar/vm-avatar-upload/index.mjs`, same recipe as the billing
+  Lambdas: Function URL Auth NONE, verifies the Cognito **access** token itself
+  via JWKS — no API Gateway). Takes the already-resized JPEG data URL, PUTs it
+  to S3 at a deterministic per-user key `avatars/<cognito-sub>.jpg` (re-uploads
+  just overwrite), returns the public URL. **AWS set up by the user:** S3
+  bucket `veridianmarkets-avatars` (public-read via bucket policy scoped to
+  `avatars/*`, matching the existing "code sets CORS, Function URL CORS off"
+  convention), inline role policy `vm-avatar-s3-write` (`s3:PutObject` scoped
+  to that prefix — not a blanket S3 FullAccess). Function URL:
+  `https://tjm2rqjtjljgikdlucblj3kiyq0brefs.lambda-url.us-east-1.on.aws/`.
+  **Frontend:** new `avatar.jsx` (`VM_AVATAR` config + `vmUploadAvatar`, same
+  shape as `billing.jsx`), registered in `index.html`. `StProfileSection`'s
+  upload handler now tries `vmUploadAvatar` first and falls back to the
+  local-only `localStorage` copy if it's not configured/fails (offline, quota,
+  etc.) — toast text tells the user which happened.
+
+  **Verified fully live end-to-end** (2026-07-18, real signed-in session):
+  upload → Lambda verifies token → S3 PutObject → toast "Profile photo
+  updated." → renders in Settings. Hit one real bug along the way: the S3
+  object URL 403'd (`AccessDenied`) even though the upload succeeded — the
+  bucket policy step had been skipped (empty policy = nothing grants public
+  read), and separately the bucket-level "Block Public Access" (not the
+  account-wide one — both exist, at different console locations) still had it
+  on, which rejects a bucket policy save outright until cleared. Fixed by
+  turning off bucket-level Block Public Access, then saving the public-read
+  policy scoped to `avatars/*`. **Not yet done:** no cross-device
+  reconciliation on load — the avatar shown is still whatever's cached in this
+  browser's `localStorage`, not re-fetched from S3 on other devices/browsers.
+
+- **Editable Full name / Email / Username — real Cognito self-service.**
+  `StField` (Personal details) was always a live-looking `<input>` but never
+  actually saved anything — `Save changes` just showed a mock toast. Now:
+  - **Full name** → real Cognito `UpdateUserAttributes` (`name` attribute),
+    immediate, no verification. On success calls the new `onUserRefresh` (app.jsx
+    → `vmRefresh()` → `setUser`) so the fresh claim shows up everywhere `user` is
+    read (rail greeting, etc.) without a re-login.
+  - **Email** → real Cognito flow, not just a form save: `UpdateUserAttributes`
+    + `GetUserAttributeVerificationCode` sends a code to the *new* address, then
+    a new `VerifyEmailModal` (code entry, resend, confirm/cancel) calls
+    `VerifyUserAttribute` before it's final — matches how email changes work
+    everywhere (security-correct, user's explicit choice over a no-verification
+    shortcut).
+  - **Username** → confirmed **not a real separate Cognito field** (this pool's
+    real username is the fixed sign-up email and can't be renamed); made it a
+    genuine local display handle instead, `vm_username_<sub>` (localStorage),
+    independent of email — user's choice over dropping the field.
+  - New auth.jsx exports: `vmUpdateAttributes`, `vmRequestEmailChange`,
+    `vmResendEmailCode`, `vmConfirmEmailChange`, plus an internal
+    `vmSelfService()` wrapper that re-maps `NotAuthorizedException` — the
+    shared `cognitoMessage()` map says "Incorrect email or password" for that
+    code (correct for sign-in, wrong here: it means the access token expired
+    mid-session) → now "Your session has expired — please sign in again."
+    **Caught by a scripted headless-Edge test**, not spotted by inspection —
+    worth remembering `cognitoMessage()`'s mappings are sign-in-flow-specific
+    and need re-checking whenever reused in a new context.
+  - **Correctness fix motivated by this change:** avatar storage key switched
+    from `vm_avatar_<email>` to `vm_avatar_<sub>` (sub is stable, email isn't
+    anymore) — otherwise changing your email would silently orphan your
+    already-uploaded photo. Delete-account cleanup updated to match (now also
+    clears `vm_username_<sub>`).
+  - Verified with a scripted CDP/headless-Edge run (fake-but-decodable ID
+    token): fields load real values from claims, name field edits are
+    controlled/lift correctly, Save fires the real Cognito call and — key
+    finding — surfaces the corrected error message on an invalid/expired
+    token. **Still needs a live test with a real signed-in session** for the
+    actual success paths (name update reflecting in the rail; full email
+    verify-code round trip) — can't fake a validly-signed Cognito JWT from
+    here.
+
+### 2026-07-18 — `landing-page-3.1` merged to main + live.
+
+Whole-app sign-in gate (below) pushed to `main` → veridianmarkets.ai.
+
 ### 2026-07-18 — Started `landing-page-3.1`.
 
 New branch (from main) to pick back up Landing page work (`Landing.jsx`, the
