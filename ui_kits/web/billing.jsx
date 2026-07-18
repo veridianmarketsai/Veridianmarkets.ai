@@ -12,6 +12,7 @@ const VM_BILLING = {
                    // recreate the Stripe prices in USD before go-live (see review.md).
   apiBase: '',   // vm-billing-checkout Lambda Function URL. Empty until built.
   statusUrl: 'https://v4fittjxd55ruqgtiqxbqyxvai0huddy.lambda-url.us-east-1.on.aws/', // vm-billing-status Lambda (returns the real plan)
+  portalUrl: 'https://yl7uzroqmm5np3y3kmvxnf5l2u0sliho.lambda-url.us-east-1.on.aws/', // vm-billing-portal Lambda (cancel / switch)
   paymentLinks: {
     plus: 'https://buy.stripe.com/test_7sY7sK51z9i63dt7gw43S01',   // Plus £9/mo
     pro:  'https://buy.stripe.com/test_cNi6oG3Xv1PE8xNasI43S00',   // Pro £19/mo
@@ -68,4 +69,20 @@ async function vmFetchPlan() {
   } catch { return null; }
 }
 
-Object.assign(window, { VM_BILLING, vmStartCheckout, vmFetchPlan });
+// Open the Stripe Customer Portal (cancel / switch plan). POSTs the Cognito
+// access token to vm-billing-portal, which returns a portal URL to redirect to.
+// Returns false (so the caller can message) if not signed in / not configured /
+// no Stripe customer on file yet.
+async function vmOpenPortal() {
+  if (!VM_BILLING.portalUrl) return { ok: false, error: 'not configured' };
+  let session = null; try { session = JSON.parse(localStorage.getItem('vm_session') || 'null'); } catch {}
+  if (!session || !session.access) return { ok: false, error: 'not signed in' };
+  try {
+    const res = await fetch(VM_BILLING.portalUrl, { method: 'POST', headers: { Authorization: `Bearer ${session.access}` } });
+    const data = await res.json();
+    if (data.url) { window.location.href = data.url; return { ok: true }; }
+    return { ok: false, error: data.error || 'could not open portal' };
+  } catch (e) { return { ok: false, error: 'network error' }; }
+}
+
+Object.assign(window, { VM_BILLING, vmStartCheckout, vmFetchPlan, vmOpenPortal });

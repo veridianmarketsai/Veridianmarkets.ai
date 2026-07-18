@@ -62,6 +62,21 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — payments-1.2: billing portal + admin access. Merged to main.
+
+- **`vm-billing-portal`** Lambda (`lambda/billing/portal/`): verifies Cognito JWT →
+  reads `stripeCustomerId` from `vm-subscriptions` → creates a Stripe Customer Portal
+  session → returns URL. Env: STRIPE_SECRET_KEY, TABLE, COGNITO_POOL_ID, COGNITO_REGION,
+  RETURN_URL. Function URL Auth NONE, CORS off. Frontend `vmOpenPortal()` + "Manage /
+  cancel subscription" button in Settings. Works only for subs made **while signed in**
+  (webhook stored the customer id) — Phase 3 (`vm-billing-checkout`, one customer per
+  Cognito user) still pending to kill duplicate Stripe customers + reliable plan sync.
+- **Admin bypasses paywall**: `isPaying = signedIn && (plan!=='free' || user.role==='admin')`.
+- **Fixed** pre-existing `StList` crash — used `planTier` without the prop; blanked the
+  Settings menu on a direct `/settings` deep-link. **Payments still test-mode**; see
+  `review.md` (currency GBP→USD, single-customer checkout, go-live) + the payments
+  problem list. **Next: customer data capture.**
+
 ### 2026-07-17 — Generic Finnhub proxy + extra calendars. Merged to main.
 
 - **`vm-finnhub`** — ONE generic caching proxy Lambda for many free Finnhub GETs.

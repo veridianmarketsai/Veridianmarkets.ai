@@ -133,7 +133,7 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange, 
     <div data-tour="vm-settings-nav" style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
         ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier })}</StSubPage>
-        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} />}
+        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} />}
       {toast && <StToast text={toast} />}
       {showDelete && <DeleteAccountModal email={u.email} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
     </div>
@@ -153,7 +153,7 @@ const ACCT_STEPS = [
 ];
 
 // ── the main list ───────────────────────────────────────────────────────────
-function StList({ u, onRow, isMobile }) {
+function StList({ u, onRow, isMobile, planTier }) {
   const [tutorialOpen, setTutorialOpen] = useStateSettings(false);
   const tutBtn = {
     display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
@@ -989,6 +989,14 @@ function renderSection(id, ctx) {
           <Mono size={10} color="rgba(255,255,255,0.7)" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Current plan</Mono>
           <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 26, margin: '4px 0 2px' }}>{tier}</div>
           <div style={{ fontFamily: VM.serif, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>{tier === 'Business' ? 'Everything, for teams.' : tier === 'Free' ? 'Upgrade for live data, alerts and more.' : 'Thanks for subscribing — full access unlocked.'}</div>
+          {tier !== 'Free' && tier !== 'Business' && (
+            <button onClick={async () => {
+              const r = await vmOpenPortal();
+              if (!r.ok) showToast(r.error && r.error.includes('customer') ? 'No active subscription found on this account yet.' : 'Could not open the billing portal.');
+            }} style={{ marginTop: 14, fontFamily: VM.mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.32)', background: 'rgba(255,255,255,0.14)', color: VM.paperWarm, cursor: 'pointer' }}>
+              Manage / cancel subscription ↗
+            </button>
+          )}
         </div>
         <Label style={{ display: 'block', marginBottom: 8 }}>Plans</Label>
         {[{ p: 'Free', price: '$0', d: 'History-led research, delayed data' }, { p: 'Plus', price: '$9/mo', d: 'Live data, watchlists, alerts' }, { p: 'Pro', price: '$19/mo', d: 'Analogue engine, exports, priority' }, { p: 'Business', price: 'Contact', d: 'Teams, seats, admin & SSO' }].map((pl, i) => (
@@ -998,7 +1006,7 @@ function renderSection(id, ctx) {
             {pl.p === tier ? <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.tealInk }}>CURRENT</span> : <Btn onClick={async () => {
               const id = pl.p.toLowerCase();   // 'plus' | 'pro' | 'business' | 'free'
               if (id === 'business') return showToast('Contact sales — coming soon.');
-              if (id === 'free')     return showToast('To downgrade, cancel from the billing portal (coming soon).');
+              if (id === 'free')     { const r = await vmOpenPortal(); if (!r.ok) showToast(r.error && r.error.includes('customer') ? 'No active subscription to cancel yet.' : 'Could not open the billing portal.'); return; }
               const started = await vmStartCheckout(id);   // → real Stripe checkout
               if (!started) showToast('Billing isn’t set up yet.');
             }} style={{ fontSize: 13, padding: '6px 14px' }}>Choose</Btn>}
