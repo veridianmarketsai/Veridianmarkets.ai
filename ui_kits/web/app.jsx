@@ -237,8 +237,6 @@ function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  // Keep the document title in step with the route.
-  useEffectApp(() => { document.title = ROUTE_TITLES[route] || ROUTE_TITLES.front; }, [route]);
 
   // Session — seeded from the stored Cognito ID token so a refresh keeps you
   // signed in; a silent token refresh runs on mount (see effect below).
@@ -301,17 +299,23 @@ function App() {
     if (route === 'myportfolio' && accountMode !== 'personal') setAccountMode('personal');
   }, [route]);
 
-  // Protected routes. Portfolio sign-in guard is temporarily disabled (laptop:
-  // learn-1.14 "sign-in guard bypass"); Admin still needs the admin role.
+  // Protected routes. The whole app requires a session — only the marketing
+  // landing page (/) and the sign-in flow itself are public; every other
+  // route (including deep links straight to /home, /company/<ticker>, etc.)
+  // bounces a signed-out visitor to sign-in first. Admin still additionally
+  // needs the admin role once signed in.
   const isAdmin = !!(user && user.role === 'admin');
-  const gatedFromBusiness = route==='mybusiness' && !signedIn;
+  const appGated = !signedIn && route !== 'landing' && route !== 'signin';
   const gatedFromAdmin = route==='admin' && !isAdmin;
   const gatedByPlan = GATED_ROUTES.includes(route) && !isPaying;   // paywall
-  const effRoute = gatedFromBusiness ? 'signin'
-    : gatedFromAdmin ? (signedIn ? 'front' : 'signin')
+  const effRoute = appGated ? 'signin'
+    : gatedFromAdmin ? 'front'                    // signed in but not admin
     : gatedByPlan ? 'upgrade'                     // non-payer → upgrade page
     : (route==='signin' && signedIn) ? 'front'   // already signed in → never show the sign-in page (temporary)
     : route;
+  // Keep the document title in step with what's actually on screen (not just
+  // the requested route — a gated route shows sign-in/upgrade instead).
+  useEffectApp(() => { document.title = ROUTE_TITLES[effRoute] || ROUTE_TITLES.front; }, [effRoute]);
   // Remember the page a non-payer was blocked from (incl. direct URL hits) so the
   // upgrade page can send them there after they subscribe.
   useEffectApp(() => { if (gatedByPlan) setPendingRoute(route); }, [gatedByPlan, route]);
@@ -335,7 +339,7 @@ function App() {
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
-  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : gatedFromBusiness ? 'mybusiness' : 'myportfolio'} isMobile={isMobile} />;
+  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={appGated ? route : 'myportfolio'} isMobile={isMobile} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
   // Full-bleed marketing landing — its own nav/footer, no app chrome at all.
