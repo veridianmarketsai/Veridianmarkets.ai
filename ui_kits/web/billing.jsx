@@ -10,7 +10,7 @@
 const VM_BILLING = {
   currency: '$',   // display currency (USD). NOTE: Stripe products are still GBP —
                    // recreate the Stripe prices in USD before go-live (see review.md).
-  apiBase: '',   // vm-billing-checkout Lambda Function URL. Empty until built.
+  apiBase: 'https://47tm6sz4m3l4hzlbygg6v7lxu40fsqqb.lambda-url.us-east-1.on.aws/',   // vm-billing-checkout Lambda (one customer per user)
   statusUrl: 'https://v4fittjxd55ruqgtiqxbqyxvai0huddy.lambda-url.us-east-1.on.aws/', // vm-billing-status Lambda (returns the real plan)
   portalUrl: 'https://yl7uzroqmm5np3y3kmvxnf5l2u0sliho.lambda-url.us-east-1.on.aws/', // vm-billing-portal Lambda (cancel / switch)
   paymentLinks: {
@@ -38,7 +38,7 @@ async function vmStartCheckout(planId) {
       const res = await fetch(VM_BILLING.apiBase, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session && session.access}` },
-        body: JSON.stringify({ plan: planId, price: VM_BILLING.prices[planId] }),
+        body: JSON.stringify({ plan: planId, email: user && user.email }),   // Lambda picks the price server-side from `plan`
       });
       const data = await res.json();
       if (data.url) { window.location.href = data.url; return true; }

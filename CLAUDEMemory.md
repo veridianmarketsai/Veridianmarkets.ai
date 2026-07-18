@@ -62,6 +62,20 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-18 — payments-1.3: proper checkout (no duplicate customers). Merged to main.
+
+- **`vm-billing-checkout`** Lambda (`lambda/billing/checkout/`): JWT verify → reuse ONE
+  Stripe customer per Cognito user (stored `stripeCustomerId` + reverse map `cust#id`→sub)
+  → create subscription Checkout Session → return url. Replaces Payment Links (kills
+  duplicate customers). Env: STRIPE_SECRET_KEY, TABLE, COGNITO_POOL_ID, COGNITO_REGION,
+  PRICE_PLUS, PRICE_PRO, SUCCESS_URL, CANCEL_URL. Guards a deleted customer via
+  `customerLives()`. `billing.jsx` apiBase → this Lambda; sends `email` in the body
+  (access token lacks email). **Set timeout 30s** (checkout.session.completed 502'd on
+  the webhook's 3s default — the extra Stripe line-items call; same fix due on checkout).
+- **Phase 4** = webhook already handles subscription.updated/deleted; just raise
+  `vm-billing-webhook` timeout to 30s + ensure the 3 events subscribed. **User hasn't
+  run the full test yet.** Still pending: GBP→USD prices. **Next: data-capture-1.1.**
+
 ### 2026-07-18 — payments-1.2: billing portal + admin access. Merged to main.
 
 - **`vm-billing-portal`** Lambda (`lambda/billing/portal/`): verifies Cognito JWT →
