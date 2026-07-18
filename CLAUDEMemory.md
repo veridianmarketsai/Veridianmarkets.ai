@@ -62,11 +62,54 @@ placeholders until their page exists.
 
 ## Change log
 
-### 2026-07-18 — Started `personal.settings.1.2`.
+### 2026-07-18 — `personal.settings.1.2` continued: Learning, toggles, real 2FA.
 
-New branch (from main, after `personal.settings.1.1` merged) continuing the
-"de-mock Settings" pass — user picked the first 4 of the "quick wins" list:
-Saved, Your activity, Change password, Delete account.
+User picked 3 of the "bigger, new integrations" list (explicitly skipped SMS
+2FA and broker connections — both need real outside setup, not code):
+Learning progress, Notifications/Privacy/Data-permissions toggles, and a
+**full-loop** real authenticator-app 2FA (their words: "do the full loop, but
+I want the customer to have the option to use it if they want it" — i.e. real
+Cognito TOTP, opt-in per account via `SetUserMFAPreference`, not pool-wide).
+
+- **Learning progress — real, not hardcoded.** There was no persisted
+  progress at all (the lesson viewer's progress bar was session-only, purely
+  positional). Added real tracking in `Learn.jsx`: `vmSaveLearnProgress`
+  records `{title, pct, ts}` per course to `vm_learn_progress` every time
+  `LessonViewer` renders a lesson; `vmLatestLearnProgress()` picks the
+  most-recently-touched one. Settings → Learning now shows that (or "You
+  haven't started a course yet." if none).
+- **Notifications / Privacy / Data permissions toggles now persist.**
+  `StToggle` gained an optional `id` prop — when given, reads/writes a
+  consolidated `vm_toggles` localStorage map instead of resetting to its
+  default every remount; omitted (kept on the 2 purely cosmetic Appearance
+  toggles) it keeps the old ephemeral behavior. Added ids to all 15
+  Notifications/Privacy/Permissions toggles.
+- **Authenticator-app 2FA — real Cognito TOTP, full loop.** New auth.jsx calls:
+  `vmAssociateSoftwareToken` (registers a real secret), `vmVerifySoftwareToken`
+  (checks a live code), `vmSetSoftwareMfaPreference` (the actual on/off
+  switch — per-account opt-in, not pool-wide), `vmGetMfaStatus` (so Settings
+  shows Cognito's real current state, not a cached guess). Real QR via a new
+  CDN script `qrcode@1.5.3` (`window.QRCode.toDataURL` on an `otpauth://`
+  URI) — replaces the old hand-drawn fake `QR_GRID` pixel grid + the
+  `JBSWY3DPEHPK3PXP (mock)` fixed secret.
+  **Closing the loop required touching sign-in itself** (flagged to the user
+  before starting, since this is the one part of this round that could
+  actually lock someone out if done wrong): `vmSignIn` now returns
+  `{mfaRequired:true, session, username}` instead of setting the session when
+  Cognito challenges with `SOFTWARE_TOKEN_MFA`; new `vmConfirmMfaSignIn`
+  completes it via `RespondToAuthChallenge`. `app.jsx`'s `signIn` wrapper and
+  a new `confirmMfa` handle both; `SignIn.jsx` gained a 5th mode (`mfa`) that
+  prompts for the code and resumes the same challenge Session.
+  **AWS step still needed by the user:** Cognito console → user pool →
+  Sign-in experience → Multi-factor authentication → set enforcement to
+  **Optional** (not Off) and enable the **Authenticator apps** method — until
+  that's set, `SetUserMFAPreference` will fail regardless of what the code
+  does (this is a hard Cognito requirement, not a bug to fix in code).
+  Verified: fake-token 2FA-setup attempt fails cleanly with the "session
+  expired" message (no crash); sign-in page still renders/works with the new
+  mode added. **Could not test the real enable → sign-in-challenge → confirm
+  loop** — needs a real signed-in session + a real authenticator app, and the
+  pool MFA setting flipped to Optional first.
 
 - **Change password — real Cognito `ChangePassword`.** Was checking against a
   fake password in `localStorage` (`vm_mock_password`, removed). Now a real

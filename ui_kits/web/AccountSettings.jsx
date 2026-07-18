@@ -51,6 +51,15 @@ const vmGetUsername = (sub, email) => {
   try { return localStorage.getItem(vmUsernameKey(sub)) || (email || 'you').split('@')[0]; } catch { return (email || 'you').split('@')[0]; }
 };
 const vmSetUsername = (sub, name) => { try { localStorage.setItem(vmUsernameKey(sub), name); } catch {} };
+// ── toggle preferences (Notifications / Privacy / Data permissions) — one
+// consolidated localStorage map, keyed by a per-toggle id ──
+const VM_TOGGLES_KEY = 'vm_toggles';
+const vmGetToggle = (id, def) => {
+  try { const all = JSON.parse(localStorage.getItem(VM_TOGGLES_KEY) || '{}'); return id in all ? all[id] : def; } catch { return def; }
+};
+const vmSetToggle = (id, val) => {
+  try { const all = JSON.parse(localStorage.getItem(VM_TOGGLES_KEY) || '{}'); all[id] = val; localStorage.setItem(VM_TOGGLES_KEY, JSON.stringify(all)); } catch {}
+};
 // Draw the given source rect (from a loaded <img>) into a square JPEG data URL
 // — used by AvatarCropModal once the user's pan/zoom picks the crop region.
 function vmCropImageToDataUrl(img, sx, sy, swidth, sheight, outSize = 320) {
@@ -321,7 +330,7 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
     }
     // Clear all local data (prototype — admin credentials remain hardcoded in app.jsx)
     try {
-      ['vm_session','vm_theme','vm_2fa_app','vm_2fa_sms','vm_2fa_phone',
+      ['vm_session','vm_theme','vm_2fa_sms','vm_2fa_phone',
        'vm_other_sessions','vm_pf_brokers','vm_account_mode',
        vmAvatarKey(u.sub), vmUsernameKey(u.sub)].forEach(k => localStorage.removeItem(k));
     } catch(e) {}
@@ -464,15 +473,19 @@ function StField({ label, value, onChange, placeholder, type = 'text' }) {
     </label>
   );
 }
-function StToggle({ label, desc, on = false, last }) {
-  const [v, setV] = useStateSettings(on);
+// `id` (optional) persists the toggle's state to localStorage (vm_toggles) so
+// it survives reloads — pass one to make a toggle "real"; omit it to keep the
+// old ephemeral per-mount behaviour (used by the purely cosmetic ones).
+function StToggle({ id, label, desc, on = false, last }) {
+  const [v, setV] = useStateSettings(() => id ? vmGetToggle(id, on) : on);
+  const flip = () => setV(x => { const next = !x; if (id) vmSetToggle(id, next); return next; });
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: last ? 'none' : `1px solid ${VM.borderHair}` }}>
       <div style={{ flex: 1 }}>
         <div style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink }}>{label}</div>
         {desc && <Mono size={10} color={VM.ink3} style={{ display: 'block', marginTop: 1 }}>{desc}</Mono>}
       </div>
-      <button onClick={() => setV(x => !x)} style={{ width: 42, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', flexShrink: 0,
+      <button onClick={flip} style={{ width: 42, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', flexShrink: 0,
         background: v ? VM.forest : VM.paperDeep, position: 'relative', transition: 'background .16s' }}>
         <span style={{ position: 'absolute', top: 2, left: v ? 20 : 2, width: 20, height: 20, borderRadius: 999, background: VM.paper, transition: 'left .16s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}></span>
       </button>
@@ -696,9 +709,8 @@ function SessionRow({ s, last, onSignOut }) {
   );
 }
 
-// ── security sub-page — fully interactive, localStorage-backed ───────────────
-const QR_GRID = [[1,1,1,1,1,1,1,0,1,0,0,0,1,1,1,1,1],[1,0,0,0,0,0,1,0,0,1,1,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,1,1],[1,0,1,1,1,0,1,0,0,0,0,0,1,0,1,0,1],[1,0,1,1,1,0,1,0,1,1,0,1,1,0,1,1,1],[1,0,0,0,0,0,1,0,1,0,1,0,1,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0],[1,1,0,1,1,0,1,1,1,0,1,0,1,0,1,1,0],[0,0,1,0,0,1,0,0,0,1,0,1,0,1,0,0,1],[1,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,1],[0,1,0,0,1,1,0,1,0,1,0,1,1,0,0,1,0],[1,1,1,1,1,1,1,0,1,0,1,0,1,1,0,1,0],[1,0,0,0,0,0,1,0,0,1,0,1,0,1,0,0,1],[1,0,1,1,1,0,1,0,1,0,0,0,1,0,0,1,1],[1,0,0,0,0,0,1,0,0,1,1,0,0,1,1,0,0],[1,1,1,1,1,1,1,0,1,0,0,1,0,0,1,0,1]];
-
+// ── security sub-page — password + 2FA are real (Cognito); other sessions
+// list is still local-only ──
 function StSecuritySection({ u, showToast }) {
   const [cur, setCur]           = useStateSettings('');
   const [newPw, setNewPw]       = useStateSettings('');
@@ -710,12 +722,23 @@ function StSecuritySection({ u, showToast }) {
   const [pwSaved, setPwSaved]   = useStateSettings(false);
   const [pwBusy, setPwBusy]     = useStateSettings(false);
 
-  const [authApp, setAuthApp]   = useStateSettings(() => { try { return JSON.parse(localStorage.getItem('vm_2fa_app') || 'false'); } catch { return false; } });
+  // Real Cognito TOTP 2FA — authApp reflects what Cognito actually has on
+  // file (fetched on mount), not a locally-cached guess.
+  const [authApp, setAuthApp]   = useStateSettings(false);
+  const [mfaBusy, setMfaBusy]   = useStateSettings(false);
+  const [qrDataUrl, setQrDataUrl] = useStateSettings('');
+  const [secret, setSecret]     = useStateSettings('');
   const [smsBak, setSmsBak]     = useStateSettings(() => { try { return JSON.parse(localStorage.getItem('vm_2fa_sms') || 'false'); } catch { return false; } });
   const [phone, setPhone]       = useStateSettings(() => localStorage.getItem('vm_2fa_phone') || '');
   const [showQR, setShowQR]     = useStateSettings(false);
   const [showSmsIn, setShowSmsIn] = useStateSettings(false);
   const [verifyCode, setVerifyCode] = useStateSettings('');
+
+  useEffectSettings(() => {
+    let live = true;
+    vmGetMfaStatus().then(on => { if (live) setAuthApp(on); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   const [otherSessions, setOtherSessions] = useStateSettings(() => {
     try { return JSON.parse(localStorage.getItem('vm_other_sessions') || 'null') ||
@@ -769,14 +792,41 @@ function StSecuritySection({ u, showToast }) {
     }
   };
 
-  const toggleAuthApp = () => {
-    if (authApp) { setAuthApp(false); localStorage.setItem('vm_2fa_app','false'); showToast('Authenticator app disabled.'); }
-    else setShowQR(true);
+  const toggleAuthApp = async () => {
+    if (mfaBusy) return;
+    if (authApp) {
+      setMfaBusy(true);
+      try { await vmSetSoftwareMfaPreference(false); setAuthApp(false); showToast('Authenticator app disabled.'); }
+      catch (e) { showToast(e.message || 'Could not disable 2FA.'); }
+      finally { setMfaBusy(false); }
+      return;
+    }
+    setMfaBusy(true);
+    try {
+      const secretCode = await vmAssociateSoftwareToken();
+      const otpauth = `otpauth://totp/Veridian%20Markets:${encodeURIComponent(u.email || '')}?secret=${secretCode}&issuer=Veridian%20Markets`;
+      const dataUrl = await window.QRCode.toDataURL(otpauth, { width: 180, margin: 1 });
+      setSecret(secretCode); setQrDataUrl(dataUrl); setShowQR(true);
+    } catch (e) {
+      showToast(e.message || 'Could not start 2FA setup.');
+    } finally {
+      setMfaBusy(false);
+    }
   };
-  const confirmQR = () => {
-    if (verifyCode.length < 6) return;
-    setAuthApp(true); localStorage.setItem('vm_2fa_app','true');
-    setShowQR(false); setVerifyCode(''); showToast('Authenticator app enabled.');
+  const confirmQR = async () => {
+    if (verifyCode.length < 6 || mfaBusy) return;
+    setMfaBusy(true);
+    try {
+      await vmVerifySoftwareToken(verifyCode);
+      await vmSetSoftwareMfaPreference(true);
+      setAuthApp(true);
+      setShowQR(false); setVerifyCode(''); setSecret(''); setQrDataUrl('');
+      showToast('Authenticator app enabled.');
+    } catch (e) {
+      showToast(e.message || 'That code didn’t match — try again.');
+    } finally {
+      setMfaBusy(false);
+    }
   };
   const toggleSms = () => {
     if (smsBak) { setSmsBak(false); localStorage.setItem('vm_2fa_sms','false'); showToast('SMS backup disabled.'); }
@@ -860,7 +910,7 @@ function StSecuritySection({ u, showToast }) {
             <div style={{ flex:1 }}>
               <div style={{ fontFamily:VM.serif, fontSize:15 }}>Authenticator app</div>
               <Mono size={10} color={VM.ink3} style={{ display:'block', marginTop:1 }}>
-                {authApp ? <span style={{color:VM.upInk}}><i className="ti ti-circle-check-filled" style={{fontSize:11,marginRight:3}}></i>Enabled</span> : 'Require a code at sign-in'}
+                {authApp ? <span style={{color:VM.upInk}}><i className="ti ti-circle-check-filled" style={{fontSize:11,marginRight:3}}></i>Enabled — required at sign-in</span> : 'Require a code at sign-in'}
               </Mono>
             </div>
             {toggle(authApp, toggleAuthApp)}
@@ -869,17 +919,15 @@ function StSecuritySection({ u, showToast }) {
             <div style={{ marginTop:14, padding:16, background:VM.paperWarm, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
               <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:12 }}>Scan with Google Authenticator, Authy, or 1Password</Mono>
               <div style={{ display:'inline-block', background:'#fff', padding:10, borderRadius:8, marginBottom:12 }}>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(17, 5px)', gap:0 }}>
-                  {QR_GRID.flat().map((cell,i)=><div key={i} style={{ width:5, height:5, background:cell?'#000':'#fff' }} />)}
-                </div>
+                {qrDataUrl && <img src={qrDataUrl} width={180} height={180} alt="" />}
               </div>
-              <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:10, wordBreak:'break-all' }}>Manual key: JBSWY3DPEHPK3PXP (mock)</Mono>
+              <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:10, wordBreak:'break-all' }}>Manual key: {secret}</Mono>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                 <input value={verifyCode} onChange={e=>setVerifyCode(e.target.value.replace(/\D/g,'').slice(0,6))}
                   placeholder="6-digit code" maxLength={6}
                   style={{ flex:1, border:`1px solid ${VM.border}`, borderRadius:8, padding:'8px 12px', fontFamily:VM.mono, fontSize:18, letterSpacing:'0.25em', textAlign:'center', outline:'none', background:VM.paper }} />
-                <Btn solid onClick={confirmQR} style={{ opacity:verifyCode.length<6?0.5:1 }}>Verify</Btn>
-                <Btn onClick={()=>{setShowQR(false);setVerifyCode('');}}>Cancel</Btn>
+                <Btn solid onClick={confirmQR} style={{ opacity: (verifyCode.length<6 || mfaBusy) ?0.5:1 }}>{mfaBusy ? 'Verifying…' : 'Verify'}</Btn>
+                <Btn onClick={mfaBusy ? undefined : ()=>{setShowQR(false);setVerifyCode('');setSecret('');setQrDataUrl('');}}>Cancel</Btn>
               </div>
             </div>
           )}
@@ -1355,19 +1403,19 @@ function renderSection(id, ctx) {
     case 'notifications': return (
       <React.Fragment>
         <StCard title="Alerts">
-          <StToggle label="Price alerts" desc="When a watched company moves sharply" on />
-          <StToggle label="Analogue alerts" desc="New historical pattern matches" on />
-          <StToggle label="Supply-chain events" desc="Disruptions affecting your holdings" last />
+          <StToggle id="notif_price" label="Price alerts" desc="When a watched company moves sharply" on />
+          <StToggle id="notif_analogue" label="Analogue alerts" desc="New historical pattern matches" on />
+          <StToggle id="notif_supply" label="Supply-chain events" desc="Disruptions affecting your holdings" last />
         </StCard>
         <StCard title="Updates">
-          <StToggle label="Course updates" desc="New lessons in your enrolled courses" on />
-          <StToggle label="Product news" />
-          <StToggle label="Weekly digest" desc="A Sunday market recap" on last />
+          <StToggle id="notif_course" label="Course updates" desc="New lessons in your enrolled courses" on />
+          <StToggle id="notif_product" label="Product news" />
+          <StToggle id="notif_digest" label="Weekly digest" desc="A Sunday market recap" on last />
         </StCard>
         <StCard title="Channels">
-          <StToggle label="Email" on />
-          <StToggle label="Push" on />
-          <StToggle label="SMS" last />
+          <StToggle id="notif_email" label="Email" on />
+          <StToggle id="notif_push" label="Push" on />
+          <StToggle id="notif_sms" label="SMS" last />
         </StCard>
       </React.Fragment>
     );
@@ -1404,30 +1452,37 @@ function renderSection(id, ctx) {
     );
     case 'saved': return <SavedSection go={go} />;
     case 'activity': return <ActivitySection go={go} showToast={showToast} />;
-    case 'learning': return (
-      <React.Fragment>
-        <StNote>Pick up where you left off.</StNote>
-        <StCard>
-          <div style={{ padding: '12px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
-            <div style={{ fontFamily: VM.serif, fontSize: 15, marginBottom: 8 }}>Reading a supply chain map · 62%</div>
-            <ProgressBar v={62} />
-          </div>
-          <StLink label="Browse all courses" onClick={() => go('learn')} last />
-        </StCard>
-      </React.Fragment>
-    );
+    case 'learning': {
+      // Real progress (Learn.jsx's LessonViewer records it as you go) —
+      // whichever course you most recently opened a lesson in.
+      const progress = typeof vmLatestLearnProgress === 'function' ? vmLatestLearnProgress() : null;
+      return (
+        <React.Fragment>
+          <StNote>{progress ? "Pick up where you left off." : "You haven't started a course yet."}</StNote>
+          <StCard>
+            {progress && (
+              <div style={{ padding: '12px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
+                <div style={{ fontFamily: VM.serif, fontSize: 15, marginBottom: 8 }}>{progress.title} · {progress.pct}%</div>
+                <ProgressBar v={progress.pct} />
+              </div>
+            )}
+            <StLink label="Browse all courses" onClick={() => go('learn')} last />
+          </StCard>
+        </React.Fragment>
+      );
+    }
     case 'permissions': return (
       <StCard title="Data & permissions">
-        <StToggle label="Personalised recommendations" desc="Use my activity to tailor content" on />
-        <StToggle label="Usage analytics" desc="Share anonymous usage to improve the app" on />
-        <StToggle label="Marketing emails" last />
+        <StToggle id="perm_personalised" label="Personalised recommendations" desc="Use my activity to tailor content" on />
+        <StToggle id="perm_analytics" label="Usage analytics" desc="Share anonymous usage to improve the app" on />
+        <StToggle id="perm_marketing" label="Marketing emails" last />
       </StCard>
     );
     case 'privacy': return (
       <StCard title="Account privacy">
-        <StToggle label="Private profile" desc="Only you can see your activity" on />
-        <StToggle label="Show online status" />
-        <StToggle label="Searchable by email" on last />
+        <StToggle id="privacy_private_profile" label="Private profile" desc="Only you can see your activity" on />
+        <StToggle id="privacy_online_status" label="Show online status" />
+        <StToggle id="privacy_searchable" label="Searchable by email" on last />
       </StCard>
     );
     case 'help': return <HelpSection showToast={showToast} />;

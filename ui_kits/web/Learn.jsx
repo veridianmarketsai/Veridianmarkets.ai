@@ -356,6 +356,31 @@ function vmDeleteCourse(id) {
   try { localStorage.setItem(VM_COURSES_KEY, JSON.stringify(list)); } catch {}
 }
 
+// Per-course progress ("furthest lesson reached", same % the lesson viewer's
+// top bar already shows) — persisted so Settings → Learning can show a real
+// "pick up where you left off" instead of a hardcoded course/percentage.
+// Local-only (no backend); keyed by course id, one entry per course.
+const VM_LEARN_PROGRESS_KEY = 'vm_learn_progress';
+function vmGetLearnProgress() {
+  try { return JSON.parse(localStorage.getItem(VM_LEARN_PROGRESS_KEY)) || {}; } catch { return {}; }
+}
+function vmSaveLearnProgress(course, lesson) {
+  if (!course.lessons || !course.lessons.length) return;
+  const idx = course.lessons.findIndex(l => l.n === lesson.n);
+  if (idx < 0) return;
+  try {
+    const all = vmGetLearnProgress();
+    all[course.id] = { title: course.title, pct: Math.round(((idx + 1) / course.lessons.length) * 100), ts: Date.now() };
+    localStorage.setItem(VM_LEARN_PROGRESS_KEY, JSON.stringify(all));
+  } catch {}
+}
+// The single course to show on Settings → Learning: whichever was touched most recently.
+function vmLatestLearnProgress() {
+  const entries = Object.values(vmGetLearnProgress());
+  if (!entries.length) return null;
+  return entries.reduce((a, b) => (b.ts > a.ts ? b : a));
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 function Learn({ go, isMobile }) {
   const [cat, setCat]       = useStateLearn('all');
@@ -976,6 +1001,7 @@ function LessonViewer({ course, lesson, onClose, onNav, isMobile }) {
     window.addEventListener('keydown', h);
     return ()=>window.removeEventListener('keydown', h);
   },[]);
+  React.useEffect(()=>{ vmSaveLearnProgress(course, lesson); }, [course.id, lesson.n]);
 
   return ReactDOM.createPortal(
     <div style={{ position:'fixed', inset:0, zIndex:500, background:VM.paperWarm,

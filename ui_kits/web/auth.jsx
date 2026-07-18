@@ -107,18 +107,36 @@ async function vmConfirmSignUp(email, code) {
 async function vmResendCode(email) {
   await cognito('ResendConfirmationCode', { ClientId: VM_AUTH.clientId, Username: email });
 }
-// Sign in → returns the user object, or throws (with .code) on failure.
+// Sign in → { mfaRequired:false, user } on success, or { mfaRequired:true,
+// session, username } if the account has authenticator-app 2FA turned on (the
+// caller must then collect a code and call vmConfirmMfaSignIn). Throws (with
+// .code) on any other failure.
 async function vmSignIn(email, password) {
   const out = await cognito('InitiateAuth', {
     ClientId: VM_AUTH.clientId,
     AuthFlow: 'USER_PASSWORD_AUTH',
     AuthParameters: { USERNAME: email, PASSWORD: password },
   });
+  if (out.ChallengeName === 'SOFTWARE_TOKEN_MFA') {
+    return { mfaRequired: true, session: out.Session, username: email };
+  }
   if (out.ChallengeName) {                     // e.g. admin-created user in FORCE_CHANGE_PASSWORD
     const e = new Error('This account needs a new password. Use “Forgot password” to set one.');
     e.code = out.ChallengeName;
     throw e;
   }
+  const s = vmSaveSession(out.AuthenticationResult);
+  return { mfaRequired: false, user: vmUserFromClaims(s.id) };
+}
+// Completes sign-in after vmSignIn() came back with mfaRequired:true — submits
+// the authenticator-app code against the challenge Session it returned.
+async function vmConfirmMfaSignIn(username, code, session) {
+  const out = await cognito('RespondToAuthChallenge', {
+    ClientId: VM_AUTH.clientId,
+    ChallengeName: 'SOFTWARE_TOKEN_MFA',
+    Session: session,
+    ChallengeResponses: { USERNAME: username, SOFTWARE_TOKEN_MFA_CODE: code },
+  });
   const s = vmSaveSession(out.AuthenticationResult);
   return vmUserFromClaims(s.id);
 }
@@ -205,12 +223,58 @@ async function vmDeleteAccount() {
   await vmSelfService(cognito('DeleteUser', { AccessToken: s.access }));
 }
 
+// ── authenticator-app 2FA (Settings → Password & security) ──────────────────
+// This is opt-in per account (SetUserMFAPreference), not a pool-wide
+// requirement — turning it on only affects the user who turned it on. Needs
+// the user pool's MFA enforcement set to "Optional" with the "Authenticator
+// apps" method enabled (Cognito console → Sign-in experience); otherwise
+// SetUserMFAPreference is a no-op regardless of what this returns.
+// Step 1: registers a new TOTP secret, returned as the raw base32 secret
+// (render an otpauth:// QR from it, and show it as the manual-entry key).
+async function vmAssociateSoftwareToken() {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  const out = await vmSelfService(cognito('AssociateSoftwareToken', { AccessToken: s.access }));
+  return out.SecretCode;
+}
+// Step 2: proves the user's authenticator app has the secret by checking a
+// live code from it. Registers the device but does NOT yet require it at
+// sign-in — that's a separate, explicit step (vmSetSoftwareMfaPreference).
+async function vmVerifySoftwareToken(code) {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  const out = await vmSelfService(cognito('VerifySoftwareToken', {
+    AccessToken: s.access, UserCode: code, FriendlyDeviceName: 'Veridian Markets authenticator',
+  }));
+  if (out.Status !== 'SUCCESS') throw new Error('That code didn’t match — try again.');
+}
+// Turns the sign-in requirement on/off for a device that's already been
+// verified. This is the switch that actually makes vmSignIn() start (or stop)
+// returning mfaRequired:true for this user.
+async function vmSetSoftwareMfaPreference(enabled) {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  await vmSelfService(cognito('SetUserMFAPreference', {
+    AccessToken: s.access,
+    SoftwareTokenMfaSettings: { Enabled: enabled, PreferredMfa: enabled },
+  }));
+}
+// The real current on/off state (so Settings shows what Cognito actually has
+// on file, not a locally-cached guess).
+async function vmGetMfaStatus() {
+  const s = vmGetSession();
+  if (!s || !s.access) throw new Error('Not signed in.');
+  const out = await vmSelfService(cognito('GetUser', { AccessToken: s.access }));
+  return (out.UserMFASettingList || []).includes('SOFTWARE_TOKEN_MFA');
+}
+
 Object.assign(window, {
   VM_AUTH, cognito,
-  vmSignUp, vmConfirmSignUp, vmResendCode, vmSignIn,
+  vmSignUp, vmConfirmSignUp, vmResendCode, vmSignIn, vmConfirmMfaSignIn,
   vmForgotPassword, vmConfirmForgotPassword,
   vmRefresh, vmEnsureFreshSession,
   vmLoadUser, vmClearSession, vmUserFromClaims,
   vmUpdateAttributes, vmRequestEmailChange, vmResendEmailCode, vmConfirmEmailChange,
   vmChangePassword, vmDeleteAccount,
+  vmAssociateSoftwareToken, vmVerifySoftwareToken, vmSetSoftwareMfaPreference, vmGetMfaStatus,
 });
