@@ -25,13 +25,15 @@ const SI_COPY = {
   confirm: ['Confirm your email', (e) => `We emailed a 6-digit code to ${e || 'your inbox'}.`, 'Confirm & sign in'],
   forgot:  ['Reset password',     () => 'Enter your email and we’ll send a reset code.',       'Send reset code'],
   reset:   ['New password',       () => 'Enter the code we emailed and choose a new password.','Update password'],
+  mfa:     ['Enter your code',    () => 'Open your authenticator app and enter the 6-digit code.', 'Verify & sign in'],
 };
 
-function SignIn({ go, signIn, redirectTo, isMobile }) {
+function SignIn({ go, signIn, confirmMfa, redirectTo, isMobile }) {
   const [mode, setMode]     = useStateSignIn('signin');
   const [email, setEmail]   = useStateSignIn('');
   const [password, setPass] = useStateSignIn('');    // reused as "new password" in reset/signup
   const [code, setCode]     = useStateSignIn('');
+  const [mfaSession, setMfaSession] = useStateSignIn(null);   // Cognito challenge Session, set while mode==='mfa'
   const [error, setError]   = useStateSignIn('');
   const [notice, setNotice] = useStateSignIn('');
   const [busy, setBusy]     = useStateSignIn(false);
@@ -39,6 +41,7 @@ function SignIn({ go, signIn, redirectTo, isMobile }) {
   const to = (m) => { setMode(m); setError(''); setNotice(''); };
   const finishSignIn = async () => {                 // sign in with current email/password
     const r = await signIn(email, password);
+    if (r && r.mfaRequired) { setMfaSession(r.session); to('mfa'); return; }
     if (r && r.ok) go(redirectTo || 'myportfolio');
     else setError((r && r.error) || 'That email and password don’t match an account.');
   };
@@ -62,6 +65,10 @@ function SignIn({ go, signIn, redirectTo, isMobile }) {
       } else if (mode === 'reset') {
         await vmConfirmForgotPassword(email.trim(), code.trim(), password);
         await finishSignIn();                        // sign in with the new password
+      } else if (mode === 'mfa') {
+        const r = await confirmMfa(email, code.trim(), mfaSession);
+        if (r && r.ok) go(redirectTo || 'myportfolio');
+        else setError((r && r.error) || 'That code didn’t work — try again.');
       }
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -96,9 +103,9 @@ function SignIn({ go, signIn, redirectTo, isMobile }) {
               value={email} onChange={e=>{ setEmail(e.target.value); clearMsgs(); }} />
           )}
 
-          {/* Confirmation / reset code */}
-          {(mode === 'confirm' || mode === 'reset') && (
-            <SignInField label="Verification code" type="text" placeholder="6-digit code" autoComplete="one-time-code"
+          {/* Confirmation / reset / MFA code */}
+          {(mode === 'confirm' || mode === 'reset' || mode === 'mfa') && (
+            <SignInField label={mode === 'mfa' ? 'Authenticator code' : 'Verification code'} type="text" placeholder="6-digit code" autoComplete="one-time-code"
               inputMode="numeric" value={code} onChange={e=>{ setCode(e.target.value); clearMsgs(); }} />
           )}
 
@@ -147,7 +154,7 @@ function SignIn({ go, signIn, redirectTo, isMobile }) {
           {mode === 'confirm' && (
             <><span onClick={resend} style={{ color:VM.teal, cursor:'pointer' }}>Resend code</span> · <span onClick={()=>to('signin')} style={{ color:VM.teal, cursor:'pointer' }}>Back to sign in</span></>
           )}
-          {(mode === 'forgot' || mode === 'reset') && (
+          {(mode === 'forgot' || mode === 'reset' || mode === 'mfa') && (
             <span onClick={()=>to('signin')} style={{ color:VM.teal, cursor:'pointer' }}>Back to sign in</span>
           )}
         </div>

@@ -243,9 +243,21 @@ function App() {
   const [user, setUser] = useStateApp(vmLoadUser);
   const signedIn = !!user;
   // Sign in via Cognito. Returns { ok } or { ok:false, error, code } so SignIn.jsx
-  // can show a friendly message (no thrown errors bubbling to the UI).
+  // can show a friendly message (no thrown errors bubbling to the UI). If the
+  // account has authenticator-app 2FA on, comes back as
+  // { ok:true, mfaRequired:true, session, username } instead of setting the
+  // session — SignIn.jsx then collects a code and calls confirmMfa.
   const signIn = async (email, password) => {
-    try { setUser(await vmSignIn(email.trim(), password)); return { ok: true }; }
+    try {
+      const r = await vmSignIn(email.trim(), password);
+      if (r.mfaRequired) return { ok: true, mfaRequired: true, session: r.session, username: r.username };
+      setUser(r.user);
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message, code: e.code }; }
+  };
+  // Completes a sign-in that vmSignIn() paused for an authenticator-app code.
+  const confirmMfa = async (username, code, session) => {
+    try { setUser(await vmConfirmMfaSignIn(username, code, session)); return { ok: true }; }
     catch (e) { return { ok: false, error: e.message, code: e.code }; }
   };
   const signOut = () => {
@@ -343,7 +355,7 @@ function App() {
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
-  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={appGated ? route : 'myportfolio'} isMobile={isMobile} />;
+  else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} confirmMfa={confirmMfa} redirectTo={appGated ? route : 'myportfolio'} isMobile={isMobile} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
   // Full-bleed marketing landing — its own nav/footer, no app chrome at all.
