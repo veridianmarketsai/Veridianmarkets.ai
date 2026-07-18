@@ -349,7 +349,7 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
     // Clear all local data (prototype — admin credentials remain hardcoded in app.jsx)
     try {
       ['vm_session','vm_theme','vm_2fa_sms','vm_2fa_phone',
-       'vm_other_sessions','vm_pf_brokers','vm_account_mode',
+       'vm_pf_brokers','vm_account_mode',
        vmAvatarKey(u.sub), vmUsernameKey(u.sub)].forEach(k => localStorage.removeItem(k));
     } catch(e) {}
     setDeleting(false);
@@ -704,31 +704,24 @@ function BrokerRow({ b, on, last, confirming, onClick, onConfirmDisconnect, onCa
   );
 }
 
-function SessionRow({ s, last, onSignOut }) {
-  const [hover, setHover] = useStateSettings(false);
+// Real sign-in history (from captured session_start events) — informational
+// only. Cognito has no concept of individual sessions to selectively revoke,
+// so unlike the old mock there's no per-row "Sign out" here; only the
+// all-or-nothing GlobalSignOut button below the list is real.
+function SessionRow({ s, last }) {
   const isMobile = /iPhone|Android/i.test(s.label);
   return (
-    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
-      style={{ display:'flex', alignItems:'center', gap:10,
-        borderBottom: last ? 'none' : `1px solid ${VM.borderHair}`,
-        background: hover ? VM.paperWarm : 'transparent', transition:'background .12s',
-        borderRadius: hover ? 8 : 0, padding:'11px 8px', margin:'0 -8px' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:10,
+        borderBottom: last ? 'none' : `1px solid ${VM.borderHair}`, padding:'11px 8px', margin:'0 -8px' }}>
       <i className={'ti ti-'+(isMobile?'device-mobile':'device-laptop')} style={{ fontSize:16, color:VM.ink3, flexShrink:0 }}></i>
       <span style={{ flex:1, fontFamily:VM.serif, fontSize:15, color:VM.ink2 }}>{s.label}</span>
-      {hover
-        ? <button onClick={onSignOut} style={{ display:'inline-flex', alignItems:'center', gap:5, fontFamily:VM.serif, fontSize:12,
-            padding:'5px 11px', borderRadius:999, border:`1px solid ${VM.downInk}`, background:'transparent',
-            color:VM.downInk, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-            <i className="ti ti-logout" style={{fontSize:13}}></i>Sign out
-          </button>
-        : <Mono size={11} color={VM.ink3} style={{flexShrink:0}}>{s.time}</Mono>
-      }
+      <Mono size={11} color={VM.ink3} style={{ flexShrink:0 }}>{s.time}</Mono>
     </div>
   );
 }
 
-// ── security sub-page — password + 2FA are real (Cognito); other sessions
-// list is still local-only ──
+// ── security sub-page — password + 2FA + sign-in history are real (Cognito /
+// vm-events); GlobalSignOut is all-or-nothing (no per-session revoke exists) ──
 function StSecuritySection({ u, showToast }) {
   const [cur, setCur]           = useStateSettings('');
   const [newPw, setNewPw]       = useStateSettings('');
@@ -758,18 +751,24 @@ function StSecuritySection({ u, showToast }) {
     return () => { live = false; };
   }, []);
 
-  const [otherSessions, setOtherSessions] = useStateSettings(() => {
-    try { return JSON.parse(localStorage.getItem('vm_other_sessions') || 'null') ||
-      [{ id:1, label:'iPhone · Veridian app', time:'2d ago' }, { id:2, label:'MacBook · Safari', time:'5d ago' }];
-    } catch { return []; }
-  });
-
-  const currentDevice = React.useMemo(() => {
-    const ua = navigator.userAgent;
-    const os = /Win/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : /iPhone/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : 'Linux';
-    const br = /Edg/.test(ua) ? 'Edge' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Browser';
-    return `This device · ${os} · ${br}`;
+  // Real sign-in history (session_start events, via vm-my-activity) — replaces
+  // the old fake 2-device list. { items:null } while loading/unavailable.
+  const [sessions, setSessions] = useStateSettings({ items: null, loading: true });
+  useEffectSettings(() => {
+    let live = true;
+    (async () => {
+      const data = typeof vmFetchMyActivity === 'function' ? await vmFetchMyActivity() : null;
+      if (live) setSessions({ items: (data && data.sessions) || [], loading: false });
+    })();
+    return () => { live = false; };
   }, []);
+  const sessRel = (ts) => {
+    if (!ts) return '';
+    const days = Math.floor((Date.now() - ts) / 86400000);
+    return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago';
+  };
+  const [signingOutAll, setSigningOutAll] = useStateSettings(false);
+  const currentDevice = React.useMemo(() => `This device · ${typeof vmDeviceString === 'function' ? vmDeviceString() : 'Unknown'}`, []);
 
   const strength = React.useMemo(() => {
     if (!newPw) return 0;
@@ -855,9 +854,17 @@ function StSecuritySection({ u, showToast }) {
     setSmsBak(true); localStorage.setItem('vm_2fa_sms','true'); localStorage.setItem('vm_2fa_phone', phone);
     setShowSmsIn(false); showToast('SMS backup enabled.');
   };
-  const signOutEverywhere = () => {
-    setOtherSessions([]); localStorage.setItem('vm_other_sessions','[]');
-    showToast('Signed out of all other sessions.');
+  const signOutEverywhere = async () => {
+    if (signingOutAll) return;
+    setSigningOutAll(true);
+    try {
+      await vmGlobalSignOut();   // real Cognito GlobalSignOut — all-or-nothing, no per-session revoke exists
+      showToast('Signed out everywhere — this browser may need a fresh sign-in soon too.');
+    } catch (e) {
+      showToast(e.message || 'Could not sign out of other sessions.');
+    } finally {
+      setSigningOutAll(false);
+    }
   };
 
   const eyeBtn = (on, toggle) => (
@@ -974,28 +981,28 @@ function StSecuritySection({ u, showToast }) {
         </div>
       </StCard>
 
-      <StCard title="Active sessions">
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 0', borderBottom: otherSessions.length ? `1px solid ${VM.borderHair}` : 'none' }}>
+      <StCard title="Sign-in history">
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
           <i className="ti ti-device-laptop" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
           <span style={{ flex:1, fontFamily:VM.serif, fontSize:15 }}>{currentDevice}</span>
           <Mono size={11} color={VM.upInk}>now</Mono>
         </div>
-        {otherSessions.length === 0
-          ? <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>No other active sessions.</Mono>
-          : otherSessions.map((s,i) => <SessionRow key={s.id||i} s={s} last={i===otherSessions.length-1}
-              onSignOut={()=>{
-                const next = otherSessions.filter((_,j)=>j!==i);
-                setOtherSessions(next);
-                localStorage.setItem('vm_other_sessions', JSON.stringify(next));
-                showToast(`Signed out of ${s.label}.`);
-              }} />)
-        }
+        {(() => {
+          // Skip the single most-recent entry if it's this same page load's own
+          // session_start (captured moments ago) — otherwise "This device · now"
+          // would duplicate right above it.
+          const items = (sessions.items || []).filter((s, i) => !(i === 0 && s.ts && (Date.now() - s.ts) < 60000));
+          if (sessions.loading) return <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>Loading…</Mono>;
+          if (items.length === 0) return <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>No earlier sign-ins recorded yet.</Mono>;
+          return items.map((s, i) => <SessionRow key={i} s={{ label: s.device, time: sessRel(s.ts) }} last={i === items.length - 1} />);
+        })()}
       </StCard>
-      {otherSessions.length > 0 && (
-        <Btn onClick={signOutEverywhere} style={{ color:VM.downInk, borderColor:VM.downInk }}>
-          <i className="ti ti-logout" style={{fontSize:15}}></i>Sign out everywhere else
-        </Btn>
-      )}
+      <Btn onClick={signingOutAll ? undefined : signOutEverywhere} style={{ color:VM.downInk, borderColor:VM.downInk }}>
+        <i className="ti ti-logout" style={{fontSize:15}}></i>{signingOutAll ? 'Signing out…' : 'Sign out of all sessions'}
+      </Btn>
+      <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:8, maxWidth:440 }}>
+        Cognito can't sign out one specific session — this signs out everywhere, including this browser once its current session expires.
+      </Mono>
 
     </React.Fragment>
   );

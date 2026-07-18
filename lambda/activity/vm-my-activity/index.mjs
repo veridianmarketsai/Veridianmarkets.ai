@@ -7,8 +7,9 @@
 // vm-events schema (see lambda/capture/vm-capture): pk = "u#<sub>" (or
 // "a#<anonId>" for anonymous), sk = "<ts>#<rand>" for events / "#profile" for
 // the rolling profile row. Relevant event types: "search_select" ({query,
-// ticker}) and "navigate" ({route, ticker, name}) — a navigate to route
-// "dashboard" is a company view.
+// ticker}), "navigate" ({route, ticker, name}) — a navigate to route
+// "dashboard" is a company view — and "session_start" ({device}), one per
+// page load, which doubles as real sign-in history for Settings → Security.
 //
 // Env vars: TABLE=vm-events, COGNITO_POOL_ID, COGNITO_REGION=us-east-1
 // IAM:      the function role needs DynamoDB Query on TABLE (AmazonDynamoDBReadOnlyAccess is fine).
@@ -54,6 +55,7 @@ export const handler = async (event) => {
     const seenQ = new Set();
     const viewed = [];
     const seenT = new Set();
+    const sessions = [];
 
     for (const item of r.Items || []) {
       if (!item.type) continue;   // skip the "#profile" row (no `type`)
@@ -66,10 +68,12 @@ export const handler = async (event) => {
         if (!seenQ.has(key)) { seenQ.add(key); searches.push(props.query); }
       } else if (type === 'navigate' && props.route === 'dashboard' && props.ticker && viewed.length < 8) {
         if (!seenT.has(props.ticker)) { seenT.add(props.ticker); viewed.push({ ticker: props.ticker, name: props.name || props.ticker }); }
+      } else if (type === 'session_start' && sessions.length < 10) {
+        sessions.push({ device: props.device || 'Unknown device', ts: item.ts?.N ? Number(item.ts.N) : null });
       }
     }
 
-    return resp(200, { searches, viewed });
+    return resp(200, { searches, viewed, sessions });
   } catch (e) {
     console.warn('my-activity error', e.message);
     return resp(400, { error: e.message });

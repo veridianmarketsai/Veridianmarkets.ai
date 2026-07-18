@@ -66,9 +66,32 @@ placeholders until their page exists.
 
 User picked 3 items off the bug/gap list from the earlier audit: Admin →
 Users real data, real session tracking, avatar cross-device sync. Did #1 and
-#3; #2 needs a scoping answer before building (Cognito has no native
-per-session list+revoke — only all-or-nothing `GlobalSignOut` — so "make
-sessions real" has two very different possible builds).
+#3 first; user then confirmed #2's scope: real sign-in history (no per-
+session revoke — that would mean building a whole custom session-tracking
+layer Cognito doesn't provide) + real all-or-nothing `GlobalSignOut`.
+
+- **Real sign-in history (Settings → Security).** Old mock: a hardcoded
+  2-device list, per-row fake "Sign out". New: `session_start` events (already
+  captured on every load) now also carry a real `device` string
+  (`vmDeviceString()`, new shared helper in capture.jsx — "OS · Browser" from
+  the user agent; same logic `currentDevice` already used, now reused instead
+  of duplicated). `vm-my-activity` extended to also return `sessions:
+  [{device,ts}]` from those events (was only search/viewed). Section renamed
+  "Active sessions" → **"Sign-in history"** since it's honestly informational
+  now, not a list of revocable sessions — `SessionRow` dropped its per-row
+  "Sign out" button (deleted dead code from the first pass at this, not just
+  hidden). Skips the single most-recent history entry if it's <60s old (this
+  page load's own `session_start`), so "This device · now" doesn't duplicate
+  right above it.
+- **Real "sign out of all sessions."** New `vmGlobalSignOut()` (auth.jsx) →
+  Cognito `GlobalSignOut`, self-service. Copy is explicit that this is
+  all-or-nothing and will eventually log out *this* browser too (once its
+  current access token naturally expires) — Cognito has no lesser option.
+- Verified live (fake session): Security page shows a real parsed device
+  string + "No earlier sign-ins recorded yet." (correct — fake token means
+  vm-my-activity returns null); clicking "Sign out of all sessions" correctly
+  attempts the real call and surfaces the session-expired message on an
+  invalid token. No JS errors.
 
 - **Admin → Users tab reads real data.** New `useRealAdminUsers()` calls the
   already-built `vm-admin-analytics?view=users` (built for Overview, never

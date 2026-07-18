@@ -23,6 +23,17 @@ function vmAnonId() {
   } catch { return 'nostorage'; }
 }
 
+// "OS · Browser" from the user agent — captured on session_start (so Security
+// → Other sessions can show real sign-in history) and used directly for
+// "This device" (always accurate for the current session, unlike a captured
+// past event).
+function vmDeviceString() {
+  const ua = navigator.userAgent;
+  const os = /Win/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : /iPhone/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : 'Linux';
+  const br = /Edg/.test(ua) ? 'Edge' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Browser';
+  return `${os} · ${br}`;
+}
+
 // Tell capture who the user is (or null on sign-out). Cheap to call often.
 function vmIdentify(user, plan) {
   _vmCapIdentity = user && user.sub
@@ -92,4 +103,4 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _vmCapFlush(true); });
 }
 
-Object.assign(window, { VM_CAPTURE, vmCapture, vmIdentify, vmAnonId, vmFavs, vmIsFav, vmToggleFav });
+Object.assign(window, { VM_CAPTURE, vmCapture, vmIdentify, vmAnonId, vmDeviceString, vmFavs, vmIsFav, vmToggleFav });

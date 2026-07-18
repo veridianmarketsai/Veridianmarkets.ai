@@ -292,6 +292,7 @@ function App() {
       utm: new URLSearchParams(location.search).get('utm_source') || '',
       mobile: window.innerWidth < 900,
       landing: location.pathname,
+      device: typeof vmDeviceString === 'function' ? vmDeviceString() : '',
     });
   }, []);
   useEffectApp(() => { if (typeof vmIdentify === 'function') vmIdentify(user, plan); }, [user, plan]);
