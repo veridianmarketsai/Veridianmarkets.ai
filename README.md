@@ -315,6 +315,19 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-18 (payments-1.3 — proper checkout, no duplicate customers)
+
+- **`vm-billing-checkout` Lambda** ([`lambda/billing/checkout/`](lambda/billing/checkout/)):
+  verifies the Cognito token, reuses **one Stripe customer per user** (stored in
+  DynamoDB), and creates a subscription **Checkout Session** — replacing Payment
+  Links, so repeat checkouts no longer spawn duplicate customers. Guards against a
+  manually-deleted customer by making a fresh one.
+- **`billing.jsx`** now points `apiBase` at the checkout Lambda (both Pricing and
+  Settings use it) and passes the user's email for the customer record.
+- **Phase 4:** the webhook already handles `customer.subscription.updated/deleted`;
+  raise the `vm-billing-webhook` timeout to 30s (the `checkout.session.completed`
+  path makes a Stripe API call and was 502-ing on the 3s default). _(branch: `payments-1.3`)_
+
 ### 2026-07-18 (payments-1.2 — portal + admin access)
 
 - **Billing portal (cancel / switch).** New **`vm-billing-portal`** Lambda
