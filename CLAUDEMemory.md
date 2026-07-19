@@ -62,6 +62,21 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-07-19 — `admin-actions-1.1` deployed live.
+
+User completed the AWS side: `vm-admin-actions` Lambda deployed (own scoped
+role `vm-admin-actions-role` — Cognito `AdminDisableUser`/`AdminEnableUser`/
+`AdminDeleteUser` on the pool ARN + `dynamodb:UpdateItem` on
+`vm-subscriptions`), Function URL live
+(`https://i342woydxvvdmdfc2lezqmsioa0ttrpf.lambda-url.us-east-1.on.aws/`,
+verified reachable — cleanly rejects a request with no real Cognito token),
+and `vm-admin-analytics` redeployed with the `Enabled`-field code. URL wired
+into `adminactions.jsx`. **Suspend/Reactivate/Delete/Change plan are now
+fully live**, not just built. Still not merged to main — real-account
+end-to-end testing (Suspend/Reactivate/Change-plan on a throwaway test
+account; genuinely never Delete/Suspend the admin's own account, which the
+Lambda blocks anyway) is the natural next step before merging.
+
 ### 2026-07-18 — Started `admin-actions-1.1`.
 
 User picked the deferred item from the Admin Users pass: real mutating
