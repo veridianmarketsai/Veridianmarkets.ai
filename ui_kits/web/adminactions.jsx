@@ -3,7 +3,7 @@
 // plan of a real account. The Lambda itself enforces the `admin` Cognito
 // group — this is just the client call, not an authorization boundary.
 
-const VM_ADMIN_ACTIONS = { url: '' };   // vm-admin-actions Lambda Function URL — fill in once deployed
+const VM_ADMIN_ACTIONS = { url: 'https://i342woydxvvdmdfc2lezqmsioa0ttrpf.lambda-url.us-east-1.on.aws/' };   // vm-admin-actions Lambda Function URL
 
 async function vmAdminAction(action, sub, extra) {
   if (!VM_ADMIN_ACTIONS.url) return { ok: false, error: 'not configured' };
