@@ -52,9 +52,9 @@ park things so they don't get lost.
 
 ## New (2026-07-20)
 
-- Make an updates list for people to see what we do.
+- ~~Make an updates list for people to see what we do. Release Notes~~ — complete on 2026-07-20 (new `/updates` page, public, linked from the landing footer and the in-app footer).
 - Make the website available on all companies.
-- Delete all mock data from Admin.
+- ~~Delete all mock data from Admin.~~ — complete on 2026-07-20, for **Overview** only: Total users, new signups, paying/plan split, Est. MRR, and the signups chart now pull from the real Cognito+activity roster (same source the Users tab already used), with "Suspended" standing in for the mock's "Churned" and "Top countries" dropped (never real data). Still mock: the **Analytics** tab (retention/growth/revenue/engagement/churn-risk/heatmap) — needs a real behavioural event-stream/time-series project, a separate and much bigger piece of work.
 - How to give different admin permissions to different users in my company.
 - Build courses.
 - Don't like how the temporary/placeholder text shows while News is loading.
@@ -75,3 +75,5 @@ park things so they don't get lost.
 - 2026-07-20 — File created, seeded from ideas scattered through the
   `CLAUDEMemory.md` change log up to `admin-actions-1.1`.
 - 2026-07-20 — Added a fresh batch of raw feature ideas from the user.
+- 2026-07-20 — Shipped the Release Notes page and the Admin Overview
+  real-data swap (branch `feature-idea-refinements`), ticked off above.
