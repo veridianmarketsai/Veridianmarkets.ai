@@ -16,7 +16,7 @@ async function vmAdminAction(action, sub, extra) {
       body: JSON.stringify({ action, sub, ...extra }),
     });
     const data = await res.json();
-    return data.ok ? { ok: true } : { ok: false, error: data.error || 'action failed' };
+    return data.ok ? { ok: true, ...data } : { ok: false, error: data.error || 'action failed' };
   } catch { return { ok: false, error: 'network error' }; }
 }
 

@@ -115,8 +115,8 @@ const ADMIN_STEPS = [
     title:'Control panel.',
     body:'This is the admin view — only accounts with the admin role can access it. You can see platform-wide metrics, browse and manage users, and edit the course catalogue from here.' },
   { sel:'[data-tour="vm-admin-tabs"]',
-    title:'Four tabs.',
-    body:'Overview shows the headline KPIs and charts. Users lets you search, filter, and access any account. Courses lets you edit the learn catalogue in real time. Analytics holds the deeper tools — cohort retention, conversion funnel, revenue/MRR movement, engagement, and the interaction heatmap.' },
+    title:'Five tabs.',
+    body:'Overview shows the headline KPIs and charts. Users lets you search, filter, and access any account. Courses lets you edit the learn catalogue in real time. Analytics holds the deeper tools — cohort retention, conversion funnel, revenue/MRR movement, engagement, and the interaction heatmap. Team lets a full admin control exactly what each fellow admin is allowed to do.' },
   { sel:'[data-tour="vm-admin-kpis"]',
     title:'Key metrics at a glance.',
     body:'Total users, new signups, paying accounts, estimated MRR, churn count, and live course count — all updated from the temporary dataset. Green is good, red warrants attention.' },
@@ -138,6 +138,7 @@ function AdminPanel({ go, user, isMobile }) {
     { id: 'users',     label: 'Users',     icon: 'users' },
     { id: 'courses',   label: 'Courses',   icon: 'book' },
     { id: 'analytics', label: 'Analytics', icon: 'chart-histogram' },
+    { id: 'team',      label: 'Team',      icon: 'shield-lock' },
   ];
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
@@ -181,6 +182,7 @@ function AdminPanel({ go, user, isMobile }) {
         {tab === 'users'     && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
         {tab === 'courses'   && <CoursesTab go={go} isMobile={isMobile} />}
         {tab === 'analytics' && <AnalyticsTab stats={stats} isMobile={isMobile} />}
+        {tab === 'team'      && <TeamTab user={user} isMobile={isMobile} />}
       </div>
 
       {tutorialOpen && <TutorialOverlay steps={ADMIN_STEPS} label="Admin panel tutorial" onClose={()=>setTutorialOpen(false)} />}
@@ -2177,6 +2179,116 @@ function AnRisk({ isMobile }) {
           </button>
         </div>
       </AdminCard>
+    </div>
+  );
+}
+
+// ── Team ────────────────────────────────────────────────────────────────────
+// Per-employee admin permissions. Backed by three real Cognito groups
+// (admin-suspend / admin-delete / admin-billing) enforced server-side in
+// vm-admin-actions — this UI is just a client for that, not the authority.
+// An admin who's never been touched here shows as "Full admin" (today's
+// default, unrestricted); ticking any box for them switches them to exactly
+// what's ticked. See the Lambda's SAFE ROLLOUT RULE comment for why.
+const TEAM_PERMS = [
+  { group: 'admin-suspend', label: 'Suspend / reactivate accounts' },
+  { group: 'admin-delete',  label: 'Delete accounts' },
+  { group: 'admin-billing', label: 'Change plan' },
+];
+
+function useAdminTeam() {
+  const [state, setState] = useStateAdmin({ team: null, loading: true, error: null });
+  const load = React.useCallback(() => {
+    setState(s => ({ ...s, loading: true, error: null }));
+    vmAdminAction('listTeam').then(r => {
+      setState({ team: r.ok ? r.team : null, loading: false, error: r.ok ? null : r.error });
+    });
+  }, []);
+  React.useEffect(() => { load(); }, [load]);
+  return { ...state, refresh: load };
+}
+
+function TeamTab({ user, isMobile }) {
+  const { team, loading, error, refresh } = useAdminTeam();
+  const [busy, setBusy] = useStateAdmin(null);       // `${sub}:${group}` currently saving
+  const [toggleError, setToggleError] = useStateAdmin('');
+
+  async function toggle(member, group, grant) {
+    const key = `${member.sub}:${group}`;
+    setBusy(key); setToggleError('');
+    const r = await vmAdminAction('setPermissions', member.sub, { group, grant });
+    setBusy(null);
+    if (r.ok) refresh();
+    else setToggleError(r.error || 'Could not update permissions.');
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink3, maxWidth: 620, lineHeight: 1.55 }}>
+        Control exactly what each fellow admin can do. Anyone not yet configured here is a <strong>full admin</strong> (today's
+        default); ticking a box for someone switches them to exactly what's ticked. You can't change your own permissions from here.
+      </div>
+
+      {loading && <Mono size={11} color={VM.ink3}><i className="ti ti-loader-2" style={{ fontSize: 13 }}></i> Loading team…</Mono>}
+
+      {toggleError && (
+        <div style={{ border: `1px solid ${VM.terra}`, background: 'rgba(196,106,59,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: VM.serif, fontSize: 13, color: VM.ink }}>
+          {toggleError}
+        </div>
+      )}
+
+      {!loading && error && (
+        <div style={{ border: `1px solid ${VM.terra}`, background: 'rgba(196,106,59,0.10)', borderRadius: 10, padding: '12px 15px', fontFamily: VM.serif, fontSize: 13.5, color: VM.ink }}>
+          {error === 'not configured'
+            ? 'Team permissions aren’t wired up yet — the vm-admin-actions Lambda URL needs a redeploy that includes the Team endpoints.'
+            : error}
+        </div>
+      )}
+
+      {!loading && !error && team && (
+        <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 12, overflowX: 'auto' }}>
+          <div style={{ minWidth: isMobile ? 560 : 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 8, padding: '10px 16px', borderBottom: `1px solid ${VM.borderSoft}` }}>
+              <Label>Admin</Label>
+              {TEAM_PERMS.map(p => <Label key={p.group}>{p.label}</Label>)}
+            </div>
+            {team.map(m => {
+              const isSelf = user && m.email === user.email;
+              return (
+                <div key={m.sub} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 8, alignItems: 'center', padding: '11px 16px', borderBottom: `1px solid ${VM.borderHair}` }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {m.name || m.email} {isSelf && <span style={{ fontFamily: VM.mono, fontSize: 9.5, color: VM.ink3 }}>(you)</span>}
+                    </div>
+                    <Mono size={10} color={VM.ink3}>{m.email}</Mono>
+                    {!m.migrated && (
+                      <div style={{ marginTop: 3 }}>
+                        <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+                          color: VM.forest, background: 'rgba(29,78,58,0.10)', borderRadius: 4, padding: '2px 6px' }}>Full admin</span>
+                      </div>
+                    )}
+                  </div>
+                  {TEAM_PERMS.map(p => {
+                    const checked = m.migrated ? m.permissions.includes(p.group) : true;
+                    const key = `${m.sub}:${p.group}`;
+                    return (
+                      <label key={p.group} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: isSelf ? 'not-allowed' : 'pointer', opacity: isSelf ? 0.5 : 1 }}>
+                        <input type="checkbox" checked={checked} disabled={isSelf || busy === key}
+                          onChange={(e) => toggle(m, p.group, e.target.checked)}
+                          style={{ width: 15, height: 15, accentColor: VM.forest, cursor: isSelf ? 'not-allowed' : 'pointer' }} />
+                        {busy === key && <i className="ti ti-loader-2" style={{ fontSize: 12, color: VM.ink3 }}></i>}
+                      </label>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            {!team.length && (
+              <div style={{ padding: '18px 16px', fontFamily: VM.serif, fontSize: 13.5, color: VM.ink3 }}>No admins found.</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
