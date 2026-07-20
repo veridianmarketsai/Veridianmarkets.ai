@@ -55,7 +55,7 @@ park things so they don't get lost.
 - ~~Make an updates list for people to see what we do. Release Notes~~ — complete on 2026-07-20 (new `/updates` page, public, linked from the landing footer and the in-app footer).
 - Make the website available on all companies.
 - ~~Delete all mock data from Admin.~~ — complete on 2026-07-20, for **Overview** only: Total users, new signups, paying/plan split, Est. MRR, and the signups chart now pull from the real Cognito+activity roster (same source the Users tab already used), with "Suspended" standing in for the mock's "Churned" and "Top countries" dropped (never real data). Still mock: the **Analytics** tab (retention/growth/revenue/engagement/churn-risk/heatmap) — needs a real behavioural event-stream/time-series project, a separate and much bigger piece of work.
-- How to give different admin permissions to different users in my company.
+- ~~How to give different admin permissions to different users in my company.~~ — complete on 2026-07-20 (code side): new **Team** tab in Admin — a checkbox roster to grant/revoke Suspend/Reactivate, Delete, and Change-plan per fellow admin, backed by three real Cognito groups. Existing admins stay unrestricted ("full admin") until an owner explicitly restricts them. **Needs AWS steps before it's live:** create the 3 Cognito groups, extend the `vm-admin-actions-role` IAM policy, redeploy the Lambda — see `CLAUDEMemory.md`'s `feature-idea-refinements` entry for the exact list.
 - Build courses.
 - Don't like how the temporary/placeholder text shows while News is loading.
 - Company search says "can't find companies" even though it shows up — misleading.
