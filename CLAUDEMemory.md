@@ -52,7 +52,7 @@ belongs to the Toolbar Menu.
 | Learn                          | **Learn VM**         | `learn`    | Course/guide catalogue (`Learn.jsx`): guided-path banner, search, category pills + Level/Format filters, responsive card grid with Show-more. "App tutorial" cards `go()` into screens. Content is mock scaffold data (inline). |
 | Read memoir                    | **Memoir Page**      | `memoir`   | |
 | Settings *(signed-in only)*    | **Account Settings** | `settings` | Grouped settings list (Instagram "Settings and activity" pattern, VM editorial style) in `AccountSettings.jsx`: profile summary + sections (Your account / How you use Veridian / Privacy & data / Support / danger), each row drilling into its own sub-page (internal state, back arrow). Rail item shows only when `signedIn`. Mock/scaffold. |
-| Admin *(admins only)*          | **Admin Page**       | `admin`    | Role-gated control panel (`AdminPanel.jsx`); rail item shows only for `role:'admin'`. Tabs: **Overview** (user-metrics dashboard), **Users** (100-user temp DB w/ ⋮ row menu → details modal, personal profits, simulated "access account" banner, mock actions), **Courses** (add/remove Learn courses via the course store). Temp data: `admin_data.jsx` (users) + `vm*Course` store in `Learn.jsx`. All mock until the real backend. |
+| Admin *(admins only)*          | **Admin Page**       | `admin`    | Role-gated control panel (`AdminPanel.jsx`); rail item shows only for `role:'admin'`. Five tabs: **Overview** (real Cognito+activity KPIs/charts once reachable, else mock — see changelog `feature-idea-refinements`), **Users** (real roster w/ ⋮ row menu → real Suspend/Reactivate/Delete/Change-plan via `vm-admin-actions`, mock fallback), **Courses** (add/remove Learn courses via the course store — real content, not fake user data), **Analytics** (retention/growth/revenue/etc., still deterministic mock derived from `VM_USERS` — needs a real behavioural event-stream project), **Team** (per-employee admin permission tickboxes — real Cognito groups via `vm-admin-actions`, see changelog for the safe-rollout rule). |
 
 Routes map to screens in [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx); labels live
 in `RAIL_GROUPS` in `chrome.jsx`. Items with no route are non-clickable
@@ -61,6 +61,86 @@ placeholders until their page exists.
 ---
 
 ## Change log
+
+### 2026-07-20 — `feature-idea-refinements`: Release Notes, Admin Overview real data, per-employee admin permissions.
+
+New branch collecting quick wins off `feature-ideas.md` (a new running list,
+seeded from scattered "next idea" notes in this changelog plus a fresh batch
+from the user). Three items done this round.
+
+- **Release Notes page** (`ReleaseNotes.jsx`, route `/updates`, public — no
+  sign-in required, like landing/signin). Plain-language "what we've shipped"
+  list, hand-curated from this changelog for an end-user audience (no
+  Lambda/Cognito jargon). Linked from the landing-page footer and a new
+  "What's new" link in the in-app footer (`Footer` in `chrome.jsx` now takes
+  a `go` prop). Verified live (headless run): loads unsigned, zero JS errors.
+
+- **Admin Overview: real data, not mock.** Total users, new signups, paying/
+  plan split, Est. MRR, and the signups-by-month chart now source from the
+  same real Cognito+activity roster the Users tab already used
+  (`useRealAdminUsers`/`vm-admin-analytics` — no new AWS work, it was already
+  deployed) — same live/mock fallback labeling convention as Users. New
+  `buildRealOverviewStats()` derives the shape client-side from the real
+  roster. **"Suspended" replaces "Churned"** (the one real equivalent —
+  Cognito `Enabled:false`); **"Top countries" is dropped** in real mode
+  (never captured, same precedent as the Users tab). KPI/chart drill-down
+  modals got real-data twins (`RealAdminKpiModal`/`RealAdminChartModal`) so
+  "Total users"/"New this week"/"Paying"/"Est. MRR"/"Suspended"/"Courses" and
+  the Signups/Plan-distribution charts all work in real mode too — CSV
+  export included. **The Analytics tab is untouched** — retention/growth/
+  revenue/engagement/churn-risk/heatmap still need a real behavioural
+  event-stream/time-series project; that's separate, much bigger scope.
+  Verified live: a Babel-transform check, a headless run of the (unchanged)
+  mock fallback path, and a headless run with an **injected synthetic
+  vmAdminAnalytics** (same "fake real-shaped implementations" technique used
+  to test admin-users-and-avatar-sync-1.1) driving the real-data path end to
+  end — correct values, correct live labeling, zero exceptions in either path.
+
+- **Per-employee admin permissions (Team tab).** User's ask: "I don't want my
+  employees to have full rein" — a tickbox tool to control what each fellow
+  admin can do. Modeled as **three real Cognito groups** rather than a new
+  DynamoDB permission table (user's explicit choice, for consistency with how
+  `admin` itself already gates the panel): `admin-suspend` (suspend/
+  reactivate), `admin-delete`, `admin-billing` (setPlan). `vm-admin-actions`
+  gained two new actions: `listTeam` (lists the `admin`-group cohort +
+  each member's permission groups via `ListUsersInGroup`/
+  `AdminListGroupsForUser`) and `setPermissions` (grants/revokes one group via
+  `AdminAddUserToGroup`/`AdminRemoveUserFromGroup`); existing suspend/
+  reactivate/delete/setPlan now each require their matching group too.
+  **SAFE ROLLOUT RULE, the key design decision:** an admin never touched by
+  this tool (in none of the 3 new groups) is treated as a **full admin**
+  (today's unrestricted behavior) — restriction only kicks in once an owner
+  has explicitly assigned them at least one group. This means deploying the
+  new Lambda code and Cognito groups can't silently lock out every existing
+  admin (including the account owner) before anyone's had a chance to set
+  the groups up. Both `listTeam` and `setPermissions` themselves require the
+  caller to be a "full admin" (has all 3, or never migrated). Self-protection
+  guard matches suspend/delete: **can't change your own permissions**.
+  **Bug caught by testing, not inspection:** the first uncheck for a
+  not-yet-migrated admin needs to make the *other two* implicit permissions
+  explicit in Cognito at the same time — otherwise unchecking just "Delete"
+  would silently leave them with **zero** real group memberships (Cognito's
+  Add/RemoveUserFromGroup only touches the one named group), contradicting
+  what the tickbox UI just showed for the other two. Fixed: `setPermissions`
+  now fetches the target's current groups first and, only on first touch,
+  explicitly grants the two groups *not* being changed before applying the
+  requested change. New `TeamTab` (5th Admin tab) renders the roster as a
+  checkbox table (Full-admin badge for not-yet-migrated rows, own row's boxes
+  disabled). Verified live: headless run against the real (not-yet-
+  redeployed) Lambda shows the expected graceful JWT-parse error, no crash;
+  a separate run with an **injected synthetic listTeam/setPermissions**
+  mirroring the exact (corrected) Lambda logic drove the full checkbox
+  round-trip — unchecking one box for a fresh employee correctly left the
+  other two checked, self-row correctly disabled throughout.
+  **AWS steps needed by the user:** in Cognito console, create three new
+  groups (`admin-suspend`, `admin-delete`, `admin-billing`) in the user pool
+  — plain groups, no IAM role attached; add `cognito-idp:ListUsersInGroup`,
+  `AdminListGroupsForUser`, `AdminAddUserToGroup`, `AdminRemoveUserFromGroup`
+  to the existing `vm-admin-actions-role` inline policy (same pool ARN
+  already there); redeploy `vm-admin-actions` with the updated code. No
+  Function URL change, no new Lambda, no per-employee setup required upfront
+  — everyone stays a full admin until an owner explicitly restricts someone
+  from the new Team tab.
 
 ### 2026-07-19 — `admin-actions-1.1` deployed live.
 
