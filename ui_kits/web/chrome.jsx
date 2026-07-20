@@ -218,7 +218,7 @@ function IndexStrip() {
   );
 }
 
-function Footer() {
+function Footer({ go }) {
   return (
     <footer style={{ borderTop:`1px solid ${VM.borderSoft}`, padding:'30px 24px 40px', textAlign:'center', background:VM.paperWarm }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:16 }}>
@@ -230,9 +230,15 @@ function Footer() {
         <span style={{ fontStyle:'italic', fontWeight:700, fontSize:16, color:VM.teal, letterSpacing:'-0.01em' }}>Veridian</span>
         <span style={{ fontWeight:500, fontSize:16, color:VM.ink }}>Markets</span>
       </div>
-      <div style={{ fontFamily:VM.mono, fontSize:10.5, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.ink3 }}>
+      <div style={{ fontFamily:VM.mono, fontSize:10.5, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.ink3, marginBottom:10 }}>
         History, read forward
       </div>
+      {go && (
+        <button onClick={() => go('updates')} style={{ fontFamily:VM.mono, fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase',
+          color:VM.ink3, background:'none', border:'none', cursor:'pointer', padding:0, textDecoration:'underline', textUnderlineOffset:3 }}>
+          What's new
+        </button>
+      )}
     </footer>
   );
 }

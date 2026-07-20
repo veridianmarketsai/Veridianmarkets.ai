@@ -21,6 +21,7 @@ const ROUTE_PATHS = {
   calendar:    '/calendar',
   news:        '/news',
   upgrade:     '/upgrade',
+  updates:     '/updates',
 };
 // Rail items gated behind a paying plan — non-payers are routed to /upgrade.
 const GATED_ROUTES = ['news', 'calendar', 'supply'];
@@ -34,7 +35,7 @@ const ROUTE_TITLES = {
   learn:'Learn · Veridian Markets', memoir:'Read memoir · Veridian Markets',
   admin:'Admin · Veridian Markets', settings:'Settings · Veridian Markets',
   calendar:'Calendar · Veridian Markets', news:'News · Veridian Markets', dashboard:'Veridian Markets',
-  upgrade:'Upgrade · Veridian Markets',
+  upgrade:'Upgrade · Veridian Markets', updates:'Updates · Veridian Markets',
 };
 
 function pathToState(pathname) {
@@ -322,7 +323,7 @@ function App() {
   // bounces a signed-out visitor to sign-in first. Admin still additionally
   // needs the admin role once signed in.
   const isAdmin = !!(user && user.role === 'admin');
-  const appGated = !signedIn && route !== 'landing' && route !== 'signin';
+  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates';
   const gatedFromAdmin = route==='admin' && !isAdmin;
   const gatedByPlan = GATED_ROUTES.includes(route) && !isPaying;   // paywall
   const effRoute = appGated ? 'signin'
@@ -356,6 +357,7 @@ function App() {
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
+  else if(effRoute==='updates') screen = <ReleaseNotes go={go} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} confirmMfa={confirmMfa} redirectTo={appGated ? route : 'myportfolio'} isMobile={isMobile} />;
 
   const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
@@ -375,7 +377,7 @@ function App() {
       {bare ? (
         <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
           {screen}
-          <Footer />
+          <Footer go={go} />
         </main>
       ) : (
         <div style={{ flex:1, display:'flex', minHeight:0 }}>
@@ -384,7 +386,7 @@ function App() {
             <IndexStrip />
             <main id="vm-main" style={{ flex:1, overflowY:'auto', background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
               {screen}
-              <Footer />
+              <Footer go={go} />
             </main>
           </div>
         </div>
