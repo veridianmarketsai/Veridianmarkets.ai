@@ -1,13 +1,15 @@
 // Veridian Markets — Admin control panel (admin role only).
-// Four tabs: Overview (mock metrics dashboard), Users (real Cognito + vm-events
-// roster via vm-admin-analytics, falling back to the 100-strong temp DB in
-// admin_data.jsx if that call fails/isn't reachable), Courses (add/remove Learn
-// courses — writes through to the live Learn page via the course store in
-// Learn.jsx), and Analytics (retention/growth/revenue/etc., still deterministic
-// mock derived from VM_USERS — real event-stream-backed metrics TBD).
+// Four tabs: Overview (real Cognito + vm-events roster via vm-admin-analytics
+// once reachable — KPIs/signups/plan-split all live, "Suspended" standing in
+// for churn, falling back to the mock 100-strong temp DB in admin_data.jsx if
+// that call fails/isn't reachable), Users (same real roster, same fallback),
+// Courses (add/remove Learn courses — writes through to the live Learn page
+// via the course store in Learn.jsx), and Analytics (retention/growth/revenue/
+// etc., still deterministic mock derived from VM_USERS — needs a real
+// behavioural event-stream/time-series project, bigger scope, still TBD).
 const { useState: useStateAdmin } = React;
 
-const A_PLAN_COLOR = { Free: VM.faint, Plus: VM.teal, Pro: VM.forest };
+const A_PLAN_COLOR = { Free: VM.faint, Plus: VM.teal, Pro: VM.forest, Business: VM.terra };
 const A_STATUS = {
   active: { label: 'Active', fg: VM.upInk, bg: VM.tealTint, bd: VM.up },
   trial: { label: 'Trial', fg: VM.terra, bg: 'rgba(196,106,59,0.12)', bd: VM.terra },
@@ -66,6 +68,37 @@ function useRealAdminUsers() {
   }, []);
   React.useEffect(() => { load(); }, [load]);
   return { ...state, refresh: load };
+}
+
+// Overview KPIs/charts derived from the real roster — same shape as the mock
+// vmUserStats() so OverviewTab can swap sources without branching everywhere.
+// No real equivalent exists for "trial/churned" (a subscription-lifecycle
+// concept never captured) or country (never captured) — those are dropped
+// here rather than faked; "Suspended" (Cognito `Enabled:false`) stands in for
+// churn since it's the real "no longer active" signal.
+function buildRealOverviewStats(users) {
+  const now = Date.now();
+  const byPlan = { Free: 0, Plus: 0, Pro: 0 };
+  let mrr = 0;
+  users.forEach(u => {
+    byPlan[u.plan] = (byPlan[u.plan] || 0) + 1;
+    if (u.enabled !== false) mrr += A_PLAN_PRICE[u.plan] || 0;
+  });
+  const months = [];
+  for (let m = 11; m >= 0; m--) {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - m);
+    const count = users.filter(u => u.joined && u.joined.getFullYear() === d.getFullYear() && u.joined.getMonth() === d.getMonth()).length;
+    months.push({ label: d.toLocaleString('en-US', { month: 'short' }), count });
+  }
+  return {
+    total: users.length,
+    active: users.filter(u => realUserStatus(u) === 'active').length,
+    suspended: users.filter(u => u.enabled === false).length,
+    newThisWeek: users.filter(u => u.joined && (now - u.joined.getTime()) <= 7 * DAY_MS).length,
+    newThisMonth: users.filter(u => u.joined && (now - u.joined.getTime()) <= 30 * DAY_MS).length,
+    paying: users.filter(u => u.planRaw !== 'free').length,
+    mrr, byPlan, months,
+  };
 }
 
 function adminDownloadCSV(filename, headers, rows) {
@@ -156,11 +189,21 @@ function AdminPanel({ go, user, isMobile }) {
 }
 
 // ── Overview ────────────────────────────────────────────────────────────────
-function OverviewTab({ stats, isMobile }) {
+function OverviewTab({ stats: mockStats, isMobile }) {
   const [kpiModal, setKpiModal] = useStateAdmin(null);
   const [chartModal, setChartModal] = useStateAdmin(null); // 'signups' | 'plans' | 'countries'
+  const { users: realUsers, loading: realLoading } = useRealAdminUsers();
+  const real = !!(realUsers && realUsers.length);
+  const stats = real ? buildRealOverviewStats(realUsers) : mockStats;
   const courseCount = vmGetCourses().length;
-  const kpis = [
+  const kpis = real ? [
+    { id:'total',     label: 'Total users',    value: stats.total,             foot: `${stats.active} active` },
+    { id:'new',       label: 'New this week',  value: '+' + stats.newThisWeek, foot: `${stats.newThisMonth} this month`, tone: 'up' },
+    { id:'paying',    label: 'Paying',         value: stats.paying,            foot: `${stats.total ? (stats.paying / stats.total * 100).toFixed(0) : 0}% of users` },
+    { id:'mrr',       label: 'Est. MRR',       value: aMoney(stats.mrr),       foot: 'live plan data' },
+    { id:'suspended', label: 'Suspended',      value: stats.suspended,         foot: `${stats.total ? (stats.suspended / stats.total * 100).toFixed(0) : 0}% of users`, tone: stats.suspended ? 'down' : undefined },
+    { id:'courses',   label: 'Courses',        value: courseCount,             foot: 'in the catalogue' },
+  ] : [
     { id:'total',   label: 'Total users',    value: stats.total,              foot: `${stats.active} active` },
     { id:'new',     label: 'New this week',  value: '+' + stats.newThisWeek,  foot: `${stats.newThisMonth} this month`,                               tone: 'up' },
     { id:'paying',  label: 'Paying',         value: stats.paying,             foot: `${(stats.paying / stats.total * 100).toFixed(0)}% of users` },
@@ -168,15 +211,15 @@ function OverviewTab({ stats, isMobile }) {
     { id:'churned', label: 'Churned',        value: stats.churned,            foot: `${(stats.churned / stats.total * 100).toFixed(0)}% of users`,    tone: 'down' },
     { id:'courses', label: 'Courses',        value: courseCount,              foot: 'in the catalogue' },
   ];
-  const planData = [
-    { label: 'Free', value: stats.byPlan.Free, color: A_PLAN_COLOR.Free },
-    { label: 'Plus', value: stats.byPlan.Plus, color: A_PLAN_COLOR.Plus },
-    { label: 'Pro',  value: stats.byPlan.Pro,  color: A_PLAN_COLOR.Pro  },
-  ];
-  const maxC = Math.max(...stats.topCountries.map(c => c.n), 1);
+  const planLabels = real ? Object.keys(stats.byPlan) : ['Free', 'Plus', 'Pro'];
+  const planData = planLabels.map(l => ({ label: l, value: stats.byPlan[l] || 0, color: A_PLAN_COLOR[l] || VM.terra }));
+  const maxC = real ? 1 : Math.max(...stats.topCountries.map(c => c.n), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <LiveCapturePanel isMobile={isMobile} />
+      <Mono size={10.5} color={real ? VM.upInk : VM.ink3}>
+        {real ? 'Live (Cognito + activity)' : realLoading ? 'Loading live data…' : 'Mock (live data unavailable)'}
+      </Mono>
+      <LiveCapturePanel isMobile={isMobile} compact={real} />
       <div data-tour="vm-admin-kpis" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         {kpis.map((k, i) => <AdminKpi key={i} {...k} onClick={() => setKpiModal(k.id)} />)}
       </div>
@@ -197,26 +240,32 @@ function OverviewTab({ stats, isMobile }) {
           </div>
         </AdminCard>
       </div>
-      <AdminCard title="Top countries" dataTour="vm-admin-countries" onOpen={() => setChartModal('countries')}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-          {stats.topCountries.map(c => (
-            <div key={c.c} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ flex: 1, fontFamily: VM.serif, fontSize: 14, color: VM.ink2 }}>{c.c}</span>
-              <div style={{ flex: 1.2 }}><ProgressBar v={c.n / maxC * 100} /></div>
-              <Mono size={11} color={VM.ink2} style={{ minWidth: 22, textAlign: 'right' }}>{c.n}</Mono>
-            </div>
-          ))}
-        </div>
-      </AdminCard>
-      {kpiModal && <AdminKpiModal kpiKey={kpiModal} stats={stats} onClose={() => setKpiModal(null)} />}
-      {chartModal && <AdminChartModal chartKey={chartModal} stats={stats} onClose={() => setChartModal(null)} />}
+      {!real && (
+        <AdminCard title="Top countries" dataTour="vm-admin-countries" onOpen={() => setChartModal('countries')}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            {stats.topCountries.map(c => (
+              <div key={c.c} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ flex: 1, fontFamily: VM.serif, fontSize: 14, color: VM.ink2 }}>{c.c}</span>
+                <div style={{ flex: 1.2 }}><ProgressBar v={c.n / maxC * 100} /></div>
+                <Mono size={11} color={VM.ink2} style={{ minWidth: 22, textAlign: 'right' }}>{c.n}</Mono>
+              </div>
+            ))}
+          </div>
+        </AdminCard>
+      )}
+      {kpiModal && <AdminKpiModal kpiKey={kpiModal} stats={stats} real={real} realUsers={realUsers} onClose={() => setKpiModal(null)} />}
+      {chartModal && <AdminChartModal chartKey={chartModal} stats={stats} real={real} realUsers={realUsers} onClose={() => setChartModal(null)} />}
     </div>
   );
 }
 
 // Real captured data (vm-events via vm-admin-analytics). Hidden if not admin /
 // not configured / no data yet — the mock KPIs below still render.
-function LiveCapturePanel({ isMobile }) {
+// `compact` drops the Users/Active/Paying/Events mini-row (the main KPI tiles
+// above already show real numbers once the roster itself is live) and keeps
+// just the favourites/viewed/funnel breakdown, which isn't derivable from the
+// per-user roster alone.
+function LiveCapturePanel({ isMobile, compact }) {
   const { data, loading } = typeof useAdminAnalytics === 'function' ? useAdminAnalytics('overview') : { data: null, loading: false };
   if (loading) return (
     <div style={{ border: `1px solid ${VM.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: VM.mono, fontSize: 11, color: VM.ink3 }}>
@@ -231,11 +280,13 @@ function LiveCapturePanel({ isMobile }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, border: `1px solid ${VM.tealTint2 || VM.teal}`, borderRadius: 14, padding: 16, background: VM.tealTint }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
         <span style={{ width: 7, height: 7, borderRadius: 999, background: VM.teal }}></span>
-        <span style={{ fontFamily: VM.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: VM.tealInk }}>Live · captured data (real)</span>
+        <span style={{ fontFamily: VM.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: VM.tealInk }}>{compact ? 'Live activity' : 'Live · captured data (real)'}</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
-        {kpis.map(([l, v]) => <div key={l} style={box}><Label>{l}</Label><div style={{ fontFamily: VM.mono, fontSize: 22, fontWeight: 700, color: VM.ink, marginTop: 3 }}>{v ?? 0}</div></div>)}
-      </div>
+      {!compact && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+          {kpis.map(([l, v]) => <div key={l} style={box}><Label>{l}</Label><div style={{ fontFamily: VM.mono, fontSize: 22, fontWeight: 700, color: VM.ink, marginTop: 3 }}>{v ?? 0}</div></div>)}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
         <LiveTopList title="Most favourited" rows={data.topFavourites} />
         <LiveTopList title="Most viewed" rows={data.topViewed} />
@@ -288,7 +339,8 @@ function AdminKpi({ label, value, foot, tone, onClick }) {
   );
 }
 
-function AdminKpiModal({ kpiKey, stats, onClose }) {
+function AdminKpiModal({ kpiKey, stats, onClose, real, realUsers }) {
+  if (real) return <RealAdminKpiModal kpiKey={kpiKey} stats={stats} realUsers={realUsers} onClose={onClose} />;
   const users   = VM_USERS;
   const courses = vmGetCourses();
 
@@ -543,7 +595,225 @@ function AdminKpiModal({ kpiKey, stats, onClose }) {
     </div>
   );
 }
-function AdminChartModal({ chartKey, stats, onClose }) {
+
+// Same KPI-drill-down modal, sourced from the real roster instead of
+// VM_USERS. Only covers KPIs that have a real equivalent (no "churned" key —
+// that tile doesn't exist in real mode; "suspended" replaces it).
+function RealAdminKpiModal({ kpiKey, stats, realUsers, onClose }) {
+  const users = realUsers || [];
+
+  const StatRow = ({ label, value, sub, bar, barColor, valueColor }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+      <span style={{ flex:1, fontFamily:VM.serif, fontSize:13, color:VM.ink2 }}>{label}</span>
+      {bar !== undefined && (
+        <div style={{ width:80, height:5, background:VM.border, borderRadius:3, flexShrink:0 }}>
+          <div style={{ height:5, borderRadius:3, width:`${Math.min(bar,100)}%`, background: barColor || VM.teal }} />
+        </div>
+      )}
+      <span style={{ fontFamily:VM.mono, fontSize:13, fontWeight:700, color: valueColor || VM.ink, textAlign:'right', minWidth:36 }}>
+        {value}
+        {sub && <span style={{ fontFamily:VM.mono, fontSize:10, fontWeight:400, color:VM.ink3, marginLeft:3 }}>{sub}</span>}
+      </span>
+    </div>
+  );
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom:20 }}>
+      <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.ink3, marginBottom:8 }}>{title}</div>
+      {children}
+    </div>
+  );
+  const UserRow = ({ u }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+      <div style={{ width:28, height:28, borderRadius:999, background:VM.paperWarm, border:`1px solid ${VM.border}`,
+        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <span style={{ fontFamily:VM.mono, fontSize:10, fontWeight:700, color:VM.ink3 }}>{(u.name || '?')[0].toUpperCase()}</span>
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.name}</div>
+        <div style={{ fontFamily:VM.mono, fontSize:9.5, color:VM.ink3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.email}</div>
+      </div>
+      <span style={{ fontFamily:VM.mono, fontSize:9, padding:'2px 7px', borderRadius:4,
+        background: u.plan==='Pro' ? 'rgba(29,158,117,0.15)' : u.plan==='Plus' ? 'rgba(29,158,117,0.10)' : VM.paperWarm,
+        color: u.plan==='Free' ? VM.ink3 : VM.teal, border:`1px solid ${u.plan==='Free' ? VM.border : VM.up}` }}>{u.plan}</span>
+      <span style={{ fontFamily:VM.mono, fontSize:9.5, color:VM.ink3, flexShrink:0 }}>{u.joined ? aRelReal(u.joined) : '—'}</span>
+    </div>
+  );
+
+  let title = '', subtitle = '', body = null, csvData = null;
+
+  if (kpiKey === 'total') {
+    const recentUsers = [...users].sort((a,b) => (b.joined?.getTime()||0) - (a.joined?.getTime()||0)).slice(0,6);
+    csvData = { filename:'vm_users_total_live.csv', headers:['Name','Email','Plan','Status','Joined'], rows:users.map(u=>[u.name,u.email,u.plan,realUserStatus(u),u.joined?aDate(u.joined):'']) };
+    title = `${stats.total} Users`;
+    subtitle = 'Live — Cognito + activity';
+    body = (
+      <>
+        <Section title="By plan">
+          {Object.keys(stats.byPlan).map(p => (
+            <StatRow key={p} label={p} value={stats.byPlan[p] || 0}
+              sub={stats.total ? `${((stats.byPlan[p]||0)/stats.total*100).toFixed(0)}%` : ''}
+              bar={stats.total ? (stats.byPlan[p]||0)/stats.total*100 : 0} barColor={A_PLAN_COLOR[p] || VM.terra} />
+          ))}
+        </Section>
+        <Section title="Recently joined">
+          {recentUsers.length ? recentUsers.map(u => <UserRow key={u.id} u={u} />) : <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>No join-date data yet.</div>}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'new') {
+    const now = Date.now();
+    const thisWeek  = users.filter(u => u.joined && (now - u.joined.getTime()) <= 7 * DAY_MS).sort((a,b) => b.joined - a.joined);
+    const thisMonth = users.filter(u => u.joined && (now - u.joined.getTime()) <= 30 * DAY_MS).sort((a,b) => b.joined - a.joined);
+    const peakMonth = Math.max(...stats.months.map(m => m.count), 1);
+    csvData = { filename:'vm_users_new_live.csv', headers:['Name','Email','Plan','Joined'], rows:thisMonth.map(u=>[u.name,u.email,u.plan,aDate(u.joined)]) };
+    title = `+${stats.newThisWeek} This Week`;
+    subtitle = `${stats.newThisMonth} joined in the last 30 days · live`;
+    body = (
+      <>
+        <Section title="Joined this week">
+          {thisWeek.length > 0 ? thisWeek.map(u => <UserRow key={u.id} u={u} />) : <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>No signups in the last 7 days.</div>}
+        </Section>
+        <Section title="Monthly trend · last 12 months">
+          <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:60, marginBottom:8 }}>
+            {stats.months.map((m,i) => (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                <div style={{ width:'100%', borderRadius:'3px 3px 0 0', background: i===stats.months.length-1 ? VM.teal : VM.border,
+                  height: `${Math.max((m.count/peakMonth)*52, m.count>0?8:2)}px`, transition:'height .2s' }} />
+                <span style={{ fontFamily:VM.mono, fontSize:8, color:VM.ink3, writingMode:'vertical-rl', transform:'rotate(180deg)', height:22 }}>{m.label}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+        <Section title="Also joined this month">
+          {thisMonth.slice(thisWeek.length, thisWeek.length + 8).map(u => <UserRow key={u.id} u={u} />)}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'paying') {
+    const payingUsers = users.filter(u => u.planRaw !== 'free');
+    const plusActive  = users.filter(u => u.plan==='Plus');
+    const proActive   = users.filter(u => u.plan==='Pro');
+    const plusMrr     = plusActive.length * (A_PLAN_PRICE.Plus || 0);
+    const proMrr      = proActive.length  * (A_PLAN_PRICE.Pro  || 0);
+    const arpu        = payingUsers.length ? (stats.mrr / payingUsers.length).toFixed(2) : 0;
+    const recentPaying = [...payingUsers].sort((a,b) => (b.joined?.getTime()||0) - (a.joined?.getTime()||0)).slice(0,6);
+    csvData = { filename:'vm_users_paying_live.csv', headers:['Name','Email','Plan','Joined'], rows:payingUsers.map(u=>[u.name,u.email,u.plan,u.joined?aDate(u.joined):'']) };
+    title = `${stats.paying} Paying Accounts`;
+    subtitle = `${stats.total ? (stats.paying/stats.total*100).toFixed(0) : 0}% conversion · ${aMoney(stats.mrr)}/mo est. MRR · live`;
+    body = (
+      <>
+        <Section title="Revenue by plan">
+          <StatRow label={`Plus · ${plusActive.length} accounts`} value={aMoney(plusMrr)} sub="/mo" bar={(plusMrr+proMrr) ? plusMrr/(plusMrr+proMrr)*100 : 0} barColor={VM.teal} />
+          <StatRow label={`Pro  · ${proActive.length} accounts`}  value={aMoney(proMrr)}  sub="/mo" bar={(plusMrr+proMrr) ? proMrr/(plusMrr+proMrr)*100 : 0}  barColor={VM.forest} />
+        </Section>
+        <Section title="Key metrics">
+          <StatRow label="Conversion rate" value={`${stats.total ? (stats.paying/stats.total*100).toFixed(1) : 0}%`} />
+          <StatRow label="ARPU (paying)"   value={`$${arpu}`} sub="/mo" />
+          <StatRow label="ARR projection"  value={aMoney(stats.mrr * 12)} />
+        </Section>
+        <Section title="Recent paying signups">
+          {recentPaying.length ? recentPaying.map(u => <UserRow key={u.id} u={u} />) : <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>None yet.</div>}
+        </Section>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'mrr') {
+    const plusActive = users.filter(u => u.plan==='Plus');
+    const proActive  = users.filter(u => u.plan==='Pro');
+    const plusMrr    = plusActive.length * (A_PLAN_PRICE.Plus || 0);
+    const proMrr     = proActive.length  * (A_PLAN_PRICE.Pro  || 0);
+    csvData = { filename:'vm_mrr_live.csv', headers:['Plan','Accounts','Price/mo','MRR/mo'], rows:[['Plus',plusActive.length,A_PLAN_PRICE.Plus,plusMrr],['Pro',proActive.length,A_PLAN_PRICE.Pro,proMrr],['Total',plusActive.length+proActive.length,'—',stats.mrr]] };
+    title = `Est. MRR · ${aMoney(stats.mrr)}`;
+    subtitle = 'Live plan data';
+    body = (
+      <>
+        <Section title="Revenue breakdown">
+          <StatRow label={`Plus (${plusActive.length} × $${A_PLAN_PRICE.Plus})`} value={aMoney(plusMrr)} sub="/mo" bar={stats.mrr ? plusMrr/stats.mrr*100 : 0} barColor={VM.teal} />
+          <StatRow label={`Pro  (${proActive.length} × $${A_PLAN_PRICE.Pro})`}  value={aMoney(proMrr)}  sub="/mo" bar={stats.mrr ? proMrr/stats.mrr*100 : 0}  barColor={VM.forest} />
+        </Section>
+        <Section title="Projections">
+          <StatRow label="Monthly (MRR)" value={aMoney(stats.mrr)} />
+          <StatRow label="Quarterly"     value={aMoney(stats.mrr * 3)} />
+          <StatRow label="Annual (ARR)"  value={aMoney(stats.mrr * 12)} />
+        </Section>
+        <div style={{ fontFamily:VM.serif, fontSize:12, color:VM.ink3, marginTop:4 }}>
+          Computed from each account's current plan × list price — not pulled from Stripe, so it won't reflect trials, proration, discounts, or annual billing.
+        </div>
+      </>
+    );
+  }
+
+  else if (kpiKey === 'suspended') {
+    const suspendedUsers = users.filter(u => u.enabled === false);
+    csvData = { filename:'vm_users_suspended.csv', headers:['Name','Email','Plan'], rows:suspendedUsers.map(u=>[u.name,u.email,u.plan]) };
+    title = `${stats.suspended} Suspended`;
+    subtitle = `${stats.total ? (stats.suspended/stats.total*100).toFixed(0) : 0}% of users · live`;
+    body = (
+      <Section title="Suspended accounts">
+        {suspendedUsers.length ? suspendedUsers.map(u => <UserRow key={u.id} u={u} />) : <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>No suspended accounts.</div>}
+      </Section>
+    );
+  }
+
+  else if (kpiKey === 'courses') {
+    const courses = vmGetCourses();
+    csvData = { filename:'vm_courses.csv', headers:['Title','Level'], rows:courses.map(c=>[c.title,c.level||'']) };
+    title = `${courses.length} Courses`;
+    subtitle = 'Catalogue';
+    body = (
+      <Section title={`Catalogue · ${courses.length} courses`}>
+        {courses.map((c,i) => (
+          <div key={c.id||i} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+            <i className="ti ti-book" style={{ fontSize:13, color:VM.teal, flexShrink:0 }}></i>
+            <span style={{ flex:1, fontFamily:VM.serif, fontSize:13, color:VM.ink }}>{c.title}</span>
+            {c.level && <span style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, background:VM.paperWarm, border:`1px solid ${VM.border}`, borderRadius:4, padding:'1px 6px' }}>{c.level}</span>}
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:85, display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(31,29,26,0.55)', backdropFilter:'blur(3px)' }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:520, maxHeight:'88vh', display:'flex', flexDirection:'column',
+        background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:18,
+        boxShadow:'0 20px 60px rgba(31,29,26,0.28)', overflow:'hidden' }}>
+        <div style={{ padding:'18px 20px 14px', borderBottom:`1px solid ${VM.borderHair}`, flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, color:VM.ink, lineHeight:1.1 }}>{title}</div>
+              <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3, marginTop:3 }}>{subtitle}</div>
+            </div>
+            <div style={{ display:'flex', gap:6, flexShrink:0, marginLeft:12 }}>
+              {csvData && (
+                <button onClick={()=>adminDownloadCSV(csvData.filename, csvData.headers, csvData.rows)} title="Download CSV"
+                  style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                    width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`,
+                    background:'transparent', color:VM.ink3, cursor:'pointer' }}>
+                  <i className="ti ti-download" style={{ fontSize:14 }}></i>
+                </button>
+              )}
+              <button onClick={onClose} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`, background:'transparent', color:VM.ink3, cursor:'pointer' }}>
+                <i className="ti ti-x" style={{ fontSize:14 }}></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>{body}</div>
+      </div>
+    </div>
+  );
+}
+
+function AdminChartModal({ chartKey, stats, onClose, real, realUsers }) {
+  if (real) return <RealAdminChartModal chartKey={chartKey} stats={stats} realUsers={realUsers} onClose={onClose} />;
   const users = VM_USERS;
 
   const StatRow = ({ label, value, sub, bar, barColor, valueColor }) => (
@@ -722,6 +992,132 @@ function AdminChartModal({ chartKey, stats, onClose }) {
           })}
         </Section>
       </>
+    );
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:85, display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(31,29,26,0.55)', backdropFilter:'blur(3px)' }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:560, maxHeight:'88vh', display:'flex', flexDirection:'column',
+        background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:18,
+        boxShadow:'0 20px 60px rgba(31,29,26,0.28)', overflow:'hidden' }}>
+        <div style={{ padding:'18px 20px 14px', borderBottom:`1px solid ${VM.borderHair}`, flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22, color:VM.ink, lineHeight:1.1 }}>{title}</div>
+              <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3, marginTop:3 }}>{subtitle}</div>
+            </div>
+            <div style={{ display:'flex', gap:6, flexShrink:0, marginLeft:12 }}>
+              {csvData && (
+                <button onClick={()=>adminDownloadCSV(csvData.filename, csvData.headers, csvData.rows)} title="Download CSV"
+                  style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                    width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`,
+                    background:'transparent', color:VM.ink3, cursor:'pointer' }}>
+                  <i className="ti ti-download" style={{ fontSize:14 }}></i>
+                </button>
+              )}
+              <button onClick={onClose} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                width:30, height:30, borderRadius:8, border:`1px solid ${VM.borderSoft}`, background:'transparent',
+                color:VM.ink3, cursor:'pointer' }}>
+                <i className="ti ti-x" style={{ fontSize:14 }}></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>{body}</div>
+      </div>
+    </div>
+  );
+}
+
+// Same chart drill-down, sourced from the real roster. No "countries" case —
+// that card doesn't render in real mode (country was never captured).
+function RealAdminChartModal({ chartKey, stats, realUsers, onClose }) {
+  const users = realUsers || [];
+
+  const StatRow = ({ label, value, sub, bar, barColor, valueColor }) => (
+    <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
+      <span style={{ flex:1, fontFamily:VM.serif, fontSize:13, color:VM.ink2 }}>{label}</span>
+      {bar !== undefined && (
+        <div style={{ width:100, height:5, background:VM.border, borderRadius:3, flexShrink:0 }}>
+          <div style={{ height:5, borderRadius:3, width:`${Math.min(bar,100)}%`, background: barColor || VM.teal }} />
+        </div>
+      )}
+      <span style={{ fontFamily:VM.mono, fontSize:13, fontWeight:700, color: valueColor||VM.ink, textAlign:'right', minWidth:40 }}>
+        {value}{sub && <span style={{ fontFamily:VM.mono, fontSize:10, fontWeight:400, color:VM.ink3, marginLeft:3 }}>{sub}</span>}
+      </span>
+    </div>
+  );
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom:22 }}>
+      <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.ink3, marginBottom:8 }}>{title}</div>
+      {children}
+    </div>
+  );
+
+  let title = '', subtitle = '', body = null, csvData = null;
+
+  if (chartKey === 'signups') {
+    const total12  = stats.months.reduce((s,m) => s+m.count, 0);
+    const peak     = stats.months.reduce((p,m) => m.count > p.count ? m : p, stats.months[0]);
+    const slow     = stats.months.reduce((p,m) => m.count < p.count ? m : p, stats.months[0]);
+    const last3    = stats.months.slice(-3).reduce((s,m)=>s+m.count,0);
+    const prev3    = stats.months.slice(-6,-3).reduce((s,m)=>s+m.count,0);
+    const growth   = prev3 ? (((last3-prev3)/prev3)*100).toFixed(1) : '—';
+    const maxCount = Math.max(...stats.months.map(m=>m.count), 1);
+
+    csvData = { filename:'vm_signups_live.csv', headers:['Month','Signups'], rows:stats.months.map(m=>[m.label,m.count]) };
+    title = 'Signups · Last 12 Months';
+    subtitle = `${total12} total · peak in ${peak.label} · live`;
+    body = (
+      <>
+        <Section title="Monthly breakdown">
+          <div style={{ display:'flex', alignItems:'flex-end', gap:5, height:120, marginBottom:16 }}>
+            {stats.months.map((m,i) => (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, height:'100%', justifyContent:'flex-end' }}>
+                <span style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3 }}>{m.count}</span>
+                <div style={{ width:'100%', borderRadius:'3px 3px 0 0',
+                  background: i===stats.months.length-1 ? VM.forest : m.count===peak.count ? VM.teal : VM.tealTint2,
+                  height:`${Math.max((m.count/maxCount)*90,m.count>0?6:2)}px` }} />
+                <span style={{ fontFamily:VM.mono, fontSize:8, color:VM.ink3 }}>{m.label}</span>
+              </div>
+            ))}
+          </div>
+          {stats.months.map((m,i) => (
+            <StatRow key={i} label={m.label} value={m.count} sub="signups"
+              bar={m.count/maxCount*100} barColor={i===stats.months.length-1 ? VM.forest : VM.teal} />
+          ))}
+        </Section>
+        <Section title="Period analysis">
+          <StatRow label="Total (12 months)"        value={total12} />
+          <StatRow label="Monthly average"          value={(total12/12).toFixed(1)} />
+          <StatRow label={`Peak month (${peak.label})`} value={peak.count} barColor={VM.upInk} bar={100} />
+          <StatRow label={`Slowest (${slow.label})`}   value={slow.count} barColor={VM.terra} bar={peak.count ? slow.count/peak.count*100 : 0} />
+          <StatRow label="Last 3 months"            value={last3} />
+          <StatRow label="Prior 3 months"           value={prev3} />
+          <StatRow label="3-month growth"           value={`${growth}%`} valueColor={parseFloat(growth)>=0 ? VM.upInk : VM.downInk} />
+        </Section>
+      </>
+    );
+  }
+
+  else if (chartKey === 'plans') {
+    const planLabels = Object.keys(stats.byPlan);
+    const planData = planLabels.map(l => ({ label:l, value: stats.byPlan[l]||0, color:A_PLAN_COLOR[l]||VM.terra, price: A_PLAN_PRICE[l]||0 }));
+    csvData = { filename:'vm_plans_live.csv', headers:['Plan','Users','%'], rows:planData.map(p=>[p.label,p.value,stats.total?(p.value/stats.total*100).toFixed(0)+'%':'0%']) };
+    title = 'Plan Distribution';
+    subtitle = `${stats.total} users · live`;
+    body = (
+      <Section title="Plan breakdown">
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+          <AdminDonut data={planData} size={160} thickness={22} center={stats.total} centerLabel="USERS" />
+        </div>
+        {planData.map(p => (
+          <StatRow key={p.label} label={p.label}
+            value={p.value} sub={stats.total ? `${(p.value/stats.total*100).toFixed(0)}%` : '0%'}
+            bar={stats.total ? p.value/stats.total*100 : 0} barColor={p.color} />
+        ))}
+      </Section>
     );
   }
 
