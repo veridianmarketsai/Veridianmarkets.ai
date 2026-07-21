@@ -151,7 +151,7 @@ function FrontPage({ go, isMobile, user }) {
             <Label>Ticker</Label><Label>Sector · Market cap</Label><div style={{ textAlign:'left' }}><Label>Price</Label></div><div style={{ textAlign:'left' }}><Label>Change</Label></div>
           </div>
           {companyRows.length === 0 && (
-            <div style={{ padding:'18px 16px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No companies match “{companyQuery}”.</div>
+            <div style={{ padding:'18px 16px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>“{companyQuery}” isn't in this preview list, but if it's a real US listing you'll see it in the dropdown above — click it to open that ticker directly.</div>
           )}
           {companyRows.map((c,i)=>(
             <CompanyRow key={c.ticker} c={c} last={i===companyRows.length-1} go={go} isMobile={isMobile}

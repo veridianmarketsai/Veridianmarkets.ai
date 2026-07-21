@@ -70,7 +70,7 @@ function Screener({ go, isMobile }) {
           </div>
         )}
         {shown.length === 0 && (
-          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No curated companies match “{query}”. Use the search box above to open any US listing.</div>
+          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>“{query}” isn't in our curated list below, but if it's a real US listing you'll see it in the dropdown above — click it to open that ticker directly.</div>
         )}
         {shown.map((c,i)=>{
           const lc = vmApply(c, liveMap);
