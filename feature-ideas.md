@@ -62,11 +62,11 @@ park things so they don't get lost.
 - ETFs — make a list of all the companies in there.
 - Mutual funds — same as above.
 - Work on the business side of the app.
-- Remove the connected-accounts feature.
+- ~~Remove the connected-accounts feature.~~ — complete on 2026-07-21: hidden behind a `SHOW_CONNECT_ACCOUNTS` flag in `MyPortfolio.jsx` (flip to `true` to bring it back) rather than deleted, since the broker-connect UI itself is still real code.
 - Input strategies directly into the company (e.g. look at debt, revenue, growth).
-- Make "similar companies" more dominant/prominent.
+- ~~Make "similar companies" more dominant/prominent.~~ — complete on 2026-07-21: Related companies (company dashboard) is now a scrollable table — Ticker/Company/Price, real names + live prices, mouse-wheel + chevron-button scroll — instead of a row of ticker chips.
 - In News, make impacted companies more dominant/prominent.
-- Remove email from the menu tab.
+- ~~Remove email from the menu tab.~~ — complete on 2026-07-21: dropped the checkmark + email row that sat under the "Good evening" greeting in the nav rail (`ui_kits/web/chrome.jsx`).
 
 ---
 
