@@ -129,17 +129,62 @@ function EarningsCard({ rows }) {
   );
 }
 
-// Related tickers → clickable chips.
+// Related tickers → a small scrollable table (ticker · company · live price).
+// Mouse-wheel scrolls the list naturally (plain overflowY); the ▲/▼ buttons
+// step it for anyone who'd rather click than scroll.
 function PeersCard({ tickers, self, go }) {
   const list = [...new Set(tickers.filter((t) => t && t !== self))].slice(0, 10);
+  const key = list.join(',');
+  const [names, setNames] = React.useState({});
+  React.useEffect(() => {
+    if (!list.length || typeof vmProfile !== 'function') return;
+    let alive = true;
+    Promise.all(list.map((t) => vmProfile(t).then((d) => [t, d && d.profile && d.profile.name]))).then((pairs) => {
+      if (alive) setNames(Object.fromEntries(pairs.filter(([, n]) => n)));
+    });
+    return () => { alive = false; };
+  }, [key]);
+  const liveMap = typeof useVMQuotes === 'function' ? useVMQuotes(list) : {};
+  const scrollRef = React.useRef(null);
+  const ROW_H = 38;
+  const scrollBy = (dy) => scrollRef.current && scrollRef.current.scrollBy({ top: dy, behavior: 'smooth' });
+
   if (!list.length) return null;
-  const open = (t) => { const co = (typeof VM_COMPANIES !== 'undefined' ? VM_COMPANIES : []).find((x) => x.ticker === t); if (go) go('dashboard', co || { ticker: t, name: t, cap: '—' }); };
+  const open = (t) => { const co = (typeof VM_COMPANIES !== 'undefined' ? VM_COMPANIES : []).find((x) => x.ticker === t); if (go) go('dashboard', co || { ticker: t, name: names[t] || t, cap: '—' }); };
+
   return (
     <SigCard title="Related companies">
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-        {list.map((t) => (
-          <span key={t} onClick={() => open(t)} style={{ fontFamily: VM.mono, fontSize: 11, fontWeight: 700, color: VM.teal, background: VM.tealTint, border: `1px solid ${VM.tealTint2 || VM.border}`, borderRadius: 6, padding: '4px 9px', cursor: 'pointer' }}>{t}</span>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 74px', gap: 8, padding: '0 4px 6px' }}>
+        <Label>Ticker</Label><Label>Company</Label><Label style={{ textAlign: 'right' }}>Price</Label>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <div ref={scrollRef} style={{ flex: 1, maxHeight: ROW_H * 4, overflowY: 'auto', borderTop: `1px solid ${VM.borderHair}` }}>
+          {list.map((t, i) => {
+            const q = liveMap[t];
+            return (
+              <div key={t} onClick={() => open(t)}
+                style={{ display: 'grid', gridTemplateColumns: '52px 1fr 74px', gap: 8, alignItems: 'center',
+                  height: ROW_H, padding: '0 4px', cursor: 'pointer',
+                  borderBottom: i === list.length - 1 ? 'none' : `1px solid ${VM.borderHair}` }}>
+                <span style={{ fontFamily: VM.mono, fontSize: 12, fontWeight: 700, color: VM.teal }}>{t}</span>
+                <span style={{ fontFamily: VM.serif, fontSize: 12.5, color: VM.ink2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{names[t] || '—'}</span>
+                <span style={{ textAlign: 'right', fontFamily: VM.mono, fontSize: 11.5, fontWeight: 700, color: q ? VM.ink : VM.ink3 }}>{q ? `$${q.price.toFixed(2)}` : '—'}</span>
+              </div>
+            );
+          })}
+        </div>
+        {list.length > 4 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+            <button onClick={() => scrollBy(-ROW_H * 2)} title="Scroll up"
+              style={{ width: 24, height: 24, borderRadius: 6, border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="ti ti-chevron-up" style={{ fontSize: 13 }}></i>
+            </button>
+            <button onClick={() => scrollBy(ROW_H * 2)} title="Scroll down"
+              style={{ width: 24, height: 24, borderRadius: 6, border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="ti ti-chevron-down" style={{ fontSize: 13 }}></i>
+            </button>
+          </div>
+        )}
       </div>
     </SigCard>
   );
