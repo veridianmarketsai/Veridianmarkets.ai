@@ -81,12 +81,6 @@ function Rail({ route, go, mobile, open, onClose, signedIn, user, onSignOut, isA
       {/* Time-of-day greeting, pinned above the 'You' group. */}
       <div style={{ padding:'16px 16px 4px' }}>
         <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, lineHeight:1.18 }}>{greeting}</span>
-        {signedIn && user && (
-          <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:4 }}>
-            <i className="ti ti-circle-check-filled" style={{ fontSize:12, color:VM.upInk }}></i>
-            <span style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.email}</span>
-          </div>
-        )}
       </div>
 
       {/* Personal ⇄ Business account switcher */}
