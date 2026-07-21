@@ -29,6 +29,14 @@ function Screener({ go, isMobile }) {
   const consensus = typeof useVMConsensus === 'function' ? useVMConsensus(analystFilter ? searched.map(c => c.ticker) : []) : {};
   const shown = analystFilter ? searched.filter(c => analystMatch(consensus[c.ticker], analystFilter.v)) : searched;
   const liveMap = useVMQuotes(shown.map(c => c.ticker));   // live quotes overlay
+
+  // No curated match — look up the query against the whole US listing universe
+  // (same lookup the search box's own dropdown uses) and show any hit as a row
+  // right here instead of only in a floating dropdown.
+  const { results: symbolResults, loading: symbolLoading } = typeof useVMSymbolSearch === 'function' ? useVMSymbolSearch(query) : { results: [], loading: false };
+  const liveMatches = (shown.length === 0 && ql) ? symbolResults.slice(0, 8) : [];
+  const liveQuoteMap = useVMQuotes(liveMatches.map(r => r.ticker));
+
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Search</b></Mono>
@@ -38,7 +46,7 @@ function Screener({ go, isMobile }) {
 
       <div data-tour="vm-screener-search" style={{ display:'flex', gap:9, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
         <div style={{ flex:1, minWidth:220 }}>
-          <SymbolSearchBox value={query} onChange={setQuery} go={go} round
+          <SymbolSearchBox value={query} onChange={setQuery} go={go} round noDropdown
             placeholder="Search any US stock — ticker or company name…" />
         </div>
         <Btn style={{ borderRadius:999 }}>Filter <i className="ti ti-chevron-down" style={{fontSize:12}}></i></Btn>
@@ -69,8 +77,26 @@ function Screener({ go, isMobile }) {
             <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
           </div>
         )}
-        {shown.length === 0 && (
-          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>“{query}” isn't in our curated list below, but if it's a real US listing you'll see it in the dropdown above — click it to open that ticker directly.</div>
+        {shown.length === 0 && ql && symbolLoading && (
+          <div style={{ padding:'18px', fontFamily:VM.mono, fontSize:11, color:VM.ink3 }}>
+            <i className="ti ti-loader-2" style={{ fontSize:13 }}></i> Searching all US listings for “{query}”…
+          </div>
+        )}
+        {shown.length === 0 && ql && !symbolLoading && liveMatches.length > 0 && (
+          <>
+            <div style={{ padding:'12px 18px 0', fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>
+              “{query}” isn't in our curated list, but it's a real US listing:
+            </div>
+            {liveMatches.map((r, i) => (
+              <LiveMatchRow key={r.ticker} r={r} liveMap={liveQuoteMap} go={go} last={i === liveMatches.length - 1} isMobile={isMobile} />
+            ))}
+          </>
+        )}
+        {shown.length === 0 && ql && !symbolLoading && liveMatches.length === 0 && (
+          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No listings found for “{query}”.</div>
+        )}
+        {shown.length === 0 && !ql && (
+          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No companies match the current filters.</div>
         )}
         {shown.map((c,i)=>{
           const lc = vmApply(c, liveMap);
@@ -157,6 +183,55 @@ function Row({ c, open, last, onEye, onNet, onOpen, isMobile }) {
       </div>
       <div style={{ maxHeight: open?540:0, overflow:'hidden', transition:'max-height .35s ease' }}>
         <Preview c={c} onOpen={onOpen} />
+      </div>
+    </div>
+  );
+}
+
+// A real US listing that isn't in our curated set (no analogue data, no
+// Preview) — same grid as Row, just a live quote (if the ticker prices) and a
+// straight "open dashboard" action instead of the eye-preview.
+function LiveMatchRow({ r, liveMap, go, last, isMobile }) {
+  const [hover, setHover] = React.useState(false);
+  const q = liveMap && liveMap[String(r.ticker).toUpperCase()];
+  const price = q ? q.price.toFixed(2) : null;
+  const chg = q ? vmFmtPct(q.pct) : null;
+  const openIt = () => go('dashboard', { ticker: r.ticker, name: r.name, cap: '—' });
+
+  if (isMobile) {
+    return (
+      <div onClick={openIt} style={{ padding:'12px 15px', cursor:'pointer', borderBottom: last ? 'none' : `1px solid ${VM.borderSoft}` }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:20, flexShrink:0 }}>{r.ticker}</span>
+          <div style={{ flex:1, minWidth:0 }}>
+            <Mono size={11.5} color={VM.ink2} style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</Mono>
+            <Label>{r.type || 'US listing'}</Label>
+          </div>
+          {price != null && (
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <Mono size={13} weight={700}>${price}</Mono>
+              <div><Chg dir={q.dir}>{chg}</Chg></div>
+            </div>
+          )}
+          <i className="ti ti-arrow-right" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={openIt}
+      style={{ display:'grid', gridTemplateColumns:GRID, alignItems:'center', gap:10, padding:'12px 18px', cursor:'pointer',
+        borderBottom: last ? 'none' : `1px solid ${VM.borderSoft}`,
+        background: hover ? VM.paperWarm : 'transparent', transition:'background .14s ease' }}>
+      <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22,
+        textDecoration: hover ? 'underline' : 'none', textUnderlineOffset:3, textDecorationColor:VM.teal }}>{r.ticker}</span>
+      <div><Mono size={11.5} color={VM.ink2}>{r.name}</Mono><div><Label>{r.type || 'US listing'}</Label></div></div>
+      <Mono size={13} weight={700} style={{textAlign:'right'}}>{price != null ? `$${price}` : '—'}</Mono>
+      <span style={{textAlign:'right'}}>{chg != null ? <Chg dir={q.dir}>{chg}</Chg> : <Mono size={12} color={VM.ink3}>—</Mono>}</span>
+      <span></span>
+      <div style={{ display:'flex', gap:8, justifyContent:'flex-end', opacity: hover ? 1 : 0, pointerEvents: hover ? 'auto' : 'none', transition:'opacity .16s ease' }}>
+        <SqBtn icon="arrow-right" onAct={openIt} title={`Open ${r.ticker} dashboard`} />
       </div>
     </div>
   );

@@ -45,8 +45,10 @@ function useVMSymbolSearch(query) {
 }
 
 // Controlled search input + dropdown. Parent owns `value` so it can also filter
-// its own table; the dropdown is a quick-jump to any symbol.
-function SymbolSearchBox({ value, onChange, go, placeholder, round, autoFocus }) {
+// its own table; the dropdown is a quick-jump to any symbol. Pass `noDropdown`
+// when the parent renders live/unmatched-ticker results itself (e.g. Screener's
+// results table) instead of this box's own floating suggestion list.
+function SymbolSearchBox({ value, onChange, go, placeholder, round, autoFocus, noDropdown }) {
   const [focused, setFocused] = React.useState(false);
   const blurTimer = React.useRef(null);
   const q  = String(value || '');
@@ -63,7 +65,7 @@ function SymbolSearchBox({ value, onChange, go, placeholder, round, autoFocus })
   const { results: remote, loading } = useVMSymbolSearch(q);
   const remoteOnly = remote.filter((r) => !localSet.has(r.ticker.toUpperCase())).slice(0, 8);
 
-  const open = focused && ql.length >= 1;
+  const open = !noDropdown && focused && ql.length >= 1;
 
   const pick = (co) => {
     setFocused(false);
