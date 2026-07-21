@@ -32,9 +32,18 @@ function Screener({ go, isMobile }) {
 
   // No curated match — look up the query against the whole US listing universe
   // (same lookup the search box's own dropdown uses) and show any hit as a row
-  // right here instead of only in a floating dropdown.
+  // right here instead of only in a floating dropdown. A category query like
+  // "index fund" or "etf" also pulls in our curated ETF list (vmTopicTickers) —
+  // Finnhub's search only matches literal name/symbol text, so it wouldn't
+  // otherwise surface SPY/VOO/QQQ for a phrase like that.
   const { results: symbolResults, loading: symbolLoading } = typeof useVMSymbolSearch === 'function' ? useVMSymbolSearch(query) : { results: [], loading: false };
-  const liveMatches = (shown.length === 0 && ql) ? symbolResults.slice(0, 8) : [];
+  const topicResults = typeof vmTopicTickers === 'function' ? vmTopicTickers(query) : [];
+  const isMutualFundQuery = ql.includes('mutual fund');
+  // A curated hit (e.g. "index" also matching SPX by name) shouldn't hide the
+  // topic rows — those two things answer different intents.
+  const showFallback = !!ql && (shown.length === 0 || topicResults.length > 0);
+  const mergedResults = [...topicResults, ...symbolResults.filter(r => !topicResults.some(t => t.ticker === r.ticker) && !shown.some(c => c.ticker === r.ticker))];
+  const liveMatches = showFallback ? mergedResults.slice(0, 12) : [];
   const liveQuoteMap = useVMQuotes(liveMatches.map(r => r.ticker));
 
   return (
@@ -77,22 +86,27 @@ function Screener({ go, isMobile }) {
             <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
           </div>
         )}
-        {shown.length === 0 && ql && symbolLoading && (
+        {showFallback && topicResults.length === 0 && symbolLoading && (
           <div style={{ padding:'18px', fontFamily:VM.mono, fontSize:11, color:VM.ink3 }}>
             <i className="ti ti-loader-2" style={{ fontSize:13 }}></i> Searching all US listings for “{query}”…
           </div>
         )}
-        {shown.length === 0 && ql && !symbolLoading && liveMatches.length > 0 && (
+        {showFallback && isMutualFundQuery && (
+          <div style={{ padding:'12px 18px 0', fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>
+            Mutual funds aren't covered by our market-data provider yet — no ticker-level pricing available, so we can't list them here.
+          </div>
+        )}
+        {showFallback && (topicResults.length > 0 || !symbolLoading) && liveMatches.length > 0 && (
           <>
             <div style={{ padding:'12px 18px 0', fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>
-              “{query}” isn't in our curated list, but it's a real US listing:
+              {topicResults.length > 0 ? 'Related tickers:' : `“${query}” isn't in our curated list, but it's a real US listing:`}
             </div>
             {liveMatches.map((r, i) => (
               <LiveMatchRow key={r.ticker} r={r} liveMap={liveQuoteMap} go={go} last={i === liveMatches.length - 1} isMobile={isMobile} />
             ))}
           </>
         )}
-        {shown.length === 0 && ql && !symbolLoading && liveMatches.length === 0 && (
+        {showFallback && !symbolLoading && liveMatches.length === 0 && !isMutualFundQuery && (
           <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No listings found for “{query}”.</div>
         )}
         {shown.length === 0 && !ql && (

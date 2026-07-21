@@ -1,4 +1,6 @@
 // Veridian Markets — Front page (editorial home).
+// Market recap + Mini calendar are temporarily hidden (kept below, code intact) — flip to re-show.
+const VM_SHOW_HOME_SIDEBAR = false;
 function FrontPage({ go, isMobile, user }) {
   const signedIn = !!user;
   // Personalization (signed-in only): interest tickers from real favourites +
@@ -6,7 +8,8 @@ function FrontPage({ go, isMobile, user }) {
   // "Recommended for you" row. New/blank-slate users just see the general feed.
   const interests = useVMInterests(signedIn);
   const personalizedNews = useVMPersonalizedNews(interests.tickers);
-  const recommended = React.useMemo(() => vmRecommendCompanies(interests.tickers, 4), [interests.tickers.join(',')]);
+  const favTickers = typeof vmFavs === 'function' ? vmFavs() : [];
+  const favourites = React.useMemo(() => favTickers.map(t => VM_COMPANIES.find(c => c.ticker === t)).filter(Boolean), [favTickers.join(',')]);
   const recap = [
     { k:'Forex', chg:'+0.12%', dir:'up' }, { k:'Bonds', chg:'-0.08%', dir:'down' },
     { k:'Commodities', chg:'+0.94%', dir:'up' }, { k:'Stocks', chg:'+0.41%', dir:'up' },
@@ -33,9 +36,9 @@ function FrontPage({ go, isMobile, user }) {
     .slice(0, 10);
   const liveMap = useVMQuotes(baseCompanyRows.map(c => c.ticker));   // live quotes overlay
   const companyRows = baseCompanyRows.map(c => vmApply(c, liveMap));
-  const [recOpenRow, setRecOpenRow] = React.useState(null);     // "Recommended for you" row's own eye-preview state
-  const recLiveMap = useVMQuotes(recommended.map(c => c.ticker));
-  const recommendedRows = recommended.map(c => vmApply(c, recLiveMap));
+  const [recOpenRow, setRecOpenRow] = React.useState(null);     // "Your favourites" row's own eye-preview state
+  const recLiveMap = useVMQuotes(favourites.map(c => c.ticker));
+  const favouriteRows = favourites.map(c => vmApply(c, recLiveMap));
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
   const generalNews = typeof useVMNews === 'function' ? useVMNews('general') : { cards: [] };
   const news = personalizedNews.live ? personalizedNews : generalNews;   // real headlines for the story tiles, tailored when we have interest data
@@ -46,7 +49,7 @@ function FrontPage({ go, isMobile, user }) {
     <div style={{ padding: isMobile ? '14px 16px 80px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       {/* LEARN — resume / start learning, above Global News + Market recap. */}
       <LearnBanner go={go} isMobile={isMobile} />
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
+      <div style={{ display:'grid', gridTemplateColumns: (isMobile || !VM_SHOW_HOME_SIDEBAR) ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
         {/* STORY TILES — fixed 3×3 window; the button slides through 3 pages of 9 (27 total). Placeholder scaffold. */}
         <div>
           <Kicker>{personalizedNews.live ? 'For you' : 'Global News'}</Kicker>
@@ -93,6 +96,7 @@ function FrontPage({ go, isMobile, user }) {
 
         {/* RIGHT CARDS — accordion. A hidden kicker (desktop) mirrors the left
             "Global News" kicker so Market recap lines up with the first news tiles. */}
+        {VM_SHOW_HOME_SIDEBAR && (
         <div>
           {!isMobile && <Kicker style={{ visibility:'hidden' }}>Global News</Kicker>}
           <div data-tour="vm-market-recap" style={{ marginTop: isMobile ? 0 : 10, display:'flex', flexDirection:'column', gap:14 }}>
@@ -111,19 +115,20 @@ function FrontPage({ go, isMobile, user }) {
           </CollapsibleCard>
           </div>
         </div>
+        )}
       </div>
 
-      {/* RECOMMENDED FOR YOU — signed-in, sector-overlap with favourites/recently viewed (interests.jsx). */}
-      {signedIn && recommendedRows.length > 0 && (
+      {/* YOUR FAVOURITES — signed-in, the companies the user has starred (capture.jsx vmFavs). */}
+      {signedIn && favouriteRows.length > 0 && (
         <div data-tour="vm-recommended" style={{ marginTop:44 }}>
-          <Kicker>Recommended for you</Kicker>
-          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:'8px 0 16px' }}>Companies you might like.</h2>
+          <Kicker>Your favourites</Kicker>
+          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:'8px 0 16px' }}>Companies you're tracking.</h2>
           <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
             <div style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px 70px 110px', gap:10, padding: isMobile ? '6px 14px' : '6px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
               <Label>Ticker</Label><Label>Sector · Market cap</Label><div style={{ textAlign:'left' }}><Label>Price</Label></div><div style={{ textAlign:'left' }}><Label>Change</Label></div>
             </div>
-            {recommendedRows.map((c,i)=>(
-              <CompanyRow key={c.ticker} c={c} last={i===recommendedRows.length-1} go={go} isMobile={isMobile}
+            {favouriteRows.map((c,i)=>(
+              <CompanyRow key={c.ticker} c={c} last={i===favouriteRows.length-1} go={go} isMobile={isMobile}
                 open={recOpenRow===c.ticker} onEye={()=>setRecOpenRow(recOpenRow===c.ticker?null:c.ticker)} />
             ))}
           </div>
@@ -297,8 +302,7 @@ function StoryTile({ n, title, dir, mins, article, loading }) {
       <Mono size={9} color={a ? VM.terra : VM.ink3} weight={a ? 700 : 400}>{a ? (a.kicker || 'MARKETS') : `STORY · ${String(n).padStart(2,'0')}`}</Mono>
       <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14.5, lineHeight:1.16, margin:'7px 0 0', color:VM.ink,
         display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{headline}</div>
-      <div style={{ marginTop:'auto', display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:10, gap:8 }}>
-        <Sparkline dir={dir} w={42} h={14} />
+      <div style={{ marginTop:'auto', paddingTop:10 }}>
         <Mono size={9} color={VM.ink3} style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a ? (a.time || a.source) : `${mins} min`}</Mono>
       </div>
     </div>

@@ -68,6 +68,7 @@ park things so they don't get lost.
 - In News, make impacted companies more dominant/prominent.
 - ~~Remove email from the menu tab.~~ — complete on 2026-07-21: dropped the checkmark + email row that sat under the "Good evening" greeting in the nav rail (`ui_kits/web/chrome.jsx`).
 - ~~Company dashboard breadcrumb: going back deleted the path forward.~~ — complete on 2026-07-21 (raised directly, not from this list): going back to an earlier crumb now just moves a pointer instead of truncating the trail, so crumbs ahead stay in place, greyed out, and clickable to go forward again. Current crumb highlighted in green (`VM.forest`). Two new corner buttons: cog "Reset to initial principle" (jump to the first crumb) and "P" "Make new principle" (collapse the trail to just the current company). Note: this is the *company-dashboard* breadcrumb (`CompanyHead.jsx`) — the separate SCN/dependency-map breadcrumb item above is still open.
+- ~~Remove the chart from the news story tiles.~~ — complete on 2026-07-21 (raised directly, not from this list): dropped the little sparkline from each "For you" / "Global News" story tile on the front page (`FrontPage.jsx`'s `StoryTile`) — it was a fabricated up/down squiggle unrelated to the article, not real per-story data.
 
 ---
 

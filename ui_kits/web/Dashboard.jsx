@@ -242,7 +242,7 @@ function DashOverview({ c, data, go, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
   const prof = typeof useVMProfile === 'function' ? useVMProfile(c.ticker) : { profile:null };
-  const weburl = prof.profile && prof.profile.weburl;
+  const p = prof.profile || {};
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
@@ -250,13 +250,19 @@ function DashOverview({ c, data, go, isMobile }) {
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
       </div>
+      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'18px 20px',
+        display:'flex', alignItems:'center', gap:16, marginBottom:20 }}>
+        {p.logo && <img src={p.logo} alt="" style={{ width:44, height:44, borderRadius:8, objectFit:'contain', background:'#fff', border:`1px solid ${VM.borderHair}` }} />}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:20, color:VM.ink }}>{p.name || c.name}</div>
+          <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>{[p.industry, p.exchange].filter(Boolean).join(' · ') || overview.sector}</div>
+        </div>
+        {p.weburl && <a href={p.weburl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:VM.mono, fontSize:11, color:VM.teal, textDecoration:'none', whiteSpace:'nowrap' }}>Website ↗</a>}
+      </div>
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: isMobile?20:32 }}>
         <div>
           <div data-tour="vm-overview-about">
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12 }}>
-              <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>ABOUT THIS COMPANY</Mono>
-              {weburl && <a href={weburl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:VM.mono, fontSize:11, color:VM.teal, textDecoration:'none', whiteSpace:'nowrap' }}>Website ↗</a>}
-            </div>
+            <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>ABOUT THIS COMPANY</Mono>
             <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:28, margin:'0 0 12px', textWrap:'balance' }}>
               {c.name.split(' ')[0]} — what they actually do.
             </h2>

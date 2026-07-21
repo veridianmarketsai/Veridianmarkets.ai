@@ -76,13 +76,44 @@ function VM_IS_EQUITY(t) { return !VM_NON_EQUITY.has(String(t).toUpperCase()); }
 // Common ETF tickers — Finnhub's free tier has no holdings endpoint for these
 // (/etf/holdings is premium-gated, confirmed 2026-07-21), so the Overview tab
 // redirects out to a holdings aggregator instead. Not exhaustive; add tickers
-// as they come up via search.
-const VM_ETF_TICKERS = new Set([
-  'SPY','VOO','IVV','VTI','QQQ','DIA','IWM','VUG','VTV','VEA','VWO','EFA','EEM',
-  'AGG','BND','TLT','GLD','SLV','ARKK','VYM','SCHD','JEPI','VIG','VNQ','USMV',
-  'XLK','XLF','XLE','XLV','XLY','XLP','XLI','XLU','XLB','XLRE','XLC',
-]);
+// as they come up via search. Names are kept alongside so a keyword search like
+// "index fund" or "etf" can surface this list as real rows (see vmTopicTickers).
+const VM_ETF_INFO = {
+  SPY:'SPDR S&P 500 ETF Trust', VOO:'Vanguard S&P 500 ETF', IVV:'iShares Core S&P 500 ETF',
+  VTI:'Vanguard Total Stock Market ETF', QQQ:'Invesco QQQ Trust', DIA:'SPDR Dow Jones Industrial Average ETF',
+  IWM:'iShares Russell 2000 ETF', VUG:'Vanguard Growth ETF', VTV:'Vanguard Value ETF',
+  VEA:'Vanguard FTSE Developed Markets ETF', VWO:'Vanguard FTSE Emerging Markets ETF',
+  EFA:'iShares MSCI EAFE ETF', EEM:'iShares MSCI Emerging Markets ETF',
+  AGG:'iShares Core U.S. Aggregate Bond ETF', BND:'Vanguard Total Bond Market ETF',
+  TLT:'iShares 20+ Year Treasury Bond ETF', GLD:'SPDR Gold Shares', SLV:'iShares Silver Trust',
+  ARKK:'ARK Innovation ETF', VYM:'Vanguard High Dividend Yield ETF', SCHD:'Schwab US Dividend Equity ETF',
+  JEPI:'JPMorgan Equity Premium Income ETF', VIG:'Vanguard Dividend Appreciation ETF',
+  VNQ:'Vanguard Real Estate ETF', USMV:'iShares MSCI USA Min Vol Factor ETF',
+  XLK:'Technology Select Sector SPDR Fund', XLF:'Financial Select Sector SPDR Fund',
+  XLE:'Energy Select Sector SPDR Fund', XLV:'Health Care Select Sector SPDR Fund',
+  XLY:'Consumer Discretionary Select Sector SPDR Fund', XLP:'Consumer Staples Select Sector SPDR Fund',
+  XLI:'Industrial Select Sector SPDR Fund', XLU:'Utilities Select Sector SPDR Fund',
+  XLB:'Materials Select Sector SPDR Fund', XLRE:'Real Estate Select Sector SPDR Fund',
+  XLC:'Communication Services Select Sector SPDR Fund',
+};
+const VM_ETF_TICKERS = new Set(Object.keys(VM_ETF_INFO));
 function VM_IS_ETF(t) { return VM_ETF_TICKERS.has(String(t).toUpperCase()); }
+
+// Keyword → curated ticker rows, for search queries that name a fund *category*
+// rather than a specific ticker (Finnhub's /search only matches literal name/
+// symbol text, so "index fund" only turns up listings with that exact phrase in
+// their name — e.g. "Sumcoin Index Fund" — not SPY or VOO). Mutual funds are
+// deliberately NOT mapped here: Finnhub has no mutual-fund quote/profile
+// endpoint at any tier, so listing tickers we can't actually price would be
+// misleading (see feature-ideas.md, 2026-07-21).
+function vmTopicTickers(query) {
+  const ql = String(query || '').trim().toLowerCase();
+  if (!ql) return [];
+  if (ql.includes('index') || /\betfs?\b/.test(ql)) {
+    return Object.keys(VM_ETF_INFO).map((t) => ({ ticker: t, name: VM_ETF_INFO[t], type: 'ETP' }));
+  }
+  return [];
+}
 
 // Format a live percent (number) like the mock strings: "+1.26%".
 function vmFmtPct(pct) { return `${pct >= 0 ? '+' : ''}${Number(pct).toFixed(2)}%`; }
@@ -94,4 +125,4 @@ function vmApply(c, liveMap) {
   return { ...c, price: q.price.toFixed(2), chg: vmFmtPct(q.pct), dir: q.dir, live: true };
 }
 
-Object.assign(window, { VM_MARKET, vmQuotes, useVMQuote, useVMQuotes, vmFmtPct, vmApply, VM_IS_EQUITY, VM_IS_ETF });
+Object.assign(window, { VM_MARKET, vmQuotes, useVMQuote, useVMQuotes, vmFmtPct, vmApply, VM_IS_EQUITY, VM_IS_ETF, VM_ETF_INFO, vmTopicTickers });
