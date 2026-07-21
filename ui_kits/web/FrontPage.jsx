@@ -53,7 +53,7 @@ function FrontPage({ go, isMobile, user }) {
           {/* One page of 9 tiles, in an overflow-visible area so hover pop-outs are never clipped.
               Changing page remounts StoryPage (via key), which slides + fades the new tiles in. */}
           <div data-tour="vm-story-tiles" style={{ marginTop:10 }}>
-            <StoryScroller page={page} tileTitles={tileTitles} articles={news.cards} cols={cols} perPage={perPage} />
+            <StoryScroller page={page} tileTitles={tileTitles} articles={news.cards} cols={cols} perPage={perPage} loading={news.loading} />
           </div>
           {/* Pager — 'More' is pinned to the page centre (never moves); 'Up' reveals to its left and the box grows leftward only. */}
           <div style={{ position:'relative', height:38, marginTop:16 }}>
@@ -213,12 +213,12 @@ function OpenBox({ title, onClick }) {
 }
 
 // One page of tiles (9 on desktop / 3 on mobile).
-function PageGrid({ page, tileTitles, articles, cols, perPage }) {
+function PageGrid({ page, tileTitles, articles, cols, perPage, loading }) {
   const nums = Array.from({ length: perPage }, (_, i) => page * perPage + i + 1);
   return (
     <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols}, 1fr)`, gridAutoRows:'128px', gap:14 }}>
       {nums.map(n => (
-        <StoryTile key={n} n={n} title={tileTitles[(n - 1) % tileTitles.length]} article={articles && articles[n - 1]} dir={n % 3 === 0 ? 'down' : 'up'} mins={3 + ((n * 2) % 7)} />
+        <StoryTile key={n} n={n} title={tileTitles[(n - 1) % tileTitles.length]} article={articles && articles[n - 1]} loading={loading} dir={n % 3 === 0 ? 'down' : 'up'} mins={3 + ((n * 2) % 7)} />
       ))}
     </div>
   );
@@ -227,7 +227,7 @@ function PageGrid({ page, tileTitles, articles, cols, perPage }) {
 // Scrolls between pages: idle = a single page in an overflow-visible box (so hover pop-outs aren't
 // clipped); during a page change it stacks both pages and slides the track up/down so you see the
 // tiles move. Same easing/speed as the accordion (.38s) for a consistent feel.
-function StoryScroller({ page, tileTitles, articles, cols, perPage }) {
+function StoryScroller({ page, tileTitles, articles, cols, perPage, loading }) {
   const ROW = 128, GAP = 14;
   const VIEW_H = 3 * ROW + 2 * GAP;   // 412 — three rows tall
   const STEP = 3 * (ROW + GAP);       // 426 — one page of travel
@@ -244,7 +244,7 @@ function StoryScroller({ page, tileTitles, articles, cols, perPage }) {
   }, [page]);
 
   if (!armed) {
-    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} /></div>;
+    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} loading={loading} /></div>;
   }
 
   const forward = page > display;                       // next page → scroll up
@@ -259,9 +259,9 @@ function StoryScroller({ page, tileTitles, articles, cols, perPage }) {
   return (
     <div style={{ height: VIEW_H, overflow:'hidden' }}>
       <div onTransitionEnd={onEnd} style={{ transform:`translateY(${offset}px)`, transition: run ? EASE : 'none' }}>
-        <PageGrid page={topPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} />
+        <PageGrid page={topPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} loading={loading} />
         <div style={{ height: GAP }}></div>
-        <PageGrid page={bottomPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} />
+        <PageGrid page={bottomPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} loading={loading} />
       </div>
     </div>
   );
@@ -269,9 +269,21 @@ function StoryScroller({ page, tileTitles, articles, cols, perPage }) {
 
 // A story tile — pops out and highlights on hover (matches the company-row feel).
 // With a real article it shows the live headline + source and opens the source.
-function StoryTile({ n, title, dir, mins, article }) {
+// While the news feed is still loading, a slot with no article yet shows a
+// loading spinner instead of the illustrative placeholder sentence — that
+// placeholder is meant as permanent scaffold filler for slots beyond however
+// many real articles came back, not something that should flash on first load.
+function StoryTile({ n, title, dir, mins, article, loading }) {
   const [hover, setHover] = React.useState(false);
   const a = article;
+  if (!a && loading) {
+    return (
+      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:10,
+        display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <i className="ti ti-loader-2" style={{ fontSize:18, color:VM.ink3 }}></i>
+      </div>
+    );
+  }
   const headline = a ? a.headline : title;
   const onClick = a && a.url ? () => window.open(a.url, '_blank', 'noopener') : undefined;
   return (
