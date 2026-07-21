@@ -59,14 +59,15 @@ park things so they don't get lost.
 - Build courses.
 - ~~Don't like how the temporary/placeholder text shows while News is loading.~~ — complete on 2026-07-21: the front-page story tiles now show a loading spinner instead of the illustrative placeholder sentences while the news feed is still fetching. The placeholder text itself still appears afterward as intentional filler for slots beyond however many real articles came back — that's a separate, deliberate design choice, not touched.
 - ~~Company search says "can't find companies" even though it shows up — misleading.~~ — complete on 2026-07-21: first pass reworded the "no curated companies match" copy; user then asked for the match to show as a row in the results table instead of relying on the dropdown at all. Search page now looks up the query against the whole US listing universe and renders any hit (e.g. QQQ) as a real row with live price/change and an Open action, dropdown suppressed on this page. Home page's own search dropdown is unchanged.
-- ETFs — make a list of all the companies in there.
-- Mutual funds — same as above.
+- ~~ETFs — make a list of all the companies in there.~~ — partially addressed on 2026-07-21: Finnhub's `/etf/holdings` endpoint is premium-gated on our key (confirmed via direct test — `"You don't have access to this resource"`), so an in-app constituent list isn't buildable on the current plan. Instead, the Overview tab now shows a "View holdings ↗" link out to stockanalysis.com for known ETF tickers (`VM_ETF_TICKERS` set in `marketdata.jsx`, ~35 common ETFs seeded — not exhaustive, extend as new ones come up via search). Revisit for a real in-app list if we ever move to a paid Finnhub tier.
+- Mutual funds — same as above, but worse: Finnhub has **no** fund-holdings endpoint at any tier. Not solvable via Finnhub; would need a different data vendor (e.g. Morningstar) if this stays a priority.
 - Work on the business side of the app.
 - ~~Remove the connected-accounts feature.~~ — complete on 2026-07-21: hidden behind a `SHOW_CONNECT_ACCOUNTS` flag in `MyPortfolio.jsx` (flip to `true` to bring it back) rather than deleted, since the broker-connect UI itself is still real code.
 - Input strategies directly into the company (e.g. look at debt, revenue, growth).
 - ~~Make "similar companies" more dominant/prominent.~~ — complete on 2026-07-21: Related companies (company dashboard) is now a scrollable table — Ticker/Company/Price, real names + live prices, mouse-wheel + chevron-button scroll — instead of a row of ticker chips.
 - In News, make impacted companies more dominant/prominent.
 - ~~Remove email from the menu tab.~~ — complete on 2026-07-21: dropped the checkmark + email row that sat under the "Good evening" greeting in the nav rail (`ui_kits/web/chrome.jsx`).
+- ~~Company dashboard breadcrumb: going back deleted the path forward.~~ — complete on 2026-07-21 (raised directly, not from this list): going back to an earlier crumb now just moves a pointer instead of truncating the trail, so crumbs ahead stay in place, greyed out, and clickable to go forward again. Current crumb highlighted in green (`VM.forest`). Two new corner buttons: cog "Reset to initial principle" (jump to the first crumb) and "P" "Make new principle" (collapse the trail to just the current company). Note: this is the *company-dashboard* breadcrumb (`CompanyHead.jsx`) — the separate SCN/dependency-map breadcrumb item above is still open.
 
 ---
 
