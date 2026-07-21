@@ -45,6 +45,9 @@ const PF_RISK = {
 const RISK_COLOR = { high:VM.down, medium:VM.terra, low:VM.up };
 const RISK_BG    = { high:'rgba(192,86,59,0.10)', medium:'rgba(196,106,59,0.10)', low:'rgba(29,158,117,0.10)' };
 
+// Connect-accounts feature hidden 2026-07-21 per user request — flip true to bring it back.
+const SHOW_CONNECT_ACCOUNTS = false;
+
 const PF_BROKERS = [
   { id:'t212', name:'Trading 212',         icon:'trending-up',    color:'#1E5BD6', featured:true },
   { id:'ibkr', name:'Interactive Brokers', icon:'building-bank',  color:'#A8512A' },
@@ -69,9 +72,9 @@ const LEARN_PROGRESS = {
 const PF_RANGES = { '1W':7,'1M':24,'3M':36,'1Y':52,'5Y':60,'MAX':72 };
 
 const PF_STEPS = [
-  { sel:'[data-tour="vm-pf-connect"]',
+  ...(SHOW_CONNECT_ACCOUNTS ? [{ sel:'[data-tour="vm-pf-connect"]',
     title:'Connect a broker.',
-    body:'Link a brokerage account to import your holdings automatically. Click any card to connect or disconnect. Veridian requests read-only access only — it cannot place trades or move funds on your behalf.' },
+    body:'Link a brokerage account to import your holdings automatically. Click any card to connect or disconnect. Veridian requests read-only access only — it cannot place trades or move funds on your behalf.' }] : []),
   { sel:'[data-tour="vm-pf-learning"]',
     title:'Your learning progress.',
     body:'Picks up where you left off. The progress bar tracks your current module; the streak counter shows consecutive days of activity. Hit Continue to go straight back in, or go to the Learn page to browse all courses.' },
@@ -135,7 +138,8 @@ function MyPortfolio({ go, user, isMobile }) {
         </button>
       </div>
 
-      {/* ── 1. Connect accounts ─────────────────────────────────────────── */}
+      {/* ── 1. Connect accounts (hidden 2026-07-21, SHOW_CONNECT_ACCOUNTS flag above) ── */}
+      {SHOW_CONNECT_ACCOUNTS && (
       <PfSection title="Connect accounts" icon="plug-connected" dataTour="vm-pf-connect" style={{ marginTop:24 }}>
         <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill, minmax(${isMobile?'100%':'200px'},1fr))`, gap:10 }}>
           {PF_BROKERS.map(b=><BrokerButton key={b.id} b={b} on={connected.has(b.id)} onToggle={()=>toggleBroker(b.id)} />)}
@@ -153,9 +157,10 @@ function MyPortfolio({ go, user, isMobile }) {
           </Mono>
         )}
       </PfSection>
+      )}
 
       {/* ── 2. Learn progress ───────────────────────────────────────────── */}
-      <PfSection title="Learning" icon="school" dataTour="vm-pf-learning" style={{ marginTop:18 }}>
+      <PfSection title="Learning" icon="school" dataTour="vm-pf-learning" style={{ marginTop:SHOW_CONNECT_ACCOUNTS?18:24 }}>
         <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
           <div style={{ flex:1, minWidth:240 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
