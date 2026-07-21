@@ -170,7 +170,11 @@ function App() {
   const [menuOpen, setMenuOpen] = useStateApp(false);
   // Drill trail for the dashboard breadcrumb — each crumb is { co, tab }, so the
   // path reads e.g. SPX › Supply chain › AAPL › Financials. Seeded from a deep link.
+  // dashTrailIndex is "where you are" in that trail — going back never deletes
+  // anything ahead of it, so those crumbs stay available (greyed) to go forward
+  // to again; drilling somewhere genuinely new branches from the pointer.
   const [dashTrail, setDashTrail] = useStateApp(initial.company ? [{ co: initial.company, tab: 'Overview' }] : []);
+  const [dashTrailIndex, setDashTrailIndex] = useStateApp(0);
   const isMobile = useIsMobile(768);
   useEffectApp(()=>{ if(!isMobile) setMenuOpen(false); }, [isMobile]);
 
@@ -201,18 +205,26 @@ function App() {
     try { localStorage.setItem('vm_learn_nudge_done', '1'); } catch {}
   };
 
-  // Keep the trail in step with navigation: drilling into a new company appends a
-  // crumb (fresh on Overview); revisiting an earlier crumb truncates back to it
-  // (restoring the tab it was on); leaving the dashboard flow clears the trail.
-  const syncTrail = (r, c) => setDashTrail(tr => {
-    if (r !== 'dashboard') return [];
-    if (!c) return tr;
-    const i = tr.findIndex(e => e.co.ticker === c.ticker);
-    return i >= 0 ? tr.slice(0, i + 1) : [...tr, { co: c, tab: 'Overview' }];
-  });
-  // Update the current (last) crumb's tab when the user switches dashboard tabs.
-  const setDashTab = (t) => setDashTrail(tr => tr.length ? tr.map((e, i) => i === tr.length - 1 ? { ...e, tab: t } : e) : tr);
-  const dashTab = dashTrail.length ? dashTrail[dashTrail.length - 1].tab : 'Overview';
+  // Keep the trail in step with navigation. Drilling into a company already in
+  // the trail (whether behind or ahead of the pointer) just moves the pointer —
+  // nothing is discarded, so forward crumbs stay clickable until you drill
+  // somewhere genuinely new, which branches the trail from the pointer (same
+  // as normal browser back/forward semantics). Leaving the dashboard flow
+  // clears both.
+  const syncTrail = (r, c) => {
+    if (r !== 'dashboard') { setDashTrail([]); setDashTrailIndex(0); return; }
+    if (!c) return;
+    setDashTrail(tr => {
+      const i = tr.findIndex(e => e.co.ticker === c.ticker);
+      if (i >= 0) { setDashTrailIndex(i); return tr; }
+      const next = [...tr.slice(0, dashTrailIndex + 1), { co: c, tab: 'Overview' }];
+      setDashTrailIndex(next.length - 1);
+      return next;
+    });
+  };
+  // Update the current crumb's (the one at the pointer) tab when the user switches dashboard tabs.
+  const setDashTab = (t) => setDashTrail(tr => tr.length ? tr.map((e, i) => i === dashTrailIndex ? { ...e, tab: t } : e) : tr);
+  const dashTab = (dashTrail.length && dashTrail[dashTrailIndex]) ? dashTrail[dashTrailIndex].tab : 'Overview';
 
   const scrollTop = () => { window.scrollTo(0, 0); const main=document.getElementById('vm-main'); if(main) main.scrollTop=0; };
   // Navigate: update state AND push a real URL so every page is linkable.
@@ -228,6 +240,17 @@ function App() {
     scrollTop();
   };
   goRef.current = go;
+  // The two breadcrumb corner actions. "Reset" jumps back to where the trail
+  // started (the trail itself is untouched — still just moving the pointer,
+  // same as clicking that first crumb directly). "New principle" declares the
+  // company you're currently on as a fresh starting point, discarding
+  // everything else in the trail (both behind and ahead of it).
+  const resetToInitialPrinciple = () => { if (dashTrail.length) go('dashboard', dashTrail[0].co); };
+  const makeNewPrinciple = () => {
+    if (!dashTrail.length) return;
+    const cur = dashTrail[dashTrailIndex] || dashTrail[dashTrail.length - 1];
+    setDashTrail([cur]); setDashTrailIndex(0);
+  };
   useEffectApp(() => {
     window.__vmStartTour = (id) => setActiveTourId(id);
     window.__vmGoForTour = (r, c) => goRef.current && goRef.current(r, c);
@@ -346,7 +369,7 @@ function App() {
   else if(effRoute==='front') screen = <FrontPage go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='screener') screen = <Screener go={go} isMobile={isMobile} />;
   else if(effRoute==='supply') screen = <ScnLiveDemo go={go} isMobile={isMobile} />;
-  else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} trail={dashTrail} tab={dashTab} onTabChange={setDashTab} />;
+  else if(effRoute==='dashboard') screen = <Dashboard company={company} go={go} isMobile={isMobile} trail={dashTrail} trailIndex={dashTrailIndex} tab={dashTab} onTabChange={setDashTab} onResetPrinciple={resetToInitialPrinciple} onNewPrinciple={makeNewPrinciple} />;
   else if(effRoute==='history') screen = <History go={go} isMobile={isMobile} />;
   else if(effRoute==='memoir') screen = <Memoir go={go} isMobile={isMobile} />;
   else if(effRoute==='learn') screen = <Learn go={go} isMobile={isMobile} />;

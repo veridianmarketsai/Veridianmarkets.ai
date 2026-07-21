@@ -1,5 +1,5 @@
 // Veridian Markets — shared company header (breadcrumb, ticker lockup, tabs, quote).
-function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
+function CompanyHead({ c, tab, onTabChange, go, isMobile, trail, trailIndex, onResetPrinciple, onNewPrinciple }) {
   const tabs = ['Overview','Supply chain','Financials','Patents','History','News'];
   // Live quote (Finnhub via our cached Lambda); falls back to the mock price.
   const live = useVMQuote(c.ticker);
@@ -17,9 +17,13 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
   const [fav, setFav] = React.useState(() => typeof vmIsFav === 'function' && vmIsFav(c.ticker));
   React.useEffect(() => { setFav(typeof vmIsFav === 'function' && vmIsFav(c.ticker)); }, [c.ticker]);
   // The drill trail — each crumb is { co, tab } so the path reads
-  // Search › SPX › Supply chain › AAPL › Financials. Earlier crumbs (company AND
-  // its tab) are clickable to step back to exactly where you were.
+  // Search › SPX › Supply chain › AAPL › Financials. `trailIndex` is where you
+  // are in it: crumbs behind it are your visited history (clickable, normal),
+  // the one at it is highlighted as current, and any ahead of it are a
+  // greyed-out "redo" you can still click back into — going back never
+  // deletes them (see app.jsx's syncTrail).
   const crumbs = trail?.length ? trail : [{ co: c, tab }];
+  const curIdx = trailIndex != null ? trailIndex : crumbs.length - 1;
   const sepEl = (k) => <span key={k} style={{ color:VM.faint, margin:'0 6px' }}>›</span>;
 
   // Tabs scroll horizontally when they don't fit. No scrollbar — grab & drag with the
@@ -34,20 +38,40 @@ function CompanyHead({ c, tab, onTabChange, go, isMobile, trail }) {
 
   return (
     <div data-tour="vm-company-head">
-      <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>
-        <span onClick={()=>go&&go('screener')} style={{ color:VM.teal, cursor: go?'pointer':'default' }}>Search</span>
-        {crumbs.map((cr, i) => {
-          const last = i === crumbs.length - 1;
-          const back = () => go && go('dashboard', cr.co);
-          const tk = last
-            ? <b key="tk" style={{ color:VM.ink }}>{cr.co.ticker}</b>
-            : <span key="tk" onClick={back} style={{ color:VM.teal, cursor:'pointer' }}>{cr.co.ticker}</span>;
-          const tb = last
-            ? <span key="tb" style={{ color:VM.teal }}>{tab}</span>
-            : <span key="tb" onClick={back} style={{ color:VM.ink3, cursor:'pointer' }}>{cr.tab}</span>;
-          return <React.Fragment key={(cr.co.ticker || '') + i}>{sepEl('s1'+i)}{tk}{sepEl('s2'+i)}{tb}</React.Fragment>;
-        })}
-      </Mono>
+      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+        {crumbs.length > 1 && (
+          <div style={{ display:'flex', gap:5, flexShrink:0 }}>
+            <button onClick={() => onResetPrinciple && onResetPrinciple()} title="Reset to initial principle"
+              style={{ width:22, height:22, borderRadius:6, border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink3,
+                cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
+              <i className="ti ti-settings" style={{ fontSize:12 }}></i>
+            </button>
+            <button onClick={() => onNewPrinciple && onNewPrinciple()} title="Make new principle"
+              style={{ width:22, height:22, borderRadius:6, border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink3,
+                cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0,
+                fontFamily:VM.mono, fontSize:11, fontWeight:700 }}>
+              P
+            </button>
+          </div>
+        )}
+        <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>
+          <span onClick={()=>go&&go('screener')} style={{ color:VM.teal, cursor: go?'pointer':'default' }}>Search</span>
+          {crumbs.map((cr, i) => {
+            const cur = i === curIdx;
+            const forward = i > curIdx;
+            const back = () => go && go('dashboard', cr.co);
+            const color = cur ? VM.forest : forward ? VM.faint : VM.teal;
+            const tabColor = cur ? VM.forest : forward ? VM.faint : VM.ink3;
+            const tk = cur
+              ? <b key="tk" style={{ color }}>{cr.co.ticker}</b>
+              : <span key="tk" onClick={back} style={{ color, cursor:'pointer' }}>{cr.co.ticker}</span>;
+            const tb = cur
+              ? <span key="tb" style={{ color, fontWeight:700 }}>{tab}</span>
+              : <span key="tb" onClick={back} style={{ color:tabColor, cursor:'pointer' }}>{cr.tab}</span>;
+            return <React.Fragment key={(cr.co.ticker || '') + i}>{sepEl('s1'+i)}{tk}{sepEl('s2'+i)}{tb}</React.Fragment>;
+          })}
+        </Mono>
+      </div>
       <div style={{ display:'flex', flexDirection: isMobile?'column':'row', justifyContent:'space-between',
         alignItems: isMobile?'stretch':'flex-start', gap: isMobile?12:0, marginTop:10 }}>
         <div style={{ display:'flex', alignItems:'center', gap: isMobile?10:14 }}>

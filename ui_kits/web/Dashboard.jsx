@@ -1,7 +1,7 @@
 // Veridian Markets — Company dashboard.
 // resolveCompany() is called once here; all tabs receive data as props.
 // No tab reads VM_COMPANY_DATA or any VM_ global directly.
-function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
+function Dashboard({ company, go, isMobile, trail, trailIndex, tab, onTabChange, onResetPrinciple, onNewPrinciple }) {
   const c    = company || VM_COMPANIES[0];
   const data = resolveCompany(c.ticker);
   // A ticker reached via symbol search may not be one of our curated companies.
@@ -18,7 +18,8 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
 
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '22px 32px 60px', maxWidth:1180, margin:'0 auto', overflowX: isMobile ? 'hidden' : 'visible' }}>
-      <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} />
+      <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} trailIndex={trailIndex}
+        onResetPrinciple={onResetPrinciple} onNewPrinciple={onNewPrinciple} />
 
       {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} go={go} isMobile={isMobile} /> : <ProfileOverview c={c} go={go} isMobile={isMobile} />)}
       {curTab === 'Supply chain' && (known ? <DashScn        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Supply-chain map" />)}
@@ -240,6 +241,8 @@ const OV_STEPS = [
 function DashOverview({ c, data, go, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
+  const prof = typeof useVMProfile === 'function' ? useVMProfile(c.ticker) : { profile:null };
+  const weburl = prof.profile && prof.profile.weburl;
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
@@ -250,7 +253,10 @@ function DashOverview({ c, data, go, isMobile }) {
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: isMobile?20:32 }}>
         <div>
           <div data-tour="vm-overview-about">
-            <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>ABOUT THIS COMPANY</Mono>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12 }}>
+              <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>ABOUT THIS COMPANY</Mono>
+              {weburl && <a href={weburl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:VM.mono, fontSize:11, color:VM.teal, textDecoration:'none', whiteSpace:'nowrap' }}>Website ↗</a>}
+            </div>
             <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:28, margin:'0 0 12px', textWrap:'balance' }}>
               {c.name.split(' ')[0]} — what they actually do.
             </h2>
