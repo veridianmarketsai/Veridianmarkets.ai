@@ -142,6 +142,30 @@ from the user). Three items done this round.
   — everyone stays a full admin until an owner explicitly restricts someone
   from the new Team tab.
 
+  **Same day, extended to tab visibility too** — user's follow-up: "I only
+  want them to see the Users tab", i.e. restrict which Admin tabs an
+  employee even sees, not just what they can do once in Users. Three more
+  Cognito groups (`admin-view-overview`, `admin-view-analytics`,
+  `admin-view-courses` — **user created these in Cognito console
+  themselves**, same steps as the first three) extend `PERMISSION_GROUPS` to
+  six; the existing generic migrate-on-first-touch loop in `setPermissions`
+  needed no further Lambda changes since it already iterates the array
+  rather than hardcoding "the other two". These three aren't checked by the
+  Lambda at all — Overview/Analytics/Courses have no separate real data
+  needing server-side gating beyond the `admin` group already required to
+  reach the panel, so tab visibility is purely a client-side read of the
+  caller's own Cognito groups. `auth.jsx`'s `vmUserFromClaims` now returns
+  `groups` (the raw `cognito:groups` array) alongside `email/name/role/sub`
+  so `AdminPanel.jsx` can mirror the exact same safe-rollout logic
+  client-side (`clientHasAdminPerm`/`clientIsFullAdmin`) to decide which tab
+  buttons to render — **Users has no group, it's the floor**; **Team never
+  shows to anyone but a full admin**. `TeamTab`'s checkbox table now has two
+  labeled sections (Tabs / Actions) for the six groups. Verified live: an
+  untouched admin still sees all 5 tabs (safe-rollout intact); an admin
+  scoped to only `admin-suspend` sees **only** Users and lands there by
+  default (tab-state initializer picks `users` when `admin-view-overview`
+  isn't granted) — zero exceptions either way.
+
 ### 2026-07-19 — `admin-actions-1.1` deployed live.
 
 User completed the AWS side: `vm-admin-actions` Lambda deployed (own scoped
