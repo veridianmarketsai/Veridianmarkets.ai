@@ -87,6 +87,25 @@ function LiveMetrics({ ticker, isMobile, title }) {
   );
 }
 
+// ETF holdings aren't on Finnhub's free tier (/etf/holdings is premium-gated,
+// confirmed 2026-07-21) — redirect out to a holdings aggregator instead of
+// building/maintaining our own constituent data.
+function EtfHoldingsLink({ ticker }) {
+  if (typeof VM_IS_ETF !== 'function' || !VM_IS_ETF(ticker)) return null;
+  const url = `https://stockanalysis.com/etf/${encodeURIComponent(String(ticker).toLowerCase())}/holdings/`;
+  return (
+    <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'16px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+      <div>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14, color:VM.ink }}>Full holdings list</div>
+        <div style={{ fontFamily:VM.serif, fontSize:12.5, color:VM.ink3, marginTop:2 }}>Constituent companies aren't available on our current data plan yet.</div>
+      </div>
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontFamily:VM.mono, fontSize:11, color:VM.teal, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0 }}>
+        View holdings ↗
+      </a>
+    </div>
+  );
+}
+
 // Overview panel for a non-curated ticker — real Finnhub profile + metrics.
 function ProfileOverview({ c, go, isMobile }) {
   const { profile, metric, loading, live } = useVMProfile(c.ticker);
@@ -97,10 +116,13 @@ function ProfileOverview({ c, go, isMobile }) {
     </div>
   );
   if (!live) return (
-    <div style={{ marginTop:36, border:`1px solid ${VM.borderSoft}`, borderRadius:12, background:VM.paper, padding:'48px 24px', textAlign:'center' }}>
-      <i className="ti ti-building" style={{ fontSize:30, color:VM.ink3 }}></i>
-      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginTop:14 }}>Company profile not yet available</div>
-      <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, marginTop:8 }}>No Finnhub profile for <b>{c.ticker}</b>. Live price and financials are still available.</div>
+    <div style={{ marginTop:24, display:'flex', flexDirection:'column', gap:16 }}>
+      <div style={{ border:`1px solid ${VM.borderSoft}`, borderRadius:12, background:VM.paper, padding:'48px 24px', textAlign:'center' }}>
+        <i className="ti ti-building" style={{ fontSize:30, color:VM.ink3 }}></i>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginTop:14 }}>Company profile not yet available</div>
+        <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, marginTop:8 }}>No Finnhub profile for <b>{c.ticker}</b>. Live price and financials are still available.</div>
+      </div>
+      <EtfHoldingsLink ticker={c.ticker} />
     </div>
   );
 
@@ -127,6 +149,8 @@ function ProfileOverview({ c, go, isMobile }) {
       </div>
 
       <LiveMetrics ticker={c.ticker} isMobile={isMobile} title="Key metrics" />
+
+      <EtfHoldingsLink ticker={c.ticker} />
 
       <div style={card}>
         <div style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:VM.ink3, marginBottom:12 }}>Company facts</div>

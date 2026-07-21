@@ -73,6 +73,17 @@ function useVMQuotes(tickers) {
 const VM_NON_EQUITY = new Set(['SPX','NDX','DJI','GOLD','WTI','BRENT','EURUSD','GBPUSD','USDJPY','BTC','ETH','US10Y']);
 function VM_IS_EQUITY(t) { return !VM_NON_EQUITY.has(String(t).toUpperCase()); }
 
+// Common ETF tickers — Finnhub's free tier has no holdings endpoint for these
+// (/etf/holdings is premium-gated, confirmed 2026-07-21), so the Overview tab
+// redirects out to a holdings aggregator instead. Not exhaustive; add tickers
+// as they come up via search.
+const VM_ETF_TICKERS = new Set([
+  'SPY','VOO','IVV','VTI','QQQ','DIA','IWM','VUG','VTV','VEA','VWO','EFA','EEM',
+  'AGG','BND','TLT','GLD','SLV','ARKK','VYM','SCHD','JEPI','VIG','VNQ','USMV',
+  'XLK','XLF','XLE','XLV','XLY','XLP','XLI','XLU','XLB','XLRE','XLC',
+]);
+function VM_IS_ETF(t) { return VM_ETF_TICKERS.has(String(t).toUpperCase()); }
+
 // Format a live percent (number) like the mock strings: "+1.26%".
 function vmFmtPct(pct) { return `${pct >= 0 ? '+' : ''}${Number(pct).toFixed(2)}%`; }
 
@@ -83,4 +94,4 @@ function vmApply(c, liveMap) {
   return { ...c, price: q.price.toFixed(2), chg: vmFmtPct(q.pct), dir: q.dir, live: true };
 }
 
-Object.assign(window, { VM_MARKET, vmQuotes, useVMQuote, useVMQuotes, vmFmtPct, vmApply, VM_IS_EQUITY });
+Object.assign(window, { VM_MARKET, vmQuotes, useVMQuote, useVMQuotes, vmFmtPct, vmApply, VM_IS_EQUITY, VM_IS_ETF });

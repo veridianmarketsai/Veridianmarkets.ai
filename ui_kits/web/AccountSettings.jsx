@@ -5,13 +5,16 @@
 // state (one /settings route); a back arrow returns to the list. Mock/scaffold.
 const { useState: useStateSettings, useEffect: useEffectSettings, useRef: useRefSettings } = React;
 
+// Connect-accounts feature hidden 2026-07-21 per user request — flip true to bring it back.
+const SHOW_CONNECT_ACCOUNTS = false;
+
 // ── settings model: groups → rows. `action` rows fire a handler instead of a page.
 const SETTINGS_GROUPS = [
   { head: 'Your account', items: [
     { id: 'profile',      icon: 'user',            label: 'Personal details',     desc: 'Name, email, profile photo' },
     { id: 'security',     icon: 'lock',            label: 'Password & security',  desc: 'Password, two-factor, sessions' },
     { id: 'subscription', icon: 'star',            label: 'Subscription & billing', desc: 'Plan, payment method, invoices' },
-    { id: 'connected',    icon: 'plug-connected',  label: 'Connected accounts',   desc: 'Brokers and data sources' },
+    ...(SHOW_CONNECT_ACCOUNTS ? [{ id: 'connected', icon: 'plug-connected',  label: 'Connected accounts',   desc: 'Brokers and data sources' }] : []),
   ]},
   { head: 'How you use Veridian', items: [
     { id: 'saved',         icon: 'bookmark',  label: 'Saved',         desc: 'Companies and stories you saved' },
@@ -1159,9 +1162,11 @@ function HelpSection() {
   return (
     <React.Fragment>
       <StCard title="Help centre">
-        {Object.keys(HELP_ARTICLES).map((h, i, a) => (
-          <StLink key={h} label={h} onClick={() => setOpen(h)} last={i === a.length - 1} />
-        ))}
+        {Object.keys(HELP_ARTICLES)
+          .filter(h => SHOW_CONNECT_ACCOUNTS || h !== 'Connecting a broker')
+          .map((h, i, a) => (
+            <StLink key={h} label={h} onClick={() => setOpen(h)} last={i === a.length - 1} />
+          ))}
       </StCard>
       {open && <HelpModal article={open} onClose={() => setOpen(null)} />}
     </React.Fragment>
