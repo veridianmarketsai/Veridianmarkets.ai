@@ -14,19 +14,26 @@
 // Body: { action: 'suspend'|'reactivate'|'delete'|'setPlan'|'listTeam'|'setPermissions', sub, plan?, group?, grant? }
 //
 // ── Permissions model ─────────────────────────────────────────────────────
-// Three extra Cognito groups gate the three mutating actions beyond plain
-// `admin` membership: `admin-suspend` (suspend/reactivate), `admin-delete`,
-// `admin-billing` (setPlan). An owner grants/revokes these per employee from
-// the new Team tab (`setPermissions`), which itself needs "full admin" — see
-// below.
+// Six extra Cognito groups: three gate mutating actions (`admin-suspend` for
+// suspend/reactivate, `admin-delete`, `admin-billing` for setPlan) and three
+// gate which Admin tabs even show up client-side (`admin-view-overview`,
+// `admin-view-analytics`, `admin-view-courses` — the Users tab has no group,
+// it's the floor every admin always sees; the Team tab itself never shows to
+// anyone but a full admin). The tab-visibility groups aren't checked by this
+// Lambda at all — the frontend reads them straight off the caller's own ID
+// token (`user.groups`) to decide what to render; there's no separate real
+// user data behind Overview/Analytics/Courses that this Lambda gates, so
+// there's nothing further to enforce server-side for those three. An owner
+// grants/revokes any of the six per employee from the Team tab
+// (`setPermissions`), which itself needs "full admin" — see below.
 //
-// SAFE ROLLOUT RULE: an admin who has never been assigned ANY of the three
+// SAFE ROLLOUT RULE: an admin who has never been assigned ANY of the six
 // permission groups is treated as a full admin (today's behavior,
 // unrestricted) — restriction only kicks in once an owner has explicitly
-// assigned that person at least one of the three groups. This means
-// deploying this Lambda/these Cognito groups can never silently lock out
-// every existing admin (including the account owner) before anyone's had a
-// chance to set the new groups up in the Cognito console.
+// assigned that person at least one of the six groups. This means deploying
+// this Lambda/these Cognito groups can never silently lock out every
+// existing admin (including the account owner) before anyone's had a chance
+// to set the new groups up in the Cognito console.
 //
 // Env vars: COGNITO_POOL_ID, COGNITO_REGION=us-east-1, SUBS_TABLE=vm-subscriptions
 // IAM: cognito-idp:AdminDisableUser, AdminEnableUser, AdminDeleteUser,
@@ -50,7 +57,10 @@ const ISS        = `https://cognito-idp.${REGION}.amazonaws.com/${POOL}`;
 const SUBS_TABLE = process.env.SUBS_TABLE || 'vm-subscriptions';
 const PLANS      = ['free', 'plus', 'pro', 'business'];
 
-const PERMISSION_GROUPS  = ['admin-suspend', 'admin-delete', 'admin-billing'];
+const PERMISSION_GROUPS  = [
+  'admin-view-overview', 'admin-view-analytics', 'admin-view-courses',
+  'admin-suspend', 'admin-delete', 'admin-billing',
+];
 const ACTION_PERMISSION  = { suspend: 'admin-suspend', reactivate: 'admin-suspend', delete: 'admin-delete', setPlan: 'admin-billing' };
 
 const CORS = {

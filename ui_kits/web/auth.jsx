@@ -64,7 +64,7 @@ function vmDecodeJwt(token) {
     return JSON.parse(new TextDecoder().decode(bytes));
   } catch { return {}; }
 }
-// The user object the rest of the app consumes: { email, name, role, sub }.
+// The user object the rest of the app consumes: { email, name, role, sub, groups }.
 function vmUserFromClaims(idToken) {
   const p = vmDecodeJwt(idToken);
   const groups = p['cognito:groups'] || [];
@@ -73,6 +73,7 @@ function vmUserFromClaims(idToken) {
     name:  p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Member'),
     role:  groups.includes('admin') ? 'admin' : 'user',   // admin = Cognito group membership
     sub:   p.sub,
+    groups,   // raw Cognito groups — AdminPanel reads the admin-view-*/admin-* ones for tab/action gating
   };
 }
 function vmSaveSession(authResult, prev) {

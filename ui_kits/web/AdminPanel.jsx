@@ -128,18 +128,41 @@ const ADMIN_STEPS = [
     body:'User count by country, shown as a ranked bar list. Useful for prioritising localisation, compliance, and marketing spend.' },
 ];
 
+// Mirrors vm-admin-actions' PERMISSION_GROUPS/hasPermission/isFullAdmin —
+// same six groups, same "never touched = full admin" safe-rollout rule —
+// recomputed client-side from the caller's own ID-token groups (`user.groups`,
+// auth.jsx) purely to decide what to render. Not a security boundary: the
+// real one is server-side in vm-admin-actions for the three mutating actions;
+// Overview/Analytics/Courses have no separate real data behind them that
+// needs gating beyond the `admin` group already required to reach this panel.
+const ADMIN_PERM_GROUPS = ['admin-view-overview', 'admin-view-analytics', 'admin-view-courses', 'admin-suspend', 'admin-delete', 'admin-billing'];
+function clientHasAdminPerm(groups, required) {
+  if (!required) return true;
+  const migrated = ADMIN_PERM_GROUPS.some(g => groups.includes(g));
+  if (!migrated) return true;
+  return groups.includes(required);
+}
+function clientIsFullAdmin(groups) {
+  return ADMIN_PERM_GROUPS.every(g => clientHasAdminPerm(groups, g));
+}
+
 function AdminPanel({ go, user, isMobile }) {
-  const [tab, setTab] = useStateAdmin('overview');
+  const userGroups = (user && user.groups) || [];
+  const canOverview  = clientHasAdminPerm(userGroups, 'admin-view-overview');
+  const canAnalytics = clientHasAdminPerm(userGroups, 'admin-view-analytics');
+  const canCourses   = clientHasAdminPerm(userGroups, 'admin-view-courses');
+  const isFullAdmin  = clientIsFullAdmin(userGroups);
+  const [tab, setTab] = useStateAdmin(canOverview ? 'overview' : 'users');
   const [accessing, setAccessing] = useStateAdmin(null);   // simulated "access account" target
   const [tutorialOpen, setTutorialOpen] = useStateAdmin(false);
   const stats = React.useMemo(() => vmUserStats(), []);
   const tabs = [
-    { id: 'overview',  label: 'Overview',  icon: 'layout-dashboard' },
-    { id: 'users',     label: 'Users',     icon: 'users' },
-    { id: 'courses',   label: 'Courses',   icon: 'book' },
-    { id: 'analytics', label: 'Analytics', icon: 'chart-histogram' },
-    { id: 'team',      label: 'Team',      icon: 'shield-lock' },
-  ];
+    { id: 'overview',  label: 'Overview',  icon: 'layout-dashboard',    show: canOverview },
+    { id: 'users',     label: 'Users',     icon: 'users',               show: true },
+    { id: 'courses',   label: 'Courses',   icon: 'book',                show: canCourses },
+    { id: 'analytics', label: 'Analytics', icon: 'chart-histogram',     show: canAnalytics },
+    { id: 'team',      label: 'Team',      icon: 'shield-lock',         show: isFullAdmin },
+  ].filter(t => t.show);
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
       <div data-tour="vm-admin-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -2190,11 +2213,24 @@ function AnRisk({ isMobile }) {
 // An admin who's never been touched here shows as "Full admin" (today's
 // default, unrestricted); ticking any box for them switches them to exactly
 // what's ticked. See the Lambda's SAFE ROLLOUT RULE comment for why.
-const TEAM_PERMS = [
-  { group: 'admin-suspend', label: 'Suspend / reactivate accounts' },
-  { group: 'admin-delete',  label: 'Delete accounts' },
-  { group: 'admin-billing', label: 'Change plan' },
+// Two sections: which Admin tabs an employee even sees (Users has no group —
+// it's the floor everyone gets; Team never shows to non-full-admins), and
+// which mutating actions they can take inside Users. Same six groups the
+// Lambda's PERMISSION_GROUPS knows about — keep these two lists in sync.
+const TEAM_SECTIONS = [
+  { title: 'Tabs', perms: [
+    { group: 'admin-view-overview',  label: 'Overview' },
+    { group: 'admin-view-analytics', label: 'Analytics' },
+    { group: 'admin-view-courses',   label: 'Courses' },
+  ] },
+  { title: 'Actions', perms: [
+    { group: 'admin-suspend', label: 'Suspend / reactivate' },
+    { group: 'admin-delete',  label: 'Delete' },
+    { group: 'admin-billing', label: 'Change plan' },
+  ] },
 ];
+const TEAM_PERMS = TEAM_SECTIONS.flatMap(s => s.perms);
+const TEAM_GRID_COLS = `1.5fr repeat(${TEAM_PERMS.length}, 0.85fr)`;
 
 function useAdminTeam() {
   const [state, setState] = useStateAdmin({ team: null, loading: true, error: null });
@@ -2224,8 +2260,9 @@ function TeamTab({ user, isMobile }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink3, maxWidth: 620, lineHeight: 1.55 }}>
-        Control exactly what each fellow admin can do. Anyone not yet configured here is a <strong>full admin</strong> (today's
+      <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink3, maxWidth: 640, lineHeight: 1.55 }}>
+        Control exactly which tabs each fellow admin can see and which actions they can take. The <strong>Users</strong> tab
+        always stays visible — it's the floor. Anyone not yet configured here is a <strong>full admin</strong> (today's
         default); ticking a box for someone switches them to exactly what's ticked. You can't change your own permissions from here.
       </div>
 
@@ -2247,15 +2284,22 @@ function TeamTab({ user, isMobile }) {
 
       {!loading && !error && team && (
         <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 12, overflowX: 'auto' }}>
-          <div style={{ minWidth: isMobile ? 560 : 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 8, padding: '10px 16px', borderBottom: `1px solid ${VM.borderSoft}` }}>
+          <div style={{ minWidth: isMobile ? 780 : 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: TEAM_GRID_COLS, gap: 8, padding: '8px 16px 0' }}>
+              <span></span>
+              {TEAM_SECTIONS.map(s => (
+                <span key={s.title} style={{ gridColumn: `span ${s.perms.length}`, fontFamily: VM.mono, fontSize: 9, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase', color: VM.ink3, textAlign: 'center' }}>{s.title}</span>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: TEAM_GRID_COLS, gap: 8, padding: '6px 16px 10px', borderBottom: `1px solid ${VM.borderSoft}` }}>
               <Label>Admin</Label>
-              {TEAM_PERMS.map(p => <Label key={p.group}>{p.label}</Label>)}
+              {TEAM_PERMS.map(p => <Label key={p.group} style={{ textAlign: 'center' }}>{p.label}</Label>)}
             </div>
             {team.map(m => {
               const isSelf = user && m.email === user.email;
               return (
-                <div key={m.sub} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 8, alignItems: 'center', padding: '11px 16px', borderBottom: `1px solid ${VM.borderHair}` }}>
+                <div key={m.sub} style={{ display: 'grid', gridTemplateColumns: TEAM_GRID_COLS, gap: 8, alignItems: 'center', padding: '11px 16px', borderBottom: `1px solid ${VM.borderHair}` }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.name || m.email} {isSelf && <span style={{ fontFamily: VM.mono, fontSize: 9.5, color: VM.ink3 }}>(you)</span>}
@@ -2272,7 +2316,7 @@ function TeamTab({ user, isMobile }) {
                     const checked = m.migrated ? m.permissions.includes(p.group) : true;
                     const key = `${m.sub}:${p.group}`;
                     return (
-                      <label key={p.group} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: isSelf ? 'not-allowed' : 'pointer', opacity: isSelf ? 0.5 : 1 }}>
+                      <label key={p.group} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: isSelf ? 'not-allowed' : 'pointer', opacity: isSelf ? 0.5 : 1 }}>
                         <input type="checkbox" checked={checked} disabled={isSelf || busy === key}
                           onChange={(e) => toggle(m, p.group, e.target.checked)}
                           style={{ width: 15, height: 15, accentColor: VM.forest, cursor: isSelf ? 'not-allowed' : 'pointer' }} />
