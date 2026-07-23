@@ -20,6 +20,7 @@ const ROUTE_PATHS = {
   settings:    '/settings',
   calendar:    '/calendar',
   news:        '/news',
+  betasignup:  '/invite',
 };
 const PATH_ROUTES = Object.fromEntries(Object.entries(ROUTE_PATHS).map(([r, p]) => [p, r]));
 const ROUTE_TITLES = {
@@ -41,6 +42,7 @@ function pathToState(pathname) {
     const company = VM_COMPANIES.find(c => c.ticker.toUpperCase() === ticker);
     return { route:'dashboard', company: company || null };
   }
+  if (p.startsWith('/invite')) return { route: 'betasignup', company: null };
   if (p.startsWith('/settings')) return { route: 'settings', company: null };
   return { route: PATH_ROUTES[p] || 'landing', company: null };
 }
@@ -64,10 +66,16 @@ async function sha256Hex(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 async function verifyCredentials(email, password) {
-  const acct = VM_ACCOUNTS.find(a => a.email.toLowerCase() === String(email).trim().toLowerCase());
-  if (!acct) return null;
-  if (await sha256Hex(password) !== acct.passHash) return null;
-  return { email:acct.email, name:acct.name, role:acct.role };
+  const norm = String(email).trim().toLowerCase();
+  const hash = await sha256Hex(password);
+  // Static admin accounts.
+  const acct = VM_ACCOUNTS.find(a => a.email.toLowerCase() === norm);
+  if (acct && hash === acct.passHash) return { email: acct.email, name: acct.name, role: acct.role };
+  // Beta users stored in localStorage by BetaSignup.jsx.
+  const betaUsers = (window.loadBetaUsers ? window.loadBetaUsers() : []);
+  const beta = betaUsers.find(u => u.email.toLowerCase() === norm);
+  if (beta && hash === beta.passHash) return { email: beta.email, name: beta.name, role: 'beta', plan: 'Pro' };
+  return null;
 }
 const VM_SESSION_KEY = 'vm_session';
 function loadSession() {
@@ -312,8 +320,9 @@ function App() {
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} />;
   else if(effRoute==='signin') screen = <SignIn go={go} signIn={signIn} redirectTo={gatedFromAdmin ? 'admin' : gatedFromBusiness ? 'mybusiness' : 'myportfolio'} isMobile={isMobile} />;
+  else if(effRoute==='betasignup') screen = <BetaSignup go={go} signIn={signIn} />;
 
-  const bare = effRoute==='signin';   // chromeless: green header + footer only (no rail / ticker)
+  const bare = effRoute==='signin' || effRoute==='betasignup';   // chromeless: no rail / ticker
   // Full-bleed marketing landing — its own nav/footer, no app chrome at all.
   const chromeless = effRoute==='landing';
   if (chromeless) {
@@ -346,6 +355,7 @@ function App() {
       )}
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
+      {user?.role === 'beta' && <BetaFeedback user={user} />}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
           display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',

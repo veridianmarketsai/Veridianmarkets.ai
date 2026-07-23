@@ -187,6 +187,67 @@ const TOURS = {
     ],
   },
 
+  // ── Beta onboarding — full app walkthrough for new beta testers ──────────────
+  'beta-onboarding': {
+    title: 'Welcome to Veridian Markets',
+    steps: [
+      {
+        route: 'front',
+        sel: '[data-tour="vm-nav-rail"]',
+        title: 'Your command centre',
+        body: 'Every section of Veridian is here — Search, News, Calendar, Portfolio, and more. On desktop it lives on the left; on mobile tap the menu icon to open it.',
+      },
+      {
+        route: 'front',
+        sel: '[data-tour="vm-market-strip"]',
+        title: 'Live market strip',
+        body: 'Key indices and movers with live prices. Drag it to browse. This is your at-a-glance pulse on what markets are doing right now.',
+      },
+      {
+        route: 'front',
+        sel: '[data-tour="vm-company-list"]',
+        title: '4 900+ companies',
+        body: 'Browse or search any public company. Click a row to preview it, or hit the dashboard icon to open the full deep-dive view with financials, supply chain, patents, and history.',
+      },
+      {
+        route: 'screener',
+        sel: '[data-tour="vm-screener-search"]',
+        title: 'Smart company search',
+        body: 'Search by ticker, name, keyword, sector, or historical event. Results filter live. Try "oil crisis" or "AAPL" to see what comes up.',
+      },
+      {
+        route: 'screener',
+        sel: '[data-tour="vm-screener-filters"]',
+        title: 'Filters',
+        body: 'Narrow by sector, market cap, region, EPS growth, P/E ratio, or historical analogue score. Stack multiple filters — each appears as a removable pill.',
+      },
+      {
+        route: 'supply',
+        sel: '[data-tour="vm-supply-canvas"]',
+        title: 'Dependency map',
+        body: 'The principle company sits in the centre — suppliers on the left, customers on the right. Click any node to make it the new principle and trace the chain deeper.',
+      },
+      {
+        route: 'dashboard',
+        sel: '[data-tour="vm-company-tabs"]',
+        title: 'Company dashboard',
+        body: 'Six views in one place: Overview, Supply chain, Financials, Patents, History, and News. Each gives you a complete angle on the business.',
+      },
+      {
+        route: 'learn',
+        sel: '[data-tour="vm-learn-cards"]',
+        title: 'Learn hub',
+        body: 'Guided courses and interactive tours for every feature. Great for getting the most out of Veridian — start here if you ever feel lost.',
+      },
+      {
+        route: 'front',
+        sel: null,
+        title: "You're all set!",
+        body: "That's the full tour. Browse freely and explore at your own pace. Use the Feedback button at any time to share your thoughts — we read every one.",
+      },
+    ],
+  },
+
   learn: {
     title: 'The Learn Hub',
     steps: [

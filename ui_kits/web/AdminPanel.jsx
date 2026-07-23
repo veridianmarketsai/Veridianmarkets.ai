@@ -54,6 +54,7 @@ function AdminPanel({ go, user, isMobile }) {
     { id: 'users',    label: 'Users',    icon: 'users' },
     { id: 'courses',  label: 'Courses',  icon: 'book' },
     { id: 'heatmap',  label: 'Heatmap',  icon: 'flame' },
+    { id: 'beta',     label: 'Beta',     icon: 'test-pipe' },
   ];
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
@@ -97,6 +98,7 @@ function AdminPanel({ go, user, isMobile }) {
         {tab === 'users'    && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
         {tab === 'courses'  && <CoursesTab go={go} isMobile={isMobile} />}
         {tab === 'heatmap'  && <HeatmapAdmin isMobile={isMobile} />}
+        {tab === 'beta'     && <BetaTab isMobile={isMobile} />}
       </div>
 
       {tutorialOpen && <TutorialOverlay steps={ADMIN_STEPS} label="Admin panel tutorial" onClose={()=>setTutorialOpen(false)} />}
@@ -959,5 +961,159 @@ function Field({ label, full, children }) {
   </label>;
 }
 const inputStyle = { width: '100%', boxSizing: 'border-box', fontFamily: VM.serif, fontSize: 14, color: VM.ink, padding: '9px 11px', borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.paperWarm, outline: 'none' };
+
+// ── Beta tab ───────────────────────────────────────────────────────────────────
+function BetaTab({ isMobile }) {
+  const { useState: useStateBeta, useEffect: useEffectBeta } = React;
+  const [invites,  setInvites]  = useStateBeta([]);
+  const [users,    setUsers]    = useStateBeta([]);
+  const [feedback, setFeedback] = useStateBeta([]);
+  const [copied,   setCopied]   = useStateBeta('');
+  const [fbExpanded, setFbExp]  = useStateBeta(null);
+
+  const reload = () => {
+    setInvites(window.loadBetaInvites  ? window.loadBetaInvites()  : []);
+    setUsers(  window.loadBetaUsers    ? window.loadBetaUsers()    : []);
+    setFeedback(window.loadFeedback    ? window.loadFeedback()    : []);
+  };
+  useEffectBeta(reload, []);
+
+  const generateLink = () => {
+    const token = window.generateInviteToken ? window.generateInviteToken() : Math.random().toString(36).slice(2, 14);
+    const inv = { token, createdAt: Date.now(), usedAt: null, usedBy: null };
+    const all = window.loadBetaInvites ? window.loadBetaInvites() : [];
+    all.push(inv);
+    if (window.saveBetaInvites) window.saveBetaInvites(all);
+    setInvites([...all]);
+  };
+
+  const copyLink = (token) => {
+    const url = `${location.origin}/invite/${token}`;
+    navigator.clipboard.writeText(url).then(() => { setCopied(token); setTimeout(() => setCopied(''), 2000); });
+  };
+
+  const mono = { fontFamily: VM.mono, fontSize: 11, color: VM.ink3 };
+  const badge = (txt, color) => (
+    <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+      textTransform: 'uppercase', padding: '2px 7px', borderRadius: 4,
+      background: color + '18', color, border: `1px solid ${color}40` }}>{txt}</span>
+  );
+
+  return (
+    <div style={{ maxWidth: 1000 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink }}>Beta programme</div>
+          <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 4 }}>
+            {users.length} beta users · {invites.filter(i => !i.usedAt).length} unused invites · {feedback.length} feedback items
+          </div>
+        </div>
+        <button onClick={generateLink}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8,
+            background: VM.teal, color: VM.paper, border: 'none', fontFamily: VM.mono, fontSize: 12,
+            letterSpacing: '0.06em', cursor: 'pointer' }}>
+          <i className="ti ti-plus" style={{ fontSize: 14 }}></i>Generate invite link
+        </button>
+      </div>
+
+      {/* Invite links */}
+      <Section label="Invite links" icon="link">
+        {invites.length === 0 && (
+          <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No invites yet — click Generate to create one.</div>
+        )}
+        {[...invites].reverse().map(inv => {
+          const url = `${location.origin}/invite/${inv.token}`;
+          return (
+            <div key={inv.token} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
+              borderBottom: `1px solid ${VM.borderSoft}` }}>
+              <code style={{ ...mono, flex: 1, fontSize: 12, color: VM.ink2, wordBreak: 'break-all' }}>{url}</code>
+              {inv.usedAt ? badge('Used', VM.ink3) : badge('Available', VM.teal)}
+              {inv.usedBy && <span style={{ ...mono, fontSize: 10 }}>{inv.usedBy}</span>}
+              {!inv.usedAt && (
+                <button onClick={() => copyLink(inv.token)}
+                  style={{ fontFamily: VM.mono, fontSize: 11, padding: '4px 12px', borderRadius: 6,
+                    border: `1px solid ${VM.border}`, background: copied === inv.token ? VM.teal : VM.faint,
+                    color: copied === inv.token ? VM.paper : VM.ink2, cursor: 'pointer', flexShrink: 0 }}>
+                  {copied === inv.token ? '✓ Copied' : 'Copy link'}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </Section>
+
+      {/* Beta users */}
+      <Section label="Beta users" icon="users" style={{ marginTop: 28 }}>
+        {users.length === 0 && (
+          <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No beta users yet.</div>
+        )}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: VM.mono, fontSize: 12 }}>
+            <thead>
+              <tr>
+                {['Name','Email','Plan','Joined','Invite token'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '6px 10px', color: VM.ink3,
+                    fontWeight: 500, borderBottom: `1px solid ${VM.border}` }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id} style={{ borderBottom: `1px solid ${VM.borderSoft}` }}>
+                  <td style={{ padding: '8px 10px', color: VM.ink, fontFamily: VM.serif, fontSize: 14 }}>{u.name}</td>
+                  <td style={{ padding: '8px 10px', color: VM.ink2 }}>{u.email}</td>
+                  <td style={{ padding: '8px 10px' }}>{badge('Pro', VM.teal)}</td>
+                  <td style={{ padding: '8px 10px', color: VM.ink3 }}>{new Date(u.joined).toLocaleDateString()}</td>
+                  <td style={{ padding: '8px 10px', color: VM.ink3, fontSize: 10 }}>{u.inviteToken}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      {/* Feedback */}
+      <Section label="Feedback submissions" icon="message-2-star" style={{ marginTop: 28 }}>
+        {feedback.length === 0 && (
+          <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No feedback yet.</div>
+        )}
+        {[...feedback].reverse().map(fb => (
+          <div key={fb.id} style={{ borderBottom: `1px solid ${VM.borderSoft}`, padding: '12px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 600, color: VM.ink }}>{fb.userName}</span>
+              <span style={{ ...mono, fontSize: 10 }}>{fb.userEmail}</span>
+              <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>·</span>
+              <span style={{ ...mono, fontSize: 10 }}>{fb.route}</span>
+              <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>·</span>
+              <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>{new Date(fb.ts).toLocaleString()}</span>
+              {badge(`${fb.items?.length || 1} suggestion${(fb.items?.length || 1) > 1 ? 's' : ''}`, VM.terra)}
+              <button onClick={() => setFbExp(fbExpanded === fb.id ? null : fb.id)}
+                style={{ marginLeft: 'auto', fontFamily: VM.mono, fontSize: 10, padding: '3px 10px',
+                  borderRadius: 5, border: `1px solid ${VM.border}`, background: VM.faint, color: VM.ink2, cursor: 'pointer' }}>
+                {fbExpanded === fb.id ? 'Collapse' : 'View'}
+              </button>
+            </div>
+
+            {fbExpanded === fb.id && (fb.items || []).map((item, i) => (
+              <div key={i} style={{ marginTop: 10, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {item.screenshot && (
+                  <img src={item.screenshot} alt={`Suggestion ${i+1}`}
+                    style={{ width: 220, borderRadius: 6, border: `1px solid ${VM.border}`, flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ ...mono, marginBottom: 4, textTransform: 'uppercase', fontSize: 9 }}>Suggestion {i+1}</div>
+                  <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.55 }}>
+                    {item.comment || <span style={{ color: VM.ink3 }}>No comment left.</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </Section>
+    </div>
+  );
+}
 
 Object.assign(window, { AdminPanel });
