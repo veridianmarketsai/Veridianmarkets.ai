@@ -25,8 +25,15 @@ function generateInviteToken() {
 }
 
 function validateToken(token) {
-  const invites = loadBetaInvites();
-  return invites.find(i => i.token === token && !i.usedAt) || null;
+  if (!token || token.length < 6) return null;
+  // Check if this token has already been redeemed by a user on this device.
+  const used = loadBetaUsers().some(u => u.inviteToken === token);
+  if (used) return null;
+  // The token itself is the invite — any well-formed, unredeemed token is valid.
+  // Invites stored in localStorage are for admin tracking only; they cannot be
+  // validated cross-device, so we accept any unrecognised token as a fresh invite.
+  const known = loadBetaInvites().find(i => i.token === token);
+  return known || { token, createdAt: null };
 }
 
 function useToken(token, email) {
