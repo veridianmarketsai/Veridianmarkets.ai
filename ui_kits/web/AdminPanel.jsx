@@ -1024,109 +1024,83 @@ const inputStyle = { width: '100%', boxSizing: 'border-box', fontFamily: VM.seri
 const MEDIA_VIDEO_KEY = 'vm_founder_video_url';
 
 function MediaTab({ isMobile }) {
-  const { useState: useStateMedia, useEffect: useEffectMedia } = React;
-  const [videoUrl, setVideoUrl] = useStateMedia(() => {
-    return window.VM_FOUNDER_VIDEO_URL || localStorage.getItem(MEDIA_VIDEO_KEY) || '';
-  });
-  const [saved, setSaved] = useStateMedia(false);
+  const { useState: useStateMedia } = React;
+  const [videoUrl, setVideoUrl] = useStateMedia(
+    () => window.VM_FOUNDER_VIDEO_URL || localStorage.getItem(MEDIA_VIDEO_KEY) || ''
+  );
   const [uploading, setUploading] = useStateMedia(false);
   const [uploadMsg, setUploadMsg] = useStateMedia('');
-
-  const save = () => {
-    const trimmed = videoUrl.trim();
-    localStorage.setItem(MEDIA_VIDEO_KEY, trimmed);
-    window.VM_FOUNDER_VIDEO_URL = trimmed || undefined;
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
+  const [uploadOk, setUploadOk] = useStateMedia(false);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    const uploadUrl = window.VM_MEDIA_UPLOAD_URL;
-    if (!uploadUrl) {
-      setUploadMsg('Set window.VM_MEDIA_UPLOAD_URL in index.html to enable direct upload. For now, paste a public video URL below.');
+    const endpoint = window.VM_MEDIA_UPLOAD_URL;
+    if (!endpoint) {
+      setUploadMsg('VM_MEDIA_UPLOAD_URL is not set in index.html. Add it and reload.');
       return;
     }
-    setUploading(true); setUploadMsg('');
+    setUploading(true); setUploadMsg(''); setUploadOk(false);
     try {
-      // Fetch a presigned S3 URL from your Lambda, then PUT the file.
       const headers = window.VM_ADMIN_KEY ? { 'X-VM-Admin-Key': window.VM_ADMIN_KEY } : {};
-      const res = await fetch(`${uploadUrl}?filename=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type)}`, { headers });
+      const res = await fetch(`${endpoint}?filename=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type)}`, { headers });
       const { uploadUrl: presigned, publicUrl } = await res.json();
       await fetch(presigned, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-      setVideoUrl(publicUrl);
       localStorage.setItem(MEDIA_VIDEO_KEY, publicUrl);
       window.VM_FOUNDER_VIDEO_URL = publicUrl;
-      setUploadMsg('Video uploaded! URL saved.');
+      setVideoUrl(publicUrl);
+      setUploadOk(true);
+      setUploadMsg('Upload complete. This video will now play for new beta sign-ups.');
     } catch (err) {
       setUploadMsg('Upload failed: ' + (err.message || 'unknown error'));
     }
     setUploading(false);
   };
 
-  const inp = { width: '100%', boxSizing: 'border-box', fontFamily: VM.mono, fontSize: 13, color: VM.ink,
-    padding: '10px 13px', borderRadius: 8, border: `1.5px solid ${VM.border}`, background: VM.paperWarm, outline: 'none' };
-
   return (
     <div style={{ maxWidth: 680 }}>
       <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink, marginBottom: 6 }}>Media</div>
       <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginBottom: 28 }}>
-        Manage the founder video shown to new beta users during onboarding.
+        Upload the founder video shown to new beta users during onboarding.
       </div>
 
       {/* Current video preview */}
       {videoUrl && (
         <div style={{ marginBottom: 28, borderRadius: 12, overflow: 'hidden', border: `1px solid ${VM.border}`, background: '#000' }}>
-          <video key={videoUrl} src={videoUrl} controls style={{ width: '100%', maxHeight: 320, display: 'block' }} />
+          <video key={videoUrl} src={videoUrl} controls style={{ width: '100%', maxHeight: 360, display: 'block' }} />
+          <div style={{ fontFamily: VM.mono, fontSize: 10, color: 'rgba(255,255,255,0.4)', padding: '8px 12px' }}>
+            Current founder video · re-upload below to replace
+          </div>
         </div>
       )}
 
-      {/* URL input */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: VM.mono, fontSize: 9.5, color: VM.ink3, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Video URL (Loom, S3, Vimeo, etc.)
-        </div>
-        <input
-          value={videoUrl}
-          onChange={e => setVideoUrl(e.target.value)}
-          placeholder="https://your-video-url..."
-          style={inp}
-        />
-        <div style={{ fontFamily: VM.mono, fontSize: 10, color: VM.ink3, marginTop: 6, lineHeight: 1.6 }}>
-          Paste any direct video URL. Changes take effect immediately for new visitors.
-          The URL is stored in this browser's localStorage so you don't need to redeploy.
-        </div>
-      </div>
+      {/* Upload button */}
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '13px 28px',
+        borderRadius: 10, background: uploading ? VM.ink3 : VM.forest, color: VM.paper,
+        fontFamily: VM.mono, fontSize: 13, letterSpacing: '0.04em',
+        cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1,
+        transition: 'background .2s', position: 'relative' }}>
+        <i className={`ti ti-${uploading ? 'loader-2' : 'upload'}`}
+          style={{ fontSize: 17, animation: uploading ? 'spin 1s linear infinite' : 'none' }}></i>
+        {uploading ? 'Uploading…' : videoUrl ? 'Replace video' : 'Upload video'}
+        <input type="file" accept="video/mp4,video/mov,video/quicktime,video/webm,video/*"
+          onChange={handleFileUpload} disabled={uploading}
+          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }} />
+      </label>
 
-      <button onClick={save} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px',
-        borderRadius: 8, background: saved ? VM.teal : VM.forest, color: VM.paper, border: 'none',
-        fontFamily: VM.mono, fontSize: 12, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: 28, transition: 'background .2s' }}>
-        <i className={`ti ti-${saved ? 'check' : 'device-floppy'}`} style={{ fontSize: 15 }}></i>
-        {saved ? 'Saved!' : 'Save URL'}
-      </button>
+      {uploadMsg && (
+        <div style={{ marginTop: 16, fontFamily: VM.mono, fontSize: 11, lineHeight: 1.7,
+          color: uploadOk ? VM.teal : VM.downInk,
+          padding: '10px 14px', borderRadius: 8,
+          background: uploadOk ? 'rgba(0,140,120,0.08)' : 'rgba(163,45,45,0.08)',
+          border: `1px solid ${uploadOk ? VM.teal : VM.downInk}40` }}>
+          {uploadMsg}
+        </div>
+      )}
 
-      {/* Direct upload (needs VM_MEDIA_UPLOAD_URL Lambda) */}
-      <div style={{ borderTop: `1px solid ${VM.borderSoft}`, paddingTop: 24, marginBottom: 8 }}>
-        <div style={{ fontFamily: VM.mono, fontSize: 9.5, color: VM.ink3, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Direct upload (requires AWS setup)
-        </div>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px',
-          borderRadius: 8, border: `1.5px solid ${VM.border}`, background: VM.paper,
-          fontFamily: VM.mono, fontSize: 12, color: VM.ink2, cursor: uploading ? 'not-allowed' : 'pointer',
-          opacity: uploading ? 0.6 : 1 }}>
-          <i className="ti ti-upload" style={{ fontSize: 15 }}></i>
-          {uploading ? 'Uploading…' : 'Choose video file'}
-          <input type="file" accept="video/*" onChange={handleFileUpload} disabled={uploading}
-            style={{ position: 'absolute', width: 0, height: 0, opacity: 0 }} />
-        </label>
-        {uploadMsg && (
-          <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 10, lineHeight: 1.6 }}>{uploadMsg}</div>
-        )}
-        <div style={{ fontFamily: VM.mono, fontSize: 10, color: VM.ink3, marginTop: 8, lineHeight: 1.7 }}>
-          Set <code style={{ color: VM.teal }}>window.VM_MEDIA_UPLOAD_URL</code> in index.html to your Lambda presigned-URL endpoint.<br />
-          See <strong>lambda/media-upload/</strong> for the ready-to-deploy function.
-        </div>
+      <div style={{ marginTop: 20, fontFamily: VM.mono, fontSize: 10, color: VM.ink3, lineHeight: 1.8 }}>
+        Supported formats: MP4, MOV, WebM · Uploads directly to S3 via AWS Lambda.<br />
+        The video persists across reloads — no redeployment needed.
       </div>
     </div>
   );
