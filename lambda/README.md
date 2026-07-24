@@ -1,6 +1,6 @@
-# Heatmap — AWS Setup Guide
+# AWS Lambda Setup Guide
 
-Two Lambda functions + one DynamoDB table. Serverless, ~free at startup scale.
+Heatmap (two functions + DynamoDB) + Media upload (one function + S3). Serverless, ~free at startup scale.
 
 ---
 
@@ -90,3 +90,54 @@ Add these two lines to `index.html` **before** the `heatmap_tracker.jsx` script 
 | Function URLs | included | — |
 
 At 10 000 page views/day with 20 events each = 200 000 events/day → **well within free tier**.
+
+---
+
+## Media upload — `lambda/media-upload/index.mjs`
+
+Generates a presigned S3 PUT URL so the browser uploads directly to S3 (no file passes through Lambda). Used by **Admin → Media** tab.
+
+### 1. S3 bucket
+
+1. AWS Console → S3 → **Create bucket**
+2. Name: `vm-media` (or your choice)
+3. Region: same as your Lambda
+4. **Block all public access** → OFF (videos need to be publicly readable)
+5. After creation → Permissions → **Bucket policy** — paste:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": "*",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::vm-media/*"
+  }]
+}
+```
+
+### 2. Lambda function
+
+1. Lambda → **Create function** → Author from scratch
+2. Name: `vm-media-upload`
+3. Runtime: **Node.js 22.x**
+4. Same execution role as heatmap (add `s3:PutObject` permission to the role)
+5. Paste code from `lambda/media-upload/index.mjs`
+6. **Environment variables**:
+   - `BUCKET_NAME` = `vm-media`
+   - `CDN_BASE_URL` = `https://vm-media.s3.<region>.amazonaws.com`
+   - `VM_ADMIN_KEY` = same key as heatmap-query (keeps it admin-only)
+7. **Function URL** → Create → Auth type: **NONE** → CORS: allow `*`
+8. Copy the Function URL
+
+### 3. Wire it up in index.html
+
+```html
+<script>
+  window.VM_MEDIA_UPLOAD_URL = 'https://xxxx.lambda-url.eu-west-1.on.aws/';
+  window.VM_ADMIN_KEY        = 'your-admin-key-here';
+</script>
+```
+
+The Admin → Media tab sends `X-VM-Admin-Key` automatically when `VM_ADMIN_KEY` is set.

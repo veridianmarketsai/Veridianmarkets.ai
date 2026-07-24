@@ -58,10 +58,20 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
-  <!-- Beta programme config — set these before going live:
+  <!-- Optional overrides (hard-coded URL takes priority over admin-panel setting):
        window.VM_FOUNDER_VIDEO_URL = 'https://...your-video-url...';
        window.VM_FEEDBACK_URL      = 'https://...aws-lambda-url.../feedback';
+       window.VM_MEDIA_UPLOAD_URL  = 'https://...lambda-function-url.../media-upload';
   -->
+  <script>
+    // Restore founder video URL saved via Admin > Media tab.
+    (function () {
+      try {
+        var saved = localStorage.getItem('vm_founder_video_url');
+        if (saved && !window.VM_FOUNDER_VIDEO_URL) window.VM_FOUNDER_VIDEO_URL = saved;
+      } catch (e) {}
+    })();
+  </script>
 
   <script type="text/babel" src="/ui_kits/web/heatmap_tracker.jsx"></script>
   <script type="text/babel" src="/ui_kits/web/data.jsx"></script>

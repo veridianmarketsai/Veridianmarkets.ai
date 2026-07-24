@@ -1,21 +1,73 @@
 // Veridian Markets — Admin control panel (admin role only).
-// Three tabs: Overview (user metrics dashboard), Users (the 100-strong temp DB),
-// and Courses (add/remove Learn courses — writes through to the live Learn page
-// via the course store in Learn.jsx). All data is temporary/mock — see
-// admin_data.jsx (users) and the vm*Course store (courses). Backend wiring TBD.
+// Tabs: Overview, Users (live beta users), Courses, Heatmap, Beta, Media.
+// User data comes from localStorage (beta sign-ups) — no mock data.
 const { useState: useStateAdmin } = React;
 
 const A_PLAN_COLOR = { Free: VM.faint, Plus: VM.teal, Pro: VM.forest };
 const A_STATUS = {
-  active: { label: 'Active', fg: VM.upInk, bg: VM.tealTint, bd: VM.up },
-  trial: { label: 'Trial', fg: VM.terra, bg: 'rgba(196,106,59,0.12)', bd: VM.terra },
-  churned: { label: 'Churned', fg: VM.downInk, bg: 'rgba(163,45,45,0.10)', bd: VM.downInk },
+  active:  { label: 'Active',  fg: VM.upInk,   bg: VM.tealTint,               bd: VM.up      },
+  trial:   { label: 'Trial',   fg: VM.terra,    bg: 'rgba(196,106,59,0.12)',   bd: VM.terra   },
+  churned: { label: 'Churned', fg: VM.downInk,  bg: 'rgba(163,45,45,0.10)',    bd: VM.downInk },
 };
-const aMoney = (n) => '$' + Number(n).toLocaleString('en-US');
-const aDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-const aRel = (d) => { const days = Math.round((VM_NOW - d) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
+const aMoney  = (n) => '$' + Number(n).toLocaleString('en-US');
+const aDate   = (d) => (d instanceof Date ? d : new Date(d)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const aRelNow = (d) => { const days = Math.round((Date.now() - +d) / 86400000); return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago'; };
+const aRel    = aRelNow;  // alias — OverviewTab drill-down panels use aRel
 const A_PLAN_PRICE = { Plus: 9, Pro: 19 };
 const DAY_MS = 86400000;
+
+// ── Live user helpers ──────────────────────────────────────────────────────────
+function loadLiveUsers() {
+  const betas = window.loadBetaUsers ? window.loadBetaUsers() : [];
+  return betas.map(u => ({
+    id:         u.id,
+    name:       u.name,
+    email:      u.email,
+    plan:       u.plan  || 'Pro',
+    status:     'active',
+    country:    '—',
+    joined:     new Date(u.joined || Date.now()),
+    lastActive: new Date(u.joined || Date.now()),
+    enrolled:   0,
+    lessons:    0,
+    role:       'beta',
+    inviteToken: u.inviteToken || '',
+  }));
+}
+
+function computeLiveStats(users) {
+  const now = Date.now();
+  const within = (d, days) => (now - +d) <= days * DAY_MS;
+  const byPlan   = { Free: 0, Plus: 0, Pro: 0 };
+  const byStatus = { active: 0, trial: 0, churned: 0 };
+  const byCountry = {};
+  let mrr = 0;
+  users.forEach(u => {
+    byPlan[u.plan]   = (byPlan[u.plan]   || 0) + 1;
+    byStatus[u.status] = (byStatus[u.status] || 0) + 1;
+    if (u.status !== 'churned') mrr += A_PLAN_PRICE[u.plan] || 0;
+    if (u.country && u.country !== '—') byCountry[u.country] = (byCountry[u.country] || 0) + 1;
+  });
+  const months = [];
+  for (let m = 11; m >= 0; m--) {
+    const ref = new Date(); ref.setMonth(ref.getMonth() - m);
+    const y = ref.getFullYear(), mo = ref.getMonth();
+    const label = ref.toLocaleString('en-US', { month: 'short' });
+    const count = users.filter(u => { const j = new Date(u.joined); return j.getFullYear() === y && j.getMonth() === mo; }).length;
+    months.push({ label, count });
+  }
+  const topCountries = Object.entries(byCountry).map(([c, n]) => ({ c, n })).sort((a, b) => b.n - a.n).slice(0, 6);
+  return {
+    total: users.length,
+    active:       byStatus.active  || 0,
+    trial:        byStatus.trial   || 0,
+    churned:      byStatus.churned || 0,
+    newThisWeek:  users.filter(u => within(u.joined, 7)).length,
+    newThisMonth: users.filter(u => within(u.joined, 30)).length,
+    paying:       (byPlan.Plus || 0) + (byPlan.Pro || 0),
+    mrr, lessons: 0, byPlan, byStatus, months, topCountries,
+  };
+}
 
 function adminDownloadCSV(filename, headers, rows) {
   const escape = v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
@@ -46,15 +98,19 @@ const ADMIN_STEPS = [
 
 function AdminPanel({ go, user, isMobile }) {
   const [tab, setTab] = useStateAdmin('overview');
-  const [accessing, setAccessing] = useStateAdmin(null);   // simulated "access account" target
+  const [accessing, setAccessing] = useStateAdmin(null);
   const [tutorialOpen, setTutorialOpen] = useStateAdmin(false);
-  const stats = React.useMemo(() => vmUserStats(), []);
+  const [liveUsers, setLiveUsers] = useStateAdmin(loadLiveUsers);
+  const stats = React.useMemo(() => computeLiveStats(liveUsers), [liveUsers]);
+  // Refresh live users when the tab changes (picks up new sign-ups).
+  React.useEffect(() => { setLiveUsers(loadLiveUsers()); }, [tab]);
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'layout-dashboard' },
     { id: 'users',    label: 'Users',    icon: 'users' },
     { id: 'courses',  label: 'Courses',  icon: 'book' },
     { id: 'heatmap',  label: 'Heatmap',  icon: 'flame' },
     { id: 'beta',     label: 'Beta',     icon: 'test-pipe' },
+    { id: 'media',    label: 'Media',    icon: 'photo-video' },
   ];
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 72px', maxWidth: 1180, margin: '0 auto' }}>
@@ -95,10 +151,11 @@ function AdminPanel({ go, user, isMobile }) {
 
       <div style={{ marginTop: 22 }}>
         {tab === 'overview' && <OverviewTab stats={stats} isMobile={isMobile} />}
-        {tab === 'users'    && <UsersTab onAccess={setAccessing} isMobile={isMobile} />}
+        {tab === 'users'    && <UsersTab users={liveUsers} onAccess={setAccessing} isMobile={isMobile} />}
         {tab === 'courses'  && <CoursesTab go={go} isMobile={isMobile} />}
         {tab === 'heatmap'  && <HeatmapAdmin isMobile={isMobile} />}
         {tab === 'beta'     && <BetaTab isMobile={isMobile} />}
+        {tab === 'media'    && <MediaTab isMobile={isMobile} />}
       </div>
 
       {tutorialOpen && <TutorialOverlay steps={ADMIN_STEPS} label="Admin panel tutorial" onClose={()=>setTutorialOpen(false)} />}
@@ -707,18 +764,18 @@ function AdminDonut({ data, size = 140, thickness = 19, center, centerLabel }) {
 
 // ── Users ───────────────────────────────────────────────────────────────────
 const A_USER_COLS = '1.7fr 0.6fr 0.8fr 1fr 0.9fr 0.7fr 34px';
-function UsersTab({ onAccess, isMobile }) {
+function UsersTab({ users, onAccess, isMobile }) {
   const [q, setQ] = useStateAdmin('');
   const [status, setStatus] = useStateAdmin('all');
   const [shown, setShown] = useStateAdmin(40);
-  const [detail, setDetail] = useStateAdmin(null);   // user shown in the detail modal
+  const [detail, setDetail] = useStateAdmin(null);
   const [toast, setToast] = useStateAdmin('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
   const access = (u) => { setDetail(null); onAccess(u); };
   const term = q.trim().toLowerCase();
-  const rows = VM_USERS.filter(u => {
+  const rows = (users || []).filter(u => {
     if (status !== 'all' && u.status !== status) return false;
-    if (term && !(u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term) || u.country.toLowerCase().includes(term))) return false;
+    if (term && !(u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term) || (u.country||'').toLowerCase().includes(term))) return false;
     return true;
   });
   const visible = rows.slice(0, shown);
@@ -736,7 +793,7 @@ function UsersTab({ onAccess, isMobile }) {
           ))}
         </div>
       </div>
-      <Mono size={10.5} color={VM.ink3} style={{ display: 'block', marginBottom: 8 }}>{rows.length} of {VM_USERS.length} users</Mono>
+      <Mono size={10.5} color={VM.ink3} style={{ display: 'block', marginBottom: 8 }}>{rows.length} of {(users||[]).length} beta users</Mono>
       <div style={{ background: VM.paper, border: `1px solid ${VM.borderSoft}`, borderRadius: 12, overflowX: 'auto' }}>
         <div style={{ minWidth: isMobile ? 640 : 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: A_USER_COLS, gap: 8, padding: '9px 16px', background: VM.paperWarm, borderBottom: `1px solid ${VM.borderSoft}`, borderRadius: '12px 12px 0 0' }}>
@@ -745,7 +802,11 @@ function UsersTab({ onAccess, isMobile }) {
           {visible.map((u, i) => (
             <UserRow key={u.id} u={u} last={i === visible.length - 1} onView={setDetail} onAccess={access} onToast={showToast} />
           ))}
-          {visible.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>No users match.</div>}
+          {visible.length === 0 && (
+            <div style={{ padding: '32px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>
+              {(users||[]).length === 0 ? 'No beta users have signed up yet.' : 'No users match.'}
+            </div>
+          )}
         </div>
       </div>
       {rows.length > visible.length && (
@@ -828,23 +889,32 @@ function AdminToast({ text }) {
   );
 }
 
-// Full account details + personal profits + admin actions.
+// Full account details + admin actions. Beta users have no portfolio data.
 function UserDetailModal({ u, onClose, onAccess, onToast }) {
-  const p = vmUserProfits(u);
   const initials = u.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+  const isBeta = u.role === 'beta';
   const detail = [
-    ['User ID', '#' + u.id], ['Country', u.country], ['Plan', u.plan], ['Status', A_STATUS[u.status].label],
-    ['Joined', aDate(u.joined)], ['Last active', aRel(u.lastActive)], ['Courses enrolled', u.enrolled], ['Lessons completed', u.lessons],
+    ['User ID',    '#' + u.id],
+    ['Plan',       u.plan],
+    ['Status',     A_STATUS[u.status] ? A_STATUS[u.status].label : u.status],
+    ['Role',       isBeta ? 'Beta tester' : 'Standard'],
+    ['Joined',     aDate(u.joined)],
+    ['Last active', aRelNow(u.lastActive)],
+    ...(isBeta ? [['Invite token', u.inviteToken || '—']] : [['Country', u.country]]),
   ];
-  const profit = [
-    { k: 'Portfolio value', v: aMoney(p.value), tone: null },
-    { k: 'Total return', v: (p.profit >= 0 ? '+' : '') + aMoney(p.profit), tone: p.dir, sub: (p.profitPct >= 0 ? '+' : '') + p.profitPct.toFixed(1) + '%' },
-    { k: 'Today', v: (p.dayChg >= 0 ? '+' : '') + aMoney(p.dayChg), tone: p.dayChg >= 0 ? 'up' : 'down', sub: (p.dayPct >= 0 ? '+' : '') + p.dayPct.toFixed(2) + '%' },
-    { k: 'Cost basis', v: aMoney(p.cost), tone: null },
-  ];
+
+  const handleDelete = () => {
+    if (!isBeta) { onToast('Deleted ' + u.name + ' (mock).'); return; }
+    if (!window.loadBetaUsers || !window.saveBetaUsers) return;
+    const all = window.loadBetaUsers().filter(b => b.id !== u.id);
+    window.saveBetaUsers(all);
+    onToast(u.name + ' removed from beta.');
+    onClose();
+  };
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(31,29,26,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 16, boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 500, maxHeight: '88vh', overflowY: 'auto', background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 16, boxShadow: '0 24px 60px rgba(31,29,26,0.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 22px', borderBottom: `1px solid ${VM.borderHair}` }}>
           <span style={{ width: 48, height: 48, borderRadius: 12, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{initials}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -857,29 +927,17 @@ function UserDetailModal({ u, onClose, onAccess, onToast }) {
           <Label>Account details</Label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 10 }}>
             {detail.map(([k, v]) => (
-              <div key={k}><Mono size={9.5} color={VM.ink3} style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>{k}</Mono>
-                <div style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink, marginTop: 2 }}>{v}</div></div>
+              <div key={k}>
+                <Mono size={9.5} color={VM.ink3} style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>{k}</Mono>
+                <div style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink, marginTop: 2, wordBreak: 'break-all' }}>{v}</div>
+              </div>
             ))}
-          </div>
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${VM.borderHair}` }}>
-            <Label>Personal profits</Label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginTop: 10 }}>
-              {profit.map(b => (
-                <div key={b.k}>
-                  <Mono size={9.5} color={VM.ink3} style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>{b.k}</Mono>
-                  <div style={{ fontFamily: VM.mono, fontWeight: 700, fontSize: 18, marginTop: 3, color: b.tone === 'down' ? VM.downInk : b.tone === 'up' ? VM.upInk : VM.ink }}>{b.v}</div>
-                  {b.sub && <div style={{ marginTop: 1 }}><Chg dir={b.tone}>{b.sub}</Chg></div>}
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 12, width: '100%', overflowX: 'auto' }}><Sparkline dir={p.dir} w={520} h={34} /></div>
           </div>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '14px 22px', borderTop: `1px solid ${VM.borderHair}`, background: VM.paperWarm, borderRadius: '0 0 16px 16px' }}>
           <Btn solid onClick={() => onAccess(u)}><i className="ti ti-login-2" style={{ fontSize: 15 }}></i>Access account</Btn>
-          <Btn onClick={() => onToast('Password reset link sent (mock).')}><i className="ti ti-key" style={{ fontSize: 15 }}></i>Reset password</Btn>
-          <Btn onClick={() => onToast('Plan change (mock).')}><i className="ti ti-arrows-exchange" style={{ fontSize: 15 }}></i>Change plan</Btn>
-          <Btn onClick={() => onToast('Deleted ' + u.name + ' (mock).')} style={{ color: VM.downInk, borderColor: VM.downInk, marginLeft: 'auto' }}><i className="ti ti-trash" style={{ fontSize: 15 }}></i>Delete</Btn>
+          <Btn onClick={() => onToast('Password reset sent (coming soon).')}><i className="ti ti-key" style={{ fontSize: 15 }}></i>Reset password</Btn>
+          <Btn onClick={handleDelete} style={{ color: VM.downInk, borderColor: VM.downInk, marginLeft: 'auto' }}><i className="ti ti-trash" style={{ fontSize: 15 }}></i>Remove</Btn>
         </div>
       </div>
     </div>
@@ -961,6 +1019,118 @@ function Field({ label, full, children }) {
   </label>;
 }
 const inputStyle = { width: '100%', boxSizing: 'border-box', fontFamily: VM.serif, fontSize: 14, color: VM.ink, padding: '9px 11px', borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.paperWarm, outline: 'none' };
+
+// ── Media tab ─────────────────────────────────────────────────────────────────
+const MEDIA_VIDEO_KEY = 'vm_founder_video_url';
+
+function MediaTab({ isMobile }) {
+  const { useState: useStateMedia, useEffect: useEffectMedia } = React;
+  const [videoUrl, setVideoUrl] = useStateMedia(() => {
+    return window.VM_FOUNDER_VIDEO_URL || localStorage.getItem(MEDIA_VIDEO_KEY) || '';
+  });
+  const [saved, setSaved] = useStateMedia(false);
+  const [uploading, setUploading] = useStateMedia(false);
+  const [uploadMsg, setUploadMsg] = useStateMedia('');
+
+  const save = () => {
+    const trimmed = videoUrl.trim();
+    localStorage.setItem(MEDIA_VIDEO_KEY, trimmed);
+    window.VM_FOUNDER_VIDEO_URL = trimmed || undefined;
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const uploadUrl = window.VM_MEDIA_UPLOAD_URL;
+    if (!uploadUrl) {
+      setUploadMsg('Set window.VM_MEDIA_UPLOAD_URL in index.html to enable direct upload. For now, paste a public video URL below.');
+      return;
+    }
+    setUploading(true); setUploadMsg('');
+    try {
+      // Fetch a presigned S3 URL from your Lambda, then PUT the file.
+      const headers = window.VM_ADMIN_KEY ? { 'X-VM-Admin-Key': window.VM_ADMIN_KEY } : {};
+      const res = await fetch(`${uploadUrl}?filename=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type)}`, { headers });
+      const { uploadUrl: presigned, publicUrl } = await res.json();
+      await fetch(presigned, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      setVideoUrl(publicUrl);
+      localStorage.setItem(MEDIA_VIDEO_KEY, publicUrl);
+      window.VM_FOUNDER_VIDEO_URL = publicUrl;
+      setUploadMsg('Video uploaded! URL saved.');
+    } catch (err) {
+      setUploadMsg('Upload failed: ' + (err.message || 'unknown error'));
+    }
+    setUploading(false);
+  };
+
+  const inp = { width: '100%', boxSizing: 'border-box', fontFamily: VM.mono, fontSize: 13, color: VM.ink,
+    padding: '10px 13px', borderRadius: 8, border: `1.5px solid ${VM.border}`, background: VM.paperWarm, outline: 'none' };
+
+  return (
+    <div style={{ maxWidth: 680 }}>
+      <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink, marginBottom: 6 }}>Media</div>
+      <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginBottom: 28 }}>
+        Manage the founder video shown to new beta users during onboarding.
+      </div>
+
+      {/* Current video preview */}
+      {videoUrl && (
+        <div style={{ marginBottom: 28, borderRadius: 12, overflow: 'hidden', border: `1px solid ${VM.border}`, background: '#000' }}>
+          <video key={videoUrl} src={videoUrl} controls style={{ width: '100%', maxHeight: 320, display: 'block' }} />
+        </div>
+      )}
+
+      {/* URL input */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: VM.mono, fontSize: 9.5, color: VM.ink3, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+          Video URL (Loom, S3, Vimeo, etc.)
+        </div>
+        <input
+          value={videoUrl}
+          onChange={e => setVideoUrl(e.target.value)}
+          placeholder="https://your-video-url..."
+          style={inp}
+        />
+        <div style={{ fontFamily: VM.mono, fontSize: 10, color: VM.ink3, marginTop: 6, lineHeight: 1.6 }}>
+          Paste any direct video URL. Changes take effect immediately for new visitors.
+          The URL is stored in this browser's localStorage so you don't need to redeploy.
+        </div>
+      </div>
+
+      <button onClick={save} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px',
+        borderRadius: 8, background: saved ? VM.teal : VM.forest, color: VM.paper, border: 'none',
+        fontFamily: VM.mono, fontSize: 12, letterSpacing: '0.04em', cursor: 'pointer', marginBottom: 28, transition: 'background .2s' }}>
+        <i className={`ti ti-${saved ? 'check' : 'device-floppy'}`} style={{ fontSize: 15 }}></i>
+        {saved ? 'Saved!' : 'Save URL'}
+      </button>
+
+      {/* Direct upload (needs VM_MEDIA_UPLOAD_URL Lambda) */}
+      <div style={{ borderTop: `1px solid ${VM.borderSoft}`, paddingTop: 24, marginBottom: 8 }}>
+        <div style={{ fontFamily: VM.mono, fontSize: 9.5, color: VM.ink3, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+          Direct upload (requires AWS setup)
+        </div>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px',
+          borderRadius: 8, border: `1.5px solid ${VM.border}`, background: VM.paper,
+          fontFamily: VM.mono, fontSize: 12, color: VM.ink2, cursor: uploading ? 'not-allowed' : 'pointer',
+          opacity: uploading ? 0.6 : 1 }}>
+          <i className="ti ti-upload" style={{ fontSize: 15 }}></i>
+          {uploading ? 'Uploading…' : 'Choose video file'}
+          <input type="file" accept="video/*" onChange={handleFileUpload} disabled={uploading}
+            style={{ position: 'absolute', width: 0, height: 0, opacity: 0 }} />
+        </label>
+        {uploadMsg && (
+          <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 10, lineHeight: 1.6 }}>{uploadMsg}</div>
+        )}
+        <div style={{ fontFamily: VM.mono, fontSize: 10, color: VM.ink3, marginTop: 8, lineHeight: 1.7 }}>
+          Set <code style={{ color: VM.teal }}>window.VM_MEDIA_UPLOAD_URL</code> in index.html to your Lambda presigned-URL endpoint.<br />
+          See <strong>lambda/media-upload/</strong> for the ready-to-deploy function.
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Module-level section header used by BetaTab (top-level, so Section defined
 // inside other components is out of scope here).
