@@ -962,6 +962,21 @@ function Field({ label, full, children }) {
 }
 const inputStyle = { width: '100%', boxSizing: 'border-box', fontFamily: VM.serif, fontSize: 14, color: VM.ink, padding: '9px 11px', borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.paperWarm, outline: 'none' };
 
+// Module-level section header used by BetaTab (top-level, so Section defined
+// inside other components is out of scope here).
+function BetaSection({ label, icon, children, style }) {
+  return (
+    <div style={{ marginBottom: 28, ...style }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        {icon && <i className={`ti ti-${icon}`} style={{ fontSize: 12, color: VM.ink3 }}></i>}
+        <div style={{ fontFamily: VM.mono, fontSize: 9, letterSpacing: '0.1em',
+          textTransform: 'uppercase', color: VM.ink3 }}>{label}</div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 // ── Beta tab ───────────────────────────────────────────────────────────────────
 function BetaTab({ isMobile }) {
   const { useState: useStateBeta, useEffect: useEffectBeta } = React;
@@ -1018,7 +1033,7 @@ function BetaTab({ isMobile }) {
       </div>
 
       {/* Invite links */}
-      <Section label="Invite links" icon="link">
+      <BetaSection label="Invite links" icon="link">
         {invites.length === 0 && (
           <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No invites yet — click Generate to create one.</div>
         )}
@@ -1041,10 +1056,10 @@ function BetaTab({ isMobile }) {
             </div>
           );
         })}
-      </Section>
+      </BetaSection>
 
       {/* Beta users */}
-      <Section label="Beta users" icon="users" style={{ marginTop: 28 }}>
+      <BetaSection label="Beta users" icon="users" style={{ marginTop: 28 }}>
         {users.length === 0 && (
           <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No beta users yet.</div>
         )}
@@ -1071,10 +1086,10 @@ function BetaTab({ isMobile }) {
             </tbody>
           </table>
         </div>
-      </Section>
+      </BetaSection>
 
       {/* Feedback */}
-      <Section label="Feedback submissions" icon="message-2-star" style={{ marginTop: 28 }}>
+      <BetaSection label="Feedback submissions" icon="message-2-star" style={{ marginTop: 28 }}>
         {feedback.length === 0 && (
           <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No feedback yet.</div>
         )}
@@ -1111,7 +1126,7 @@ function BetaTab({ isMobile }) {
             ))}
           </div>
         ))}
-      </Section>
+      </BetaSection>
     </div>
   );
 }
