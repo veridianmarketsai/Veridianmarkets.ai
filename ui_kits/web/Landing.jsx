@@ -25,7 +25,7 @@ const LD_PAGES = [
 // Where landing CTAs send people into the real app (served at site root for now).
 function ldAppUrl(route, co) {
   if (route === 'dashboard') return '/company/' + encodeURIComponent((co && co.ticker || '').toLowerCase());
-  const map = { supply:'/supply-chain', learn:'/learn', memoir:'/memoir', news:'/news', front:'/home', signin:'/sign-in' };
+  const map = { supply:'/supply-chain', learn:'/learn', memoir:'/memoir', news:'/news', front:'/home', signin:'/sign-in', updates:'/updates' };
   return map[route] || '/home';
 }
 
@@ -660,7 +660,7 @@ function LdFooter({ isMobile, setPage }) {
           </p>
         </div>
         {col('Product', [{ label:'Dependency map', href: ldAppUrl('supply') }, { label:'What it does', page:'product' }, { label:'Learn', href: ldAppUrl('learn') }])}
-        {col('Company', [{ label:'Why Veridian', page:'why' }, { label:'Founder memoir', href: ldAppUrl('memoir') }, { label:'Sign in', href: ldAppUrl('signin') }])}
+        {col('Company', [{ label:'Why Veridian', page:'why' }, { label:'Founder memoir', href: ldAppUrl('memoir') }, { label:'What\'s new', href: ldAppUrl('updates') }, { label:'Sign in', href: ldAppUrl('signin') }])}
         {col('Get started', [{ label:'Sign in', href: ldAppUrl('signin') }, { label:'See the live demo', href: ldAppUrl('supply') }])}
       </div>
       <div style={{ maxWidth:1180, margin:'36px auto 0' }}>

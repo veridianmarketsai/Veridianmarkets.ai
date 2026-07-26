@@ -1,9 +1,15 @@
 // Veridian Markets — Company dashboard.
 // resolveCompany() is called once here; all tabs receive data as props.
 // No tab reads VM_COMPANY_DATA or any VM_ global directly.
-function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
+function Dashboard({ company, go, isMobile, trail, trailIndex, tab, onTabChange, onResetPrinciple, onNewPrinciple }) {
   const c    = company || VM_COMPANIES[0];
   const data = resolveCompany(c.ticker);
+  // A ticker reached via symbol search may not be one of our curated companies.
+  // For those we still show the real live price (header) + as-reported financials,
+  // but the mock-only tabs get an honest "not yet available" placeholder instead
+  // of another company's data (resolveCompany falls back to AAPL for unknowns).
+  const known = typeof VM_COMPANY_DATA !== 'undefined' && !!VM_COMPANY_DATA[c.ticker];
+  const EMPTY_FIN = { periods:[], income:[], balance:[], cashflow:[] };
   // Tab is lifted to the app so the breadcrumb trail can record it; fall back to
   // local state if a parent doesn't supply it.
   const [tabLocal, setTabLocal] = React.useState('Overview');
@@ -12,14 +18,32 @@ function Dashboard({ company, go, isMobile, trail, tab, onTabChange }) {
 
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '22px 32px 60px', maxWidth:1180, margin:'0 auto', overflowX: isMobile ? 'hidden' : 'visible' }}>
-      <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} />
+      <CompanyHead c={c} tab={curTab} onTabChange={setTab} go={go} isMobile={isMobile} trail={trail} trailIndex={trailIndex}
+        onResetPrinciple={onResetPrinciple} onNewPrinciple={onNewPrinciple} />
 
-      {curTab === 'Overview'     && <DashOverview   c={c} data={data} isMobile={isMobile} />}
-      {curTab === 'Supply chain' && <DashScn        c={c} go={go} isMobile={isMobile} />}
-      {curTab === 'Financials'   && <DashFinancials data={data.financials} c={c} isMobile={isMobile} />}
-      {curTab === 'Patents'      && <DashPatents    data={data.patents} isMobile={isMobile} />}
-      {curTab === 'History'      && <DashHistory    c={c} data={data.history} isMobile={isMobile} />}
-      {curTab === 'News'         && <DashNews        c={c} go={go} isMobile={isMobile} />}
+      {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} go={go} isMobile={isMobile} /> : <ProfileOverview c={c} go={go} isMobile={isMobile} />)}
+      {curTab === 'Supply chain' && (known ? <DashScn        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Supply-chain map" />)}
+      {curTab === 'Financials'   && <DashFinancials data={known ? data.financials : EMPTY_FIN} c={c} isMobile={isMobile} />}
+      {curTab === 'Patents'      && (typeof PatentsLive === 'function'
+        ? <PatentsLive c={c} isMobile={isMobile} fallback={known ? <DashPatents data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />} />
+        : (known ? <DashPatents data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />))}
+      {curTab === 'History'      && (known ? <DashHistory    c={c} data={data.history} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Historical analogues" />)}
+      {curTab === 'News'         && (known ? <DashNews        c={c} go={go} isMobile={isMobile} /> : <LiveNewsFeed scope={c.ticker} isMobile={isMobile} emptyLabel={`No recent news for ${c.ticker}.`} />)}
+    </div>
+  );
+}
+
+// Honest empty state for a searched-but-not-curated ticker: live price + real
+// financials are available elsewhere; this mock-only tab has no data yet.
+function TabUnavailable({ ticker, what }) {
+  return (
+    <div style={{ marginTop:36, border:`1px solid ${VM.borderSoft}`, borderRadius:12, background:VM.paper, padding:'48px 24px', textAlign:'center' }}>
+      <i className="ti ti-file-search" style={{ fontSize:30, color:VM.ink3 }}></i>
+      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginTop:14 }}>{what} not yet available</div>
+      <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink3, marginTop:8, maxWidth:440, margin:'8px auto 0', lineHeight:1.6 }}>
+        <b>{ticker}</b> isn’t one of our curated companies yet. Its <b>live price</b> (header) and
+        <b> as-reported financials</b> (Financials tab) are available — the rest is coming.
+      </div>
     </div>
   );
 }
@@ -108,6 +132,9 @@ function DashNews({ c, go, isMobile, scn }) {
   const [nsub, setNsub] = React.useState('all');
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const openTicker = (t) => { const co = VM_COMPANIES.find(x => x.ticker === t); if (co) go && go('dashboard', co); };
+  // Real latest headlines for this company (dashboard News tab only, not the
+  // dependency-map view). Shown as a strip above the history-framed stories.
+  const liveCo = typeof useVMNews === 'function' ? useVMNews(scn ? '' : c.ticker) : { cards: [], live: false };
 
   let list;
   if (scn) {
@@ -134,6 +161,24 @@ function DashNews({ c, go, isMobile, scn }) {
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
       </div>
+
+      {!scn && liveCo.live && (
+        <div style={{ marginBottom: 22 }}>
+          <Mono size={9} color={VM.terra} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
+            <span style={{ width:6, height:6, borderRadius:999, background:VM.teal, display:'inline-block' }}></span>Latest headlines · live
+          </Mono>
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap:12 }}>
+            {liveCo.cards.slice(0,4).map((n,i)=>(
+              <a key={n.url||i} href={n.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration:'none', background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:10, padding:'12px 13px', display:'flex', flexDirection:'column' }}>
+                <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14, lineHeight:1.2, color:VM.ink, display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{n.headline}</span>
+                <span style={{ marginTop:8, fontFamily:VM.mono, fontSize:9, color:VM.ink3 }}>{n.source}{n.time?` · ${n.time}`:''} · read ↗</span>
+              </a>
+            ))}
+          </div>
+          <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, margin:'12px 0 0' }}>Below: the same market, read through the lens of history.</div>
+          <div style={{ height:1, background:VM.borderHair, margin:'16px 0 0' }}></div>
+        </div>
+      )}
 
       {scn && (
         <div style={{ marginBottom: 18 }}>
@@ -193,15 +238,26 @@ const OV_STEPS = [
     body:'Who runs the company, how long they have been in seat, and their background. Tenure correlates with execution continuity. Note whether key roles are internal promotes or outside hires — it often signals strategy shifts.' },
 ];
 
-function DashOverview({ c, data, isMobile }) {
+function DashOverview({ c, data, go, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
+  const prof = typeof useVMProfile === 'function' ? useVMProfile(c.ticker) : { profile:null };
+  const p = prof.profile || {};
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
         <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={TUTORIAL_BTN_STYLE}>
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
         </button>
+      </div>
+      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:'18px 20px',
+        display:'flex', alignItems:'center', gap:16, marginBottom:20 }}>
+        {p.logo && <img src={p.logo} alt="" style={{ width:44, height:44, borderRadius:8, objectFit:'contain', background:'#fff', border:`1px solid ${VM.borderHair}` }} />}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:20, color:VM.ink }}>{p.name || c.name}</div>
+          <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>{[p.industry, p.exchange].filter(Boolean).join(' · ') || overview.sector}</div>
+        </div>
+        {p.weburl && <a href={p.weburl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:VM.mono, fontSize:11, color:VM.teal, textDecoration:'none', whiteSpace:'nowrap' }}>Website ↗</a>}
       </div>
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: isMobile?20:32 }}>
         <div>
@@ -279,6 +335,8 @@ function DashOverview({ c, data, isMobile }) {
           </div>
         </div>
       </div>
+      {typeof LiveMetrics === 'function' && <div style={{ marginTop:24 }}><LiveMetrics ticker={c.ticker} isMobile={isMobile} title="Key metrics · live" /></div>}
+      {typeof SignalsPanel === 'function' && <SignalsPanel c={c} go={go} isMobile={isMobile} />}
       {tutorialOpen && <TutorialOverlay steps={OV_STEPS} label="Overview tutorial" onClose={()=>setTutorialOpen(false)} />}
     </div>
   );
@@ -454,6 +512,7 @@ const SHEET_LABELS = { income:'Income statement', balance:'Balance sheet', cashf
 function DashFinancials({ data, c, isMobile }) {
   const [sheet, setSheet]     = React.useState('income');
   const [period, setPeriod]   = React.useState('annual');
+  const [unit, setUnit]       = React.useState('relative');   // 'relative' ($94.8B) | 'thousands' (94,846,000)
   const [showPct, setShowPct] = React.useState(false);   // %Δ — percentage change vs prior period
   const [showAbs, setShowAbs] = React.useState(false);   // $Δ — absolute change vs prior period
   const [legend, setLegend]   = React.useState(false);   // "reading the financials" popup
@@ -461,22 +520,33 @@ function DashFinancials({ data, c, isMobile }) {
   const [analysisOpen, setAnalysisOpen] = React.useState(false);
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const analysisBtnRef = React.useRef(null);
-  const rows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheet];
-  const periods = data.periods;
+  // Real "financials as reported" (SEC filings via Finnhub) when available for
+  // this ticker/period; otherwise fall back to the curated mock (data).
+  const fin = typeof useVMFinancials === 'function' ? useVMFinancials(c.ticker, period) : { data:null, loading:false, live:false };
+  const D = fin.data || data;
+  const rows = { income:D.income, balance:D.balance, cashflow:D.cashflow }[sheet];
+  const periods = D.periods;
   const showDelta = showPct || showAbs;
   const deltaCols = showPct + showAbs;
 
+  // Values are stored in USD millions. 'thousands' mode shows plain numbers in
+  // thousands (no $, no B/M suffix), like Yahoo; 'relative' auto-scales to $B/$M.
+  // No $ in the cells — the "Currency in USD" caption states it once. 'thousands'
+  // = plain numbers in thousands; 'relative' = auto-scaled with a B/M size letter.
   function fmt(v, fmtType) {
-    if (fmtType === 'eps') return `$${Math.abs(v).toFixed(2)}`;
+    if (fmtType === 'eps') return v.toFixed(2);
+    if (unit === 'thousands') { const t = Math.round(v * 1000); return t < 0 ? `(${Math.abs(t).toLocaleString()})` : t.toLocaleString(); }
+    if (fmtType === 'shares') { const a = Math.abs(v); return a >= 1000 ? `${(a/1000).toFixed(2)}B` : `${a.toFixed(0)}M`; }
     const abs = Math.abs(v);
-    const s   = abs >= 1000 ? `$${(abs/1000).toFixed(1)}B` : `$${abs.toFixed(0)}M`;
+    const s   = abs >= 1000 ? `${(abs/1000).toFixed(1)}B` : `${abs.toFixed(0)}M`;
     return v < 0 ? `(${s})` : s;
   }
   function fmtAbsDelta(diff, fmtType) {
     const sign = diff < 0 ? '-' : '+';
-    if (fmtType === 'eps') return `${sign}$${Math.abs(diff).toFixed(2)}`;
+    if (fmtType === 'eps') return `${sign}${Math.abs(diff).toFixed(2)}`;
+    if (unit === 'thousands') return `${sign}${Math.round(Math.abs(diff) * 1000).toLocaleString()}`;
     const abs = Math.abs(diff);
-    const s   = abs >= 1000 ? `$${(abs/1000).toFixed(1)}B` : `$${abs.toFixed(0)}M`;
+    const s   = abs >= 1000 ? `${(abs/1000).toFixed(1)}B` : `${abs.toFixed(0)}M`;
     return `${sign}${s}`;
   }
   // negative → orange (terra), positive → green (teal), flat → muted.
@@ -486,7 +556,7 @@ function DashFinancials({ data, c, isMobile }) {
   // columns interleaved between periods (so the export mirrors the on-screen
   // table). Values stay computable: USD millions, except per-share rows.
   function buildGrid(sheetId, pct, abs) {
-    const sheetRows = { income:data.income, balance:data.balance, cashflow:data.cashflow }[sheetId];
+    const sheetRows = { income:D.income, balance:D.balance, cashflow:D.cashflow }[sheetId];
     const header = ['Breakdown'];
     periods.forEach((p, pi) => {
       header.push(p);
@@ -518,6 +588,7 @@ function DashFinancials({ data, c, isMobile }) {
   // Export the chosen statement(s) as CSV or Excel.
   //   multiple sheets → CSV: stacked sections (extra rows); Excel: separate tabs.
   function runExport(kind, sheetIds, pct, abs) {
+    if (typeof vmCapture === 'function') vmCapture('feature', { name: 'export_financials', ticker: c.ticker, kind, sheets: sheetIds.length });
     const perLabel  = period === 'annual' ? 'Annual' : 'Quarterly';
     const tag       = sheetIds.length === 3 ? 'all' : sheetIds.join('-');
     const base      = `${c.ticker}_${tag}_${period}_financials`;
@@ -608,6 +679,17 @@ function DashFinancials({ data, c, isMobile }) {
             ))}
           </div>
           <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>
+          <div title="Number format — Relative auto-scales to $B/$M; Thousands shows plain numbers in thousands (no $, no B)" style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+            <span style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, letterSpacing:'0.04em', textTransform:'uppercase', marginRight:2 }}>Show in</span>
+            {[['relative','Relative'],['thousands','Thousands']].map(([id,lbl]) => (
+              <span key={id} onClick={()=>setUnit(id)} style={{
+                fontFamily:VM.mono, fontSize:10, padding:'4px 10px', borderRadius:5, cursor:'pointer',
+                border:`1px solid ${unit===id ? VM.forest : VM.border}`,
+                background: unit===id ? VM.forest : VM.paper, color: unit===id ? VM.paperWarm : VM.ink3,
+              }}>{lbl}</span>
+            ))}
+          </div>
+          <span style={{ width:1, height:18, background:VM.border, margin:'0 3px' }}></span>
           <button data-tour="vm-fin-legend-btn" onClick={()=>setLegend(true)} title="Legend — how to read this" style={{
             display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.04em', textTransform:'uppercase',
             padding:'4px 11px', borderRadius:5, border:`1px solid ${VM.border}`, background:VM.paper, color:VM.ink2, cursor:'pointer' }}>
@@ -627,6 +709,21 @@ function DashFinancials({ data, c, isMobile }) {
             <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
           </button>
         </div>
+      </div>
+      {/* Source line: real SEC filings when available, else the illustrative mock. */}
+      <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:12, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.03em', color:VM.ink3 }}>
+        {fin.loading
+          ? <><i className="ti ti-loader-2" style={{ fontSize:12 }}></i>Loading filings…</>
+          : fin.live
+            ? <><span style={{ width:7, height:7, borderRadius:'50%', background:VM.teal, display:'inline-block' }}></span>
+                As reported · SEC filings via Finnhub{D.filedDate ? ` · latest filed ${String(D.filedDate).slice(0,10)}` : ''} · USD</>
+            : <><i className="ti ti-info-circle" style={{ fontSize:12 }}></i>Illustrative figures (live filings unavailable for this ticker)</>}
+      </div>
+      {/* Units caption — states currency/scale so the cells don't repeat $ or B. */}
+      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
+        <span style={{ fontFamily:VM.mono, fontSize:10, color:VM.ink2, letterSpacing:'0.03em' }}>
+          Currency in USD · {unit === 'thousands' ? 'all numbers in thousands' : 'figures in billions (B) / millions (M)'}
+        </span>
       </div>
       <div data-tour="vm-fin-table" ref={scrollRef} onPointerDown={onDragDown} onPointerMove={onDragMove} onPointerUp={onDragUp} onPointerLeave={onDragUp} onPointerCancel={onDragUp}
         style={{ overflowX:'auto', cursor:'grab', userSelect:'none', touchAction:'pan-y' }}>
@@ -657,10 +754,9 @@ function DashFinancials({ data, c, isMobile }) {
           <tbody>
             {rows.map((row, i) => (
               <tr key={i} style={{ borderBottom:`1px solid ${VM.borderHair}`, background: row.b ? VM.paperWarm : 'transparent' }}>
-                <td style={{ padding:'7px 12px', paddingLeft: row.in ? 28 : 12 }}>
-                  {row.in
-                    ? <span style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>{row.k}</span>
-                    : <span style={{ fontFamily:VM.serif, fontSize:13, fontWeight: row.b ? 700 : 400, color:VM.ink }}>{row.k}</span>}
+                <td style={{ padding:'7px 12px', paddingLeft: 12 + (row.in || 0) * 15 }}>
+                  <span style={{ fontFamily:VM.serif, fontSize:13, fontWeight: row.b ? 700 : 400,
+                    color: row.b ? VM.ink : (row.in ? VM.ink3 : VM.ink) }}>{row.k}</span>
                 </td>
                 {cols.map((col, ci) => {
                   if (col.type === 'period') {
@@ -696,7 +792,7 @@ function DashFinancials({ data, c, isMobile }) {
         </table>
       </div>
       <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:10 }}>
-        All figures USD · illustrative mock data · not financial advice{showDelta ? ' · Δ vs prior period' : ''}
+        All figures USD · {fin.live ? 'as reported (SEC filings via Finnhub)' : 'illustrative mock data'}{unit === 'thousands' ? ' · all numbers in thousands' : ''} · not financial advice{showDelta ? ' · Δ vs prior period' : ''}
       </Mono>
       {legend && <FinLegendModal onClose={()=>setLegend(false)} />}
       {exportOpen && <FinExportModal ticker={c.ticker} curSheet={sheet}

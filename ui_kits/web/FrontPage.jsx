@@ -1,5 +1,15 @@
 // Veridian Markets — Front page (editorial home).
-function FrontPage({ go, isMobile }) {
+// Market recap + Mini calendar are temporarily hidden (kept below, code intact) — flip to re-show.
+const VM_SHOW_HOME_SIDEBAR = false;
+function FrontPage({ go, isMobile, user }) {
+  const signedIn = !!user;
+  // Personalization (signed-in only): interest tickers from real favourites +
+  // view history (interests.jsx) drive both the news mix below and the
+  // "Recommended for you" row. New/blank-slate users just see the general feed.
+  const interests = useVMInterests(signedIn);
+  const personalizedNews = useVMPersonalizedNews(interests.tickers);
+  const favTickers = typeof vmFavs === 'function' ? vmFavs() : [];
+  const favourites = React.useMemo(() => favTickers.map(t => VM_COMPANIES.find(c => c.ticker === t)).filter(Boolean), [favTickers.join(',')]);
   const recap = [
     { k:'Forex', chg:'+0.12%', dir:'up' }, { k:'Bonds', chg:'-0.08%', dir:'down' },
     { k:'Commodities', chg:'+0.94%', dir:'up' }, { k:'Stocks', chg:'+0.41%', dir:'up' },
@@ -21,10 +31,17 @@ function FrontPage({ go, isMobile }) {
   const [companyQuery, setCompanyQuery] = React.useState('');  // 'Find a company' search filter
   const [openRow, setOpenRow] = React.useState(null);          // ticker of the row whose eye-preview is expanded
   const q = companyQuery.trim().toLowerCase();
-  const companyRows = VM_COMPANIES
+  const baseCompanyRows = VM_COMPANIES
     .filter(c => !q || c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q))
     .slice(0, 10);
+  const liveMap = useVMQuotes(baseCompanyRows.map(c => c.ticker));   // live quotes overlay
+  const companyRows = baseCompanyRows.map(c => vmApply(c, liveMap));
+  const [recOpenRow, setRecOpenRow] = React.useState(null);     // "Your favourites" row's own eye-preview state
+  const recLiveMap = useVMQuotes(favourites.map(c => c.ticker));
+  const favouriteRows = favourites.map(c => vmApply(c, recLiveMap));
   const tileTitles = ['Headline placeholder.', 'Another lead forms.', 'A quiet mover.', 'History rhymes.', 'Sector in focus.', 'The long view.'];
+  const generalNews = typeof useVMNews === 'function' ? useVMNews('general') : { cards: [] };
+  const news = personalizedNews.live ? personalizedNews : generalNews;   // real headlines for the story tiles, tailored when we have interest data
   const [screenerHover, setScreenerHover] = React.useState(false);  // hover shade on the 'Open full screener' button
   const [newsHover, setNewsHover] = React.useState(false);          // hover shade on the 'See all news' button
 
@@ -32,14 +49,14 @@ function FrontPage({ go, isMobile }) {
     <div style={{ padding: isMobile ? '14px 16px 80px' : '18px 32px 60px', maxWidth:1180, margin:'0 auto' }}>
       {/* LEARN — resume / start learning, above Global News + Market recap. */}
       <LearnBanner go={go} isMobile={isMobile} />
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
+      <div style={{ display:'grid', gridTemplateColumns: (isMobile || !VM_SHOW_HOME_SIDEBAR) ? '1fr' : '1.7fr 1fr', gap: isMobile ? 24 : 32 }}>
         {/* STORY TILES — fixed 3×3 window; the button slides through 3 pages of 9 (27 total). Placeholder scaffold. */}
         <div>
-          <Kicker>Global News</Kicker>
+          <Kicker>{personalizedNews.live ? 'For you' : 'Global News'}</Kicker>
           {/* One page of 9 tiles, in an overflow-visible area so hover pop-outs are never clipped.
               Changing page remounts StoryPage (via key), which slides + fades the new tiles in. */}
           <div data-tour="vm-story-tiles" style={{ marginTop:10 }}>
-            <StoryScroller page={page} tileTitles={tileTitles} cols={cols} perPage={perPage} />
+            <StoryScroller page={page} tileTitles={tileTitles} articles={news.cards} cols={cols} perPage={perPage} loading={news.loading} />
           </div>
           {/* Pager — 'More' is pinned to the page centre (never moves); 'Up' reveals to its left and the box grows leftward only. */}
           <div style={{ position:'relative', height:38, marginTop:16 }}>
@@ -79,6 +96,7 @@ function FrontPage({ go, isMobile }) {
 
         {/* RIGHT CARDS — accordion. A hidden kicker (desktop) mirrors the left
             "Global News" kicker so Market recap lines up with the first news tiles. */}
+        {VM_SHOW_HOME_SIDEBAR && (
         <div>
           {!isMobile && <Kicker style={{ visibility:'hidden' }}>Global News</Kicker>}
           <div data-tour="vm-market-recap" style={{ marginTop: isMobile ? 0 : 10, display:'flex', flexDirection:'column', gap:14 }}>
@@ -97,7 +115,25 @@ function FrontPage({ go, isMobile }) {
           </CollapsibleCard>
           </div>
         </div>
+        )}
       </div>
+
+      {/* YOUR FAVOURITES — signed-in, the companies the user has starred (capture.jsx vmFavs). */}
+      {signedIn && favouriteRows.length > 0 && (
+        <div data-tour="vm-recommended" style={{ marginTop:44 }}>
+          <Kicker>Your favourites</Kicker>
+          <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?23:27, margin:'8px 0 16px' }}>Companies you're tracking.</h2>
+          <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns: isMobile ? '52px 1fr auto' : '80px 1fr 90px 70px 110px', gap:10, padding: isMobile ? '6px 14px' : '6px 16px', background:VM.paperWarm, borderBottom:`1px solid ${VM.borderSoft}`, borderRadius:'12px 12px 0 0' }}>
+              <Label>Ticker</Label><Label>Sector · Market cap</Label><div style={{ textAlign:'left' }}><Label>Price</Label></div><div style={{ textAlign:'left' }}><Label>Change</Label></div>
+            </div>
+            {favouriteRows.map((c,i)=>(
+              <CompanyRow key={c.ticker} c={c} last={i===favouriteRows.length-1} go={go} isMobile={isMobile}
+                open={recOpenRow===c.ticker} onEye={()=>setRecOpenRow(recOpenRow===c.ticker?null:c.ticker)} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* TOP COMPANIES PREVIEW */}
       <div data-tour="vm-company-list" style={{ marginTop:44 }}>
@@ -110,11 +146,9 @@ function FrontPage({ go, isMobile }) {
               background: screenerHover ? VM.paperDeep : VM.paper,
               transition:'background .15s ease, border-color .15s ease' }}>Open full screener →</span>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:9, background:VM.paper, border:`1px solid ${VM.border}`, borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
-          <i className="ti ti-search" style={{ fontSize:15, color:VM.ink3 }}></i>
-          <input value={companyQuery} onChange={e=>setCompanyQuery(e.target.value)} placeholder="Search by ticker or company name…"
-            style={{ flex:1, border:'none', outline:'none', background:'transparent', fontFamily:VM.serif, fontSize:15, color:VM.ink }} />
-          {companyQuery && <i onClick={()=>setCompanyQuery('')} className="ti ti-x" style={{ fontSize:14, color:VM.ink3, cursor:'pointer' }} title="Clear"></i>}
+        <div style={{ marginBottom:14 }}>
+          <SymbolSearchBox value={companyQuery} onChange={setCompanyQuery} go={go}
+            placeholder="Search any US stock by ticker or company name…" />
         </div>
         <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
           {/* Header grid MUST match CompanyRow's columns + gap so the labels line up with the data. */}
@@ -122,7 +156,7 @@ function FrontPage({ go, isMobile }) {
             <Label>Ticker</Label><Label>Sector · Market cap</Label><div style={{ textAlign:'left' }}><Label>Price</Label></div><div style={{ textAlign:'left' }}><Label>Change</Label></div>
           </div>
           {companyRows.length === 0 && (
-            <div style={{ padding:'18px 16px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No companies match “{companyQuery}”.</div>
+            <div style={{ padding:'18px 16px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>“{companyQuery}” isn't in this preview list, but if it's a real US listing you'll see it in the dropdown above — click it to open that ticker directly.</div>
           )}
           {companyRows.map((c,i)=>(
             <CompanyRow key={c.ticker} c={c} last={i===companyRows.length-1} go={go} isMobile={isMobile}
@@ -184,12 +218,12 @@ function OpenBox({ title, onClick }) {
 }
 
 // One page of tiles (9 on desktop / 3 on mobile).
-function PageGrid({ page, tileTitles, cols, perPage }) {
+function PageGrid({ page, tileTitles, articles, cols, perPage, loading }) {
   const nums = Array.from({ length: perPage }, (_, i) => page * perPage + i + 1);
   return (
     <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols}, 1fr)`, gridAutoRows:'128px', gap:14 }}>
       {nums.map(n => (
-        <StoryTile key={n} n={n} title={tileTitles[(n - 1) % tileTitles.length]} dir={n % 3 === 0 ? 'down' : 'up'} mins={3 + ((n * 2) % 7)} />
+        <StoryTile key={n} n={n} title={tileTitles[(n - 1) % tileTitles.length]} article={articles && articles[n - 1]} loading={loading} dir={n % 3 === 0 ? 'down' : 'up'} mins={3 + ((n * 2) % 7)} />
       ))}
     </div>
   );
@@ -198,7 +232,7 @@ function PageGrid({ page, tileTitles, cols, perPage }) {
 // Scrolls between pages: idle = a single page in an overflow-visible box (so hover pop-outs aren't
 // clipped); during a page change it stacks both pages and slides the track up/down so you see the
 // tiles move. Same easing/speed as the accordion (.38s) for a consistent feel.
-function StoryScroller({ page, tileTitles, cols, perPage }) {
+function StoryScroller({ page, tileTitles, articles, cols, perPage, loading }) {
   const ROW = 128, GAP = 14;
   const VIEW_H = 3 * ROW + 2 * GAP;   // 412 — three rows tall
   const STEP = 3 * (ROW + GAP);       // 426 — one page of travel
@@ -215,7 +249,7 @@ function StoryScroller({ page, tileTitles, cols, perPage }) {
   }, [page]);
 
   if (!armed) {
-    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} cols={cols} perPage={perPage} /></div>;
+    return <div style={{ overflow:'visible' }}><PageGrid page={display} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} loading={loading} /></div>;
   }
 
   const forward = page > display;                       // next page → scroll up
@@ -230,30 +264,46 @@ function StoryScroller({ page, tileTitles, cols, perPage }) {
   return (
     <div style={{ height: VIEW_H, overflow:'hidden' }}>
       <div onTransitionEnd={onEnd} style={{ transform:`translateY(${offset}px)`, transition: run ? EASE : 'none' }}>
-        <PageGrid page={topPage} tileTitles={tileTitles} cols={cols} perPage={perPage} />
+        <PageGrid page={topPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} loading={loading} />
         <div style={{ height: GAP }}></div>
-        <PageGrid page={bottomPage} tileTitles={tileTitles} cols={cols} perPage={perPage} />
+        <PageGrid page={bottomPage} tileTitles={tileTitles} articles={articles} cols={cols} perPage={perPage} loading={loading} />
       </div>
     </div>
   );
 }
 
 // A story tile — pops out and highlights on hover (matches the company-row feel).
-function StoryTile({ n, title, dir, mins }) {
+// With a real article it shows the live headline + source and opens the source.
+// While the news feed is still loading, a slot with no article yet shows a
+// loading spinner instead of the illustrative placeholder sentence — that
+// placeholder is meant as permanent scaffold filler for slots beyond however
+// many real articles came back, not something that should flash on first load.
+function StoryTile({ n, title, dir, mins, article, loading }) {
   const [hover, setHover] = React.useState(false);
+  const a = article;
+  if (!a && loading) {
+    return (
+      <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:10,
+        display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <i className="ti ti-loader-2" style={{ fontSize:18, color:VM.ink3 }}></i>
+      </div>
+    );
+  }
+  const headline = a ? a.headline : title;
+  const onClick = a && a.url ? () => window.open(a.url, '_blank', 'noopener') : undefined;
   return (
-    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={onClick}
       style={{ background: hover ? VM.paperWarm : VM.paper,
         border:`1px solid ${hover ? VM.border : VM.borderSoft}`, borderRadius:10, padding:'12px 13px',
         display:'flex', flexDirection:'column', cursor:'pointer', position:'relative', zIndex: hover ? 2 : 1,
         transform: hover ? 'scale(1.03)' : 'scale(1)',
         boxShadow: hover ? '0 6px 16px rgba(31,29,26,0.10)' : 'none',
         transition:'transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease' }}>
-      <Mono size={9} color={VM.ink3}>STORY · {String(n).padStart(2,'0')}</Mono>
-      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:15, lineHeight:1.18, margin:'8px 0 0', color:VM.ink }}>{title}</div>
-      <div style={{ marginTop:'auto', display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:10 }}>
-        <Sparkline dir={dir} w={42} h={14} />
-        <Mono size={9} color={VM.ink3}>{mins} min</Mono>
+      <Mono size={9} color={a ? VM.terra : VM.ink3} weight={a ? 700 : 400}>{a ? (a.kicker || 'MARKETS') : `STORY · ${String(n).padStart(2,'0')}`}</Mono>
+      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14.5, lineHeight:1.16, margin:'7px 0 0', color:VM.ink,
+        display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{headline}</div>
+      <div style={{ marginTop:'auto', paddingTop:10 }}>
+        <Mono size={9} color={VM.ink3} style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a ? (a.time || a.source) : `${mins} min`}</Mono>
       </div>
     </div>
   );

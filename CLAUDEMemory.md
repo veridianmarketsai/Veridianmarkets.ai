@@ -40,7 +40,8 @@ belongs to the Toolbar Menu.
 | Visible label                  | Section (identifier) | Route      | Notes |
 |--------------------------------|----------------------|------------|-------|
 | *logo — "Veridian Markets"*    | **Home Page**        | `front`    | The top-left wordmark **is** the Home button. There is no "Front page" text item. |
-| Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered login box, **no rail/ticker**. Now wired to a **placeholder client-side auth** (`VM_ACCOUNTS` in `app.jsx`; admin account; SHA-256 hash; session in `localStorage`). **Not real security** — to be replaced by AWS Cognito. |
+| Sign in                        | **Sign in Page**     | `signin`   | Chromeless page (`SignIn.jsx`): green header + footer + centered card, **no rail/ticker**, **five modes** (sign in / sign up / confirm code / forgot / reset). **Real AWS Cognito auth** now (`auth.jsx` — `backend-signin-AWS-1.1`, merged): pool `us-east-1_FusGT8Ntu`, public app client, `USER_PASSWORD_AUTH` via REST (no SDK); tokens in `localStorage` (`vm_session`); admin = Cognito `admin` group. See `backend-signin.md`. |
+| *(paywall target)*             | **Pricing / Upgrade**| `upgrade`  | `Pricing.jsx` (route `/upgrade`). Non-payers hitting a gated item (News/Calendar/Dependency map) land here. Free/Plus/Pro/Business tiers → **real Stripe** checkout (`billing.jsx`). Gating + `plan` in `app.jsx` (`GATED_ROUTES`, `isPaying`, `vmFetchPlan`). See `payment.md` (`payments-1.1`, merged). |
 | My Business *(business mode)*  | **My Business Page** | `mybusiness` | **NEW (`business-page-2.8`, merged to main + live).** Signed-in-only **dependency-map builder** (`MyBusiness.jsx`): the firm at the centre, draggable supplier/external/customer nodes with live curved connectors, a right-hand editor panel (name/ticker/role/note/type + delete), add/clear/reset, **Save** to `localStorage` (`vm_business_map`). Reached via the rail **Personal ⇄ Business** toggle (top of rail) or the **My Business** rail item, which show per `accountMode` (persisted). Mobile = list editor fallback. Mock until backend. |
 | My portfolio                   | **My Portfolio Page**| `myportfolio` | Gated (`signedIn` from `localStorage`). Now a **customisable widget dashboard** (`MyPortfolio.jsx`): Connect-accounts bar (Trading 212 + IBKR/Robinhood/Coinbase/Vanguard/Binance, mock connect), then Summary KPIs, Performance area chart (range toggles), Allocation donut, Holdings table, Watchlist, Analogue alerts. **Customise mode** = show/hide + reorder + resize widgets; layout & connections persist to `localStorage`. Mock data. |
 | Supply chain network           | **SCN Page**         | `supply`   | Now the **interactive dependency map** (`ScnLiveDemo.jsx`): principle centre node, inputs/external left, customers right, curved SVG connectors, hover tooltips, click-to-drill + breadcrumb, All/Companies/External filters (5Y Lens = placeholder). Carries the **"• Live Demo"** badge. Old `SupplyChain.jsx` is **retired** (file kept, unreferenced). **Merged to main + live** (2026-05-30 18:59) via `scn-live-demo-1.6`; still WIP (breadcrumbs + company-page entry points to come). |
@@ -51,7 +52,7 @@ belongs to the Toolbar Menu.
 | Learn                          | **Learn VM**         | `learn`    | Course/guide catalogue (`Learn.jsx`): guided-path banner, search, category pills + Level/Format filters, responsive card grid with Show-more. "App tutorial" cards `go()` into screens. Content is mock scaffold data (inline). |
 | Read memoir                    | **Memoir Page**      | `memoir`   | |
 | Settings *(signed-in only)*    | **Account Settings** | `settings` | Grouped settings list (Instagram "Settings and activity" pattern, VM editorial style) in `AccountSettings.jsx`: profile summary + sections (Your account / How you use Veridian / Privacy & data / Support / danger), each row drilling into its own sub-page (internal state, back arrow). Rail item shows only when `signedIn`. Mock/scaffold. |
-| Admin *(admins only)*          | **Admin Page**       | `admin`    | Role-gated control panel (`AdminPanel.jsx`); rail item shows only for `role:'admin'`. Tabs: **Overview** (user-metrics dashboard), **Users** (100-user temp DB w/ ⋮ row menu → details modal, personal profits, simulated "access account" banner, mock actions), **Courses** (add/remove Learn courses via the course store). Temp data: `admin_data.jsx` (users) + `vm*Course` store in `Learn.jsx`. All mock until the real backend. |
+| Admin *(admins only)*          | **Admin Page**       | `admin`    | Role-gated control panel (`AdminPanel.jsx`); rail item shows only for `role:'admin'`. Five tabs: **Overview** (real Cognito+activity KPIs/charts once reachable, else mock — see changelog `feature-idea-refinements`), **Users** (real roster w/ ⋮ row menu → real Suspend/Reactivate/Delete/Change-plan via `vm-admin-actions`, mock fallback), **Courses** (add/remove Learn courses via the course store — real content, not fake user data), **Analytics** (retention/growth/revenue/etc., still deterministic mock derived from `VM_USERS` — needs a real behavioural event-stream project), **Team** (per-employee admin permission tickboxes — real Cognito groups via `vm-admin-actions`, see changelog for the safe-rollout rule). |
 
 Routes map to screens in [`ui_kits/web/app.jsx`](ui_kits/web/app.jsx); labels live
 in `RAIL_GROUPS` in `chrome.jsx`. Items with no route are non-clickable
@@ -60,6 +61,696 @@ placeholders until their page exists.
 ---
 
 ## Change log
+
+### 2026-07-20 — `feature-idea-refinements`: Release Notes, Admin Overview real data, per-employee admin permissions.
+
+New branch collecting quick wins off `feature-ideas.md` (a new running list,
+seeded from scattered "next idea" notes in this changelog plus a fresh batch
+from the user). Three items done this round.
+
+- **Release Notes page** (`ReleaseNotes.jsx`, route `/updates`, public — no
+  sign-in required, like landing/signin). Plain-language "what we've shipped"
+  list, hand-curated from this changelog for an end-user audience (no
+  Lambda/Cognito jargon). Linked from the landing-page footer and a new
+  "What's new" link in the in-app footer (`Footer` in `chrome.jsx` now takes
+  a `go` prop). Verified live (headless run): loads unsigned, zero JS errors.
+
+- **Admin Overview: real data, not mock.** Total users, new signups, paying/
+  plan split, Est. MRR, and the signups-by-month chart now source from the
+  same real Cognito+activity roster the Users tab already used
+  (`useRealAdminUsers`/`vm-admin-analytics` — no new AWS work, it was already
+  deployed) — same live/mock fallback labeling convention as Users. New
+  `buildRealOverviewStats()` derives the shape client-side from the real
+  roster. **"Suspended" replaces "Churned"** (the one real equivalent —
+  Cognito `Enabled:false`); **"Top countries" is dropped** in real mode
+  (never captured, same precedent as the Users tab). KPI/chart drill-down
+  modals got real-data twins (`RealAdminKpiModal`/`RealAdminChartModal`) so
+  "Total users"/"New this week"/"Paying"/"Est. MRR"/"Suspended"/"Courses" and
+  the Signups/Plan-distribution charts all work in real mode too — CSV
+  export included. **The Analytics tab is untouched** — retention/growth/
+  revenue/engagement/churn-risk/heatmap still need a real behavioural
+  event-stream/time-series project; that's separate, much bigger scope.
+  Verified live: a Babel-transform check, a headless run of the (unchanged)
+  mock fallback path, and a headless run with an **injected synthetic
+  vmAdminAnalytics** (same "fake real-shaped implementations" technique used
+  to test admin-users-and-avatar-sync-1.1) driving the real-data path end to
+  end — correct values, correct live labeling, zero exceptions in either path.
+
+- **Per-employee admin permissions (Team tab).** User's ask: "I don't want my
+  employees to have full rein" — a tickbox tool to control what each fellow
+  admin can do. Modeled as **three real Cognito groups** rather than a new
+  DynamoDB permission table (user's explicit choice, for consistency with how
+  `admin` itself already gates the panel): `admin-suspend` (suspend/
+  reactivate), `admin-delete`, `admin-billing` (setPlan). `vm-admin-actions`
+  gained two new actions: `listTeam` (lists the `admin`-group cohort +
+  each member's permission groups via `ListUsersInGroup`/
+  `AdminListGroupsForUser`) and `setPermissions` (grants/revokes one group via
+  `AdminAddUserToGroup`/`AdminRemoveUserFromGroup`); existing suspend/
+  reactivate/delete/setPlan now each require their matching group too.
+  **SAFE ROLLOUT RULE, the key design decision:** an admin never touched by
+  this tool (in none of the 3 new groups) is treated as a **full admin**
+  (today's unrestricted behavior) — restriction only kicks in once an owner
+  has explicitly assigned them at least one group. This means deploying the
+  new Lambda code and Cognito groups can't silently lock out every existing
+  admin (including the account owner) before anyone's had a chance to set
+  the groups up. Both `listTeam` and `setPermissions` themselves require the
+  caller to be a "full admin" (has all 3, or never migrated). Self-protection
+  guard matches suspend/delete: **can't change your own permissions**.
+  **Bug caught by testing, not inspection:** the first uncheck for a
+  not-yet-migrated admin needs to make the *other two* implicit permissions
+  explicit in Cognito at the same time — otherwise unchecking just "Delete"
+  would silently leave them with **zero** real group memberships (Cognito's
+  Add/RemoveUserFromGroup only touches the one named group), contradicting
+  what the tickbox UI just showed for the other two. Fixed: `setPermissions`
+  now fetches the target's current groups first and, only on first touch,
+  explicitly grants the two groups *not* being changed before applying the
+  requested change. New `TeamTab` (5th Admin tab) renders the roster as a
+  checkbox table (Full-admin badge for not-yet-migrated rows, own row's boxes
+  disabled). Verified live: headless run against the real (not-yet-
+  redeployed) Lambda shows the expected graceful JWT-parse error, no crash;
+  a separate run with an **injected synthetic listTeam/setPermissions**
+  mirroring the exact (corrected) Lambda logic drove the full checkbox
+  round-trip — unchecking one box for a fresh employee correctly left the
+  other two checked, self-row correctly disabled throughout.
+  **AWS steps needed by the user:** in Cognito console, create three new
+  groups (`admin-suspend`, `admin-delete`, `admin-billing`) in the user pool
+  — plain groups, no IAM role attached; add `cognito-idp:ListUsersInGroup`,
+  `AdminListGroupsForUser`, `AdminAddUserToGroup`, `AdminRemoveUserFromGroup`
+  to the existing `vm-admin-actions-role` inline policy (same pool ARN
+  already there); redeploy `vm-admin-actions` with the updated code. No
+  Function URL change, no new Lambda, no per-employee setup required upfront
+  — everyone stays a full admin until an owner explicitly restricts someone
+  from the new Team tab.
+
+  **Same day, extended to tab visibility too** — user's follow-up: "I only
+  want them to see the Users tab", i.e. restrict which Admin tabs an
+  employee even sees, not just what they can do once in Users. Three more
+  Cognito groups (`admin-view-overview`, `admin-view-analytics`,
+  `admin-view-courses` — **user created these in Cognito console
+  themselves**, same steps as the first three) extend `PERMISSION_GROUPS` to
+  six; the existing generic migrate-on-first-touch loop in `setPermissions`
+  needed no further Lambda changes since it already iterates the array
+  rather than hardcoding "the other two". These three aren't checked by the
+  Lambda at all — Overview/Analytics/Courses have no separate real data
+  needing server-side gating beyond the `admin` group already required to
+  reach the panel, so tab visibility is purely a client-side read of the
+  caller's own Cognito groups. `auth.jsx`'s `vmUserFromClaims` now returns
+  `groups` (the raw `cognito:groups` array) alongside `email/name/role/sub`
+  so `AdminPanel.jsx` can mirror the exact same safe-rollout logic
+  client-side (`clientHasAdminPerm`/`clientIsFullAdmin`) to decide which tab
+  buttons to render — **Users has no group, it's the floor**; **Team never
+  shows to anyone but a full admin**. `TeamTab`'s checkbox table now has two
+  labeled sections (Tabs / Actions) for the six groups. Verified live: an
+  untouched admin still sees all 5 tabs (safe-rollout intact); an admin
+  scoped to only `admin-suspend` sees **only** Users and lands there by
+  default (tab-state initializer picks `users` when `admin-view-overview`
+  isn't granted) — zero exceptions either way.
+
+### 2026-07-19 — `admin-actions-1.1` deployed live.
+
+User completed the AWS side: `vm-admin-actions` Lambda deployed (own scoped
+role `vm-admin-actions-role` — Cognito `AdminDisableUser`/`AdminEnableUser`/
+`AdminDeleteUser` on the pool ARN + `dynamodb:UpdateItem` on
+`vm-subscriptions`), Function URL live
+(`https://i342woydxvvdmdfc2lezqmsioa0ttrpf.lambda-url.us-east-1.on.aws/`,
+verified reachable — cleanly rejects a request with no real Cognito token),
+and `vm-admin-analytics` redeployed with the `Enabled`-field code. URL wired
+into `adminactions.jsx`. **Suspend/Reactivate/Delete/Change plan are now
+fully live**, not just built. Still not merged to main — real-account
+end-to-end testing (Suspend/Reactivate/Change-plan on a throwaway test
+account; genuinely never Delete/Suspend the admin's own account, which the
+Lambda blocks anyway) is the natural next step before merging.
+
+### 2026-07-18 — Started `admin-actions-1.1`.
+
+User picked the deferred item from the Admin Users pass: real mutating
+row/detail-modal actions (Suspend / Reactivate / Delete / Change plan / Email
+user) — previously hidden for real users since they were destructive and had
+no admin-privileged backend. Treated with more care than usual given Delete
+is genuinely irreversible.
+
+- **New `vm-admin-actions` Lambda** (`lambda/admin/vm-admin-actions/`) — admin-
+  group-gated (same JWKS+`cognito:groups` check as vm-admin-analytics), takes
+  `{action, sub, plan?}`. `suspend`/`reactivate`/`delete` call Cognito's
+  `AdminDisableUser`/`AdminEnableUser`/`AdminDeleteUser` directly with the
+  target's `sub` (Cognito's Admin* APIs accept sub as an alternative to
+  Username — this pool's real Username is the sign-up email, not the sub, so
+  this avoids a separate lookup). `setPlan` is an app-side override —
+  UpdateItem on `vm-subscriptions`, **not** a Stripe call (no subscription
+  created/changed/charged); the confirmation copy says so explicitly so it's
+  never mistaken for real billing. **Safety guard in the Lambda itself:** an
+  admin can't suspend/delete their *own* account through this endpoint.
+- **`vm-admin-analytics` extended** to also return each user's Cognito
+  `Enabled` flag (it didn't capture this before — needed to know who's
+  currently suspended so the UI can offer "Reactivate" instead of "Suspend").
+  New `A_STATUS_REAL.suspended` status + filter pill.
+- **Every mutating action routes through one `AdminActionModal`** — nothing
+  in `UserRow`/`UserDetailModal` calls `vmAdminAction` directly. Delete
+  requires typing **DELETE** (matches the account's own self-delete flow);
+  Suspend/Reactivate/Change-plan get a plain-language confirmation. On
+  success, `useRealAdminUsers` gets a `refresh()` (re-fetches the roster so
+  the change shows immediately) instead of a stale local patch.
+  "Email user" needed no Lambda at all — a plain `mailto:` link.
+- **Testing approach, given the stakes:** never attempted the real success
+  path against actual AWS (a real click could permanently delete a real
+  account). Verified two ways instead: (1) the normal fake-token path, same
+  as every other Lambda this session — confirms graceful `"not configured"`/
+  auth-failure handling, no crash; (2) **injected fake `vmAdminAnalytics`/
+  `vmAdminAction` implementations** (real-shaped synthetic users, a local
+  in-memory action log) to drive the *entire* real-user UI end-to-end —
+  confirmed: Suspend/Reactivate label correctly toggles per user status,
+  Change plan modal shows all 4 plans and calls `setPlan` with the picked
+  one, and — the important one — clicking "Delete account" **before** typing
+  DELETE is a genuine no-op (verified the action log stayed empty), only
+  firing after the exact confirmation text is entered. No JS errors.
+- **AWS steps needed by the user:** deploy the new `vm-admin-actions` Lambda
+  (Function URL, admin-group check built into the code) with IAM for
+  `cognito-idp:AdminDisableUser`/`AdminEnableUser`/`AdminDeleteUser` on the
+  pool ARN + `dynamodb:UpdateItem` on `vm-subscriptions`; redeploy the updated
+  `vm-admin-analytics` code (adds the `Enabled` field — needs no new IAM,
+  `cognito-idp:ListUsers` already returns it); fill the new Lambda's URL into
+  `adminactions.jsx`'s `VM_ADMIN_ACTIONS.url` (currently blank, so all four
+  actions correctly no-op with "not configured" until then).
+
+### 2026-07-18 — Started `admin-users-and-avatar-sync-1.1`.
+
+User picked 3 items off the bug/gap list from the earlier audit: Admin →
+Users real data, real session tracking, avatar cross-device sync. Did #1 and
+#3 first; user then confirmed #2's scope: real sign-in history (no per-
+session revoke — that would mean building a whole custom session-tracking
+layer Cognito doesn't provide) + real all-or-nothing `GlobalSignOut`.
+
+- **Real sign-in history (Settings → Security).** Old mock: a hardcoded
+  2-device list, per-row fake "Sign out". New: `session_start` events (already
+  captured on every load) now also carry a real `device` string
+  (`vmDeviceString()`, new shared helper in capture.jsx — "OS · Browser" from
+  the user agent; same logic `currentDevice` already used, now reused instead
+  of duplicated). `vm-my-activity` extended to also return `sessions:
+  [{device,ts}]` from those events (was only search/viewed). Section renamed
+  "Active sessions" → **"Sign-in history"** since it's honestly informational
+  now, not a list of revocable sessions — `SessionRow` dropped its per-row
+  "Sign out" button (deleted dead code from the first pass at this, not just
+  hidden). Skips the single most-recent history entry if it's <60s old (this
+  page load's own `session_start`), so "This device · now" doesn't duplicate
+  right above it.
+- **Real "sign out of all sessions."** New `vmGlobalSignOut()` (auth.jsx) →
+  Cognito `GlobalSignOut`, self-service. Copy is explicit that this is
+  all-or-nothing and will eventually log out *this* browser too (once its
+  current access token naturally expires) — Cognito has no lesser option.
+- Verified live (fake session): Security page shows a real parsed device
+  string + "No earlier sign-ins recorded yet." (correct — fake token means
+  vm-my-activity returns null); clicking "Sign out of all sessions" correctly
+  attempts the real call and surfaces the session-expired message on an
+  invalid token. No JS errors.
+
+- **Admin → Users tab reads real data.** New `useRealAdminUsers()` calls the
+  already-built `vm-admin-analytics?view=users` (built for Overview, never
+  wired to Users) — falls back to the mock `VM_USERS` if that fails/isn't
+  reachable, with a visible "· live (Cognito + activity)" vs "· mock" label so
+  it's never ambiguous which one's showing. Real users get their own status
+  taxonomy (`A_STATUS_REAL`: active/inactive/unconfirmed, from Cognito status +
+  real last-seen recency — the mock's active/trial/churned is a subscription-
+  lifecycle concept with no real backing data) and their own relative-time
+  helper (`aRelReal`, anchored to actual `Date.now()` — the mock's `aRel` is
+  anchored to a **fixed** fake "now" of 2026-05-31, which would make real
+  timestamps read as nonsensical/future-dated if reused). Dropped the
+  **Country** column/search (no real data source — never captured). The detail
+  modal's fabricated "Personal profits" (no real portfolio data exists for
+  anyone) is replaced with a **real recent-activity timeline** for real users,
+  via `vm-admin-analytics?view=user&id=` (also already built, also never
+  wired to anything). Row/modal actions: kept only what's genuinely real —
+  "Send password reset" now calls the real (self-service, no admin rights
+  needed) `vmForgotPassword` — and **hid** Change plan/Suspend/Delete/Email
+  for real users rather than leaving them as fake buttons next to real
+  account data (mutating admin actions need their own admin-privileged Lambda,
+  not built this round). The separate Analytics tab (retention/growth/
+  revenue/etc.) is untouched — still deterministic mock derived from
+  `VM_USERS`, out of scope (that's a much bigger, differently-shaped project).
+- **Avatar cross-device sync.** New `vmAvatarS3Url(sub)` (avatar.jsx) builds
+  the deterministic public S3 URL (`avatars/<sub>.jpg`) client-side — no round
+  trip needed to know it. `StAvatar` now tries that first, falls back to the
+  browser's cached copy (`fallbackSrc`) only if the real one 404s/errors
+  (plain `<img>` needs no bucket CORS, unlike a `fetch()` HEAD check would),
+  and finally initials. Exposes `onResolved(hasPhoto)` so "Remove" only shows
+  once it's confirmed a photo actually exists (the URL is always a
+  *candidate* now, not proof). **Bug found by testing, not inspection:** first
+  wiring attempt silently always fell through to initials even with a valid
+  local fallback cached — `renderSection()`'s ctx destructuring dropped
+  `avatarFallback` before it reached `StProfileSection`; caught via a
+  scripted CDP run that polled the DOM every 200ms and saw the fallback phase
+  never appear, fixed, re-verified frame-by-frame (200ms→400ms: S3 404s →
+  local photo appears → Remove button shows).
+  **Also fixed the same feature exposed:** "Remove" only ever cleared the
+  local cache, never the real S3 object — with remote-first loading, a
+  "removed" photo would've reappeared on next load/other devices. Extended
+  the existing `vm-avatar-upload` Lambda with a `{action:'delete'}` branch
+  (`DeleteObjectCommand`) + new `vmDeleteAvatar()`; Remove now calls it
+  best-effort. **AWS step needed by the user:** redeploy the Lambda's updated
+  code, and add `s3:DeleteObject` to the existing inline role policy
+  (`vm-avatar-s3-write`) — it currently only has `s3:PutObject`.
+- Verified both live with scripted CDP/headless-Edge runs (fake session):
+  Admin Users correctly attempts the real call and falls back to mock
+  cleanly; avatar sync tries S3 → falls back to local → falls back to
+  initials correctly in both the has-a-photo and never-uploaded cases, frame
+  by frame. No JS errors.
+
+### 2026-07-18 — Started `personalization-1.1`.
+
+New branch (from `personal.settings.1.2`, uncommitted at the time — branched
+off before merging) for "tailor news and recommendations to a signed-in
+user's interests." Distinct feature area from the settings work, so its own
+branch/track rather than folding into `personal.settings.*`.
+
+- **New `interests.jsx`** — the personalization core, no new backend:
+  `vmGetInterestTickers()` combines real favourites (`vmFavs()`, capture.jsx)
+  + real recently-viewed companies (`vmFetchMyActivity()`, activity.jsx),
+  favourites ranked first. `vmRecommendCompanies(tickers, limit)` is a simple
+  content-based recommender over `VM_COMPANIES`' existing `sector` field
+  ("Tech · Semiconductors") — exact-sector matches first, broadening to the
+  sector prefix ("Tech") if that doesn't fill the quota. Deliberately not
+  ML/embeddings — a transparent heuristic that's honest about what it is.
+- **Personalized news** — new `useVMPersonalizedNews(tickers)` in
+  newsfeed.jsx calls the *existing* `vm-news` Lambda once per interest ticker
+  (it already supports per-symbol queries, cached server-side — no new
+  Lambda), merges by recency, dedupes. Same `{cards,loading,live}` shape as
+  `useVMNews` so it drops in anywhere.
+  - **Home page:** `FrontPage` now takes a `user` prop; when signed in with
+    interest data, the "Global News" tiles + kicker switch to "For you"
+    automatically. Also added a new **"Recommended for you"** section
+    (sector-overlap companies, reusing the existing `CompanyRow`/live-quotes
+    machinery) — signed-in-only, hidden when there's nothing to recommend
+    yet (blank-slate new users still just see the general feed).
+  - **News page:** `News` now takes `user` too; signed-in users with interest
+    data get a **"For you"** pill prepended to the category filters — a
+    parallel option alongside the existing feed, not a replacement.
+- Verified live end-to-end with a scripted CDP/headless-Edge run (seeded
+  `vm_favs:['NVDA']`): recommends AVGO (exact sector match) + others (broader
+  "Tech" match); Home shows "Recommended for you" and personalized tiles;
+  News page's "For you" pill switches to NVDA-related live articles. No JS
+  errors. (Hit — and this time correctly diagnosed rather than re-chased —
+  the recurring test-harness false alarm where `Kicker`/`Label`'s CSS
+  `text-transform:uppercase` makes case-sensitive `innerText` checks miss
+  real content; always compare lower-cased in these smoke tests.)
+
+### 2026-07-18 — `personal.settings.1.2` continued: Learning, toggles, real 2FA.
+
+User picked 3 of the "bigger, new integrations" list (explicitly skipped SMS
+2FA and broker connections — both need real outside setup, not code):
+Learning progress, Notifications/Privacy/Data-permissions toggles, and a
+**full-loop** real authenticator-app 2FA (their words: "do the full loop, but
+I want the customer to have the option to use it if they want it" — i.e. real
+Cognito TOTP, opt-in per account via `SetUserMFAPreference`, not pool-wide).
+
+- **Learning progress — real, not hardcoded.** There was no persisted
+  progress at all (the lesson viewer's progress bar was session-only, purely
+  positional). Added real tracking in `Learn.jsx`: `vmSaveLearnProgress`
+  records `{title, pct, ts}` per course to `vm_learn_progress` every time
+  `LessonViewer` renders a lesson; `vmLatestLearnProgress()` picks the
+  most-recently-touched one. Settings → Learning now shows that (or "You
+  haven't started a course yet." if none).
+- **Notifications / Privacy / Data permissions toggles now persist.**
+  `StToggle` gained an optional `id` prop — when given, reads/writes a
+  consolidated `vm_toggles` localStorage map instead of resetting to its
+  default every remount; omitted (kept on the 2 purely cosmetic Appearance
+  toggles) it keeps the old ephemeral behavior. Added ids to all 15
+  Notifications/Privacy/Permissions toggles.
+- **Authenticator-app 2FA — real Cognito TOTP, full loop.** New auth.jsx calls:
+  `vmAssociateSoftwareToken` (registers a real secret), `vmVerifySoftwareToken`
+  (checks a live code), `vmSetSoftwareMfaPreference` (the actual on/off
+  switch — per-account opt-in, not pool-wide), `vmGetMfaStatus` (so Settings
+  shows Cognito's real current state, not a cached guess). Real QR via a new
+  CDN script `qrcode@1.5.3` (`window.QRCode.toDataURL` on an `otpauth://`
+  URI) — replaces the old hand-drawn fake `QR_GRID` pixel grid + the
+  `JBSWY3DPEHPK3PXP (mock)` fixed secret.
+  **Closing the loop required touching sign-in itself** (flagged to the user
+  before starting, since this is the one part of this round that could
+  actually lock someone out if done wrong): `vmSignIn` now returns
+  `{mfaRequired:true, session, username}` instead of setting the session when
+  Cognito challenges with `SOFTWARE_TOKEN_MFA`; new `vmConfirmMfaSignIn`
+  completes it via `RespondToAuthChallenge`. `app.jsx`'s `signIn` wrapper and
+  a new `confirmMfa` handle both; `SignIn.jsx` gained a 5th mode (`mfa`) that
+  prompts for the code and resumes the same challenge Session.
+  **AWS step still needed by the user:** Cognito console → user pool →
+  Sign-in experience → Multi-factor authentication → set enforcement to
+  **Optional** (not Off) and enable the **Authenticator apps** method — until
+  that's set, `SetUserMFAPreference` will fail regardless of what the code
+  does (this is a hard Cognito requirement, not a bug to fix in code).
+  Verified: fake-token 2FA-setup attempt fails cleanly with the "session
+  expired" message (no crash); sign-in page still renders/works with the new
+  mode added. **Could not test the real enable → sign-in-challenge → confirm
+  loop** — needs a real signed-in session + a real authenticator app, and the
+  pool MFA setting flipped to Optional first.
+
+- **Change password — real Cognito `ChangePassword`.** Was checking against a
+  fake password in `localStorage` (`vm_mock_password`, removed). Now a real
+  self-service call (`vmChangePassword` in auth.jsx); a wrong current password
+  surfaces as an inline field error same as before. Deliberately **not**
+  routed through the `vmSelfService()` NotAuthorizedException re-mapping added
+  last round — here that exception code genuinely does mean "wrong current
+  password," not an expired session, so remapping it would've been wrong in
+  the other direction.
+- **Delete account — real Cognito `DeleteUser`.** Previously only cleared
+  `localStorage` and signed out — never actually deleted the account despite
+  the modal's copy promising permanent removal. Now calls `vmDeleteAccount()`
+  first; only clears local data + signs out if that succeeds. Modal gained a
+  `busy` state (Cancel/backdrop/Confirm all disabled mid-request) so a slow or
+  failing call can't be raced. Verified live (fake token): shows "session
+  expired" and — importantly — does NOT sign out or clear local data when the
+  delete call fails, so a real user is never (falsely) shown "deleted" while
+  their account still exists.
+- **Saved — reads real favourites.** Was hardcoded to the first 4 companies in
+  the database. New `SavedSection` reads `vmFavs()` (capture.jsx) — the same
+  localStorage source of truth the ⭐ on company pages already uses — and maps
+  tickers back to full company objects. No new backend needed; this data
+  already existed.
+- **Your activity — new `vm-my-activity` Lambda (real, needs deploy).**
+  Was hardcoded `MOCK_SEARCHES`/`MOCK_VIEWED`. New Lambda
+  (`lambda/activity/vm-my-activity/index.mjs`, same recipe as
+  vm-avatar-upload: Function URL Auth NONE, verifies the Cognito access token
+  itself via JWKS) **Queries** (not Scans — scoped to the caller's own `pk`)
+  `vm-events` for `type:"search_select"` and `type:"navigate"` (route
+  "dashboard") events, dedupes, returns the 8 most recent of each. New
+  `activity.jsx` (`VM_ACTIVITY` config + `vmFetchMyActivity`, same shape as
+  avatar.jsx/billing.jsx). **Deployed** — Function URL
+  `https://oh3bjpbnrw2g64tplpicg4yam40wiybz.lambda-url.us-east-1.on.aws/`,
+  wired into `activity.jsx`. Verified live: manual fetch to the Lambda
+  confirms it's reachable and JWKS-verifying; `vmFetchMyActivity()` correctly
+  returns `null` on an invalid token and `ActivitySection` falls back to the
+  mock cleanly (couldn't test the real-data success path from here — needs a
+  real signed-in session, same limitation as the other Cognito-gated flows).
+- Verified all four together with one scripted CDP/headless-Edge run (fake
+  session): Saved renders real favourited tickers; Activity falls back to
+  mock cleanly (Lambda not deployed yet); Change password surfaces "Incorrect
+  password" correctly on a bad token; Delete account shows the session-expired
+  toast and — confirmed — does not sign out or wipe local data on failure. No
+  JS errors.
+
+### 2026-07-18 — Started `personal.settings.1.1`.
+
+New branch (from main) for personal/account settings work. Branch name given
+verbatim by the user (dotted form, not the usual kebab-case slug — honoured
+as-is).
+
+- **Profile photo upload (`AccountSettings.jsx`).** "Change photo" on the
+  Personal details page was a toast-only mock. Now a real client-side upload,
+  stored as a data URL in `vm_avatar_<sub>` → new shared `StAvatar` renders
+  it (falling back to the initials square) on both the settings-list profile
+  card and the Personal details page. Added a Remove-photo link; wired
+  avatar-key cleanup into Delete account.
+
+- **`AvatarCropModal` — pick-a-photo preview/adjust popup.** Picking a file no
+  longer auto-crops silently; it opens a modal (same portal/overlay pattern as
+  `DeleteAccountModal`) with a 240px square viewport showing the photo — drag
+  to reposition, a slider (1×–3×) to zoom, Cancel/Save. Save reads the exact
+  pan/zoom back into source-image coordinates and crops a 320px JPEG via
+  `vmCropImageToDataUrl` (replaced the old auto-centre-crop `vmResizeImageFile`,
+  now dead code since the modal always drives the crop). Verified end-to-end
+  with a scripted CDP/headless-Edge run: file picked → modal opens → slider
+  dragged to 2× (confirmed the resulting CSS transform scale doubled, so the
+  pan/zoom math is correct) → simulated a drag pan via `Input.dispatchMouseEvent`
+  → Save → uploads/falls back → modal closes → avatar renders. No JS errors.
+
+- **`vm-avatar-upload` — real S3-backed photo storage.** New Lambda
+  (`lambda/avatar/vm-avatar-upload/index.mjs`, same recipe as the billing
+  Lambdas: Function URL Auth NONE, verifies the Cognito **access** token itself
+  via JWKS — no API Gateway). Takes the already-resized JPEG data URL, PUTs it
+  to S3 at a deterministic per-user key `avatars/<cognito-sub>.jpg` (re-uploads
+  just overwrite), returns the public URL. **AWS set up by the user:** S3
+  bucket `veridianmarkets-avatars` (public-read via bucket policy scoped to
+  `avatars/*`, matching the existing "code sets CORS, Function URL CORS off"
+  convention), inline role policy `vm-avatar-s3-write` (`s3:PutObject` scoped
+  to that prefix — not a blanket S3 FullAccess). Function URL:
+  `https://tjm2rqjtjljgikdlucblj3kiyq0brefs.lambda-url.us-east-1.on.aws/`.
+  **Frontend:** new `avatar.jsx` (`VM_AVATAR` config + `vmUploadAvatar`, same
+  shape as `billing.jsx`), registered in `index.html`. `StProfileSection`'s
+  upload handler now tries `vmUploadAvatar` first and falls back to the
+  local-only `localStorage` copy if it's not configured/fails (offline, quota,
+  etc.) — toast text tells the user which happened.
+
+  **Verified fully live end-to-end** (2026-07-18, real signed-in session):
+  upload → Lambda verifies token → S3 PutObject → toast "Profile photo
+  updated." → renders in Settings. Hit one real bug along the way: the S3
+  object URL 403'd (`AccessDenied`) even though the upload succeeded — the
+  bucket policy step had been skipped (empty policy = nothing grants public
+  read), and separately the bucket-level "Block Public Access" (not the
+  account-wide one — both exist, at different console locations) still had it
+  on, which rejects a bucket policy save outright until cleared. Fixed by
+  turning off bucket-level Block Public Access, then saving the public-read
+  policy scoped to `avatars/*`. **Not yet done:** no cross-device
+  reconciliation on load — the avatar shown is still whatever's cached in this
+  browser's `localStorage`, not re-fetched from S3 on other devices/browsers.
+
+- **Editable Full name / Email / Username — real Cognito self-service.**
+  `StField` (Personal details) was always a live-looking `<input>` but never
+  actually saved anything — `Save changes` just showed a mock toast. Now:
+  - **Full name** → real Cognito `UpdateUserAttributes` (`name` attribute),
+    immediate, no verification. On success calls the new `onUserRefresh` (app.jsx
+    → `vmRefresh()` → `setUser`) so the fresh claim shows up everywhere `user` is
+    read (rail greeting, etc.) without a re-login.
+  - **Email** → real Cognito flow, not just a form save: `UpdateUserAttributes`
+    + `GetUserAttributeVerificationCode` sends a code to the *new* address, then
+    a new `VerifyEmailModal` (code entry, resend, confirm/cancel) calls
+    `VerifyUserAttribute` before it's final — matches how email changes work
+    everywhere (security-correct, user's explicit choice over a no-verification
+    shortcut).
+  - **Username** → confirmed **not a real separate Cognito field** (this pool's
+    real username is the fixed sign-up email and can't be renamed); made it a
+    genuine local display handle instead, `vm_username_<sub>` (localStorage),
+    independent of email — user's choice over dropping the field.
+  - New auth.jsx exports: `vmUpdateAttributes`, `vmRequestEmailChange`,
+    `vmResendEmailCode`, `vmConfirmEmailChange`, plus an internal
+    `vmSelfService()` wrapper that re-maps `NotAuthorizedException` — the
+    shared `cognitoMessage()` map says "Incorrect email or password" for that
+    code (correct for sign-in, wrong here: it means the access token expired
+    mid-session) → now "Your session has expired — please sign in again."
+    **Caught by a scripted headless-Edge test**, not spotted by inspection —
+    worth remembering `cognitoMessage()`'s mappings are sign-in-flow-specific
+    and need re-checking whenever reused in a new context.
+  - **Correctness fix motivated by this change:** avatar storage key switched
+    from `vm_avatar_<email>` to `vm_avatar_<sub>` (sub is stable, email isn't
+    anymore) — otherwise changing your email would silently orphan your
+    already-uploaded photo. Delete-account cleanup updated to match (now also
+    clears `vm_username_<sub>`).
+  - Verified with a scripted CDP/headless-Edge run (fake-but-decodable ID
+    token): fields load real values from claims, name field edits are
+    controlled/lift correctly, Save fires the real Cognito call and — key
+    finding — surfaces the corrected error message on an invalid/expired
+    token. **Still needs a live test with a real signed-in session** for the
+    actual success paths (name update reflecting in the rail; full email
+    verify-code round trip) — can't fake a validly-signed Cognito JWT from
+    here.
+
+### 2026-07-18 — `landing-page-3.1` merged to main + live.
+
+Whole-app sign-in gate (below) pushed to `main` → veridianmarkets.ai.
+
+### 2026-07-18 — Started `landing-page-3.1`.
+
+New branch (from main) to pick back up Landing page work (`Landing.jsx`, the
+marketing site at root). User asked to number it `3.1` (a new series for this
+feature track, after `landing-page-1.1`/`landing-page-2.1`, both merged).
+
+- **Gated the whole app behind sign-in (`app.jsx`).** Since the landing-page
+  split moved the app to `/home`, every app route (`front`, `screener`,
+  `history`, `learn`, `memoir`, `myportfolio`, `mybusiness`, `admin`,
+  `settings`, `calendar`, `news`, `upgrade`, `/company/<ticker>`) was actually
+  reachable unauthenticated via direct URL — only `mybusiness`/`admin`/the 3
+  paid routes redirected. Found via a real (non-guessed) test: headless Edge
+  with a clean profile hitting `/home` rendered the full FrontPage. New
+  `appGated = !signedIn && route!=='landing' && route!=='signin'` catches
+  everything else → `signin`, replacing the old one-off `gatedFromBusiness`.
+  `SignIn`'s `redirectTo` now sends the user back to whatever route they were
+  gated from (was hardcoded to `admin`/`mybusiness`/`myportfolio`). Also fixed
+  the document-title effect to key off `effRoute` (what's actually on screen)
+  instead of `route` (the requested one) — it was stale/wrong for any gated
+  page. Removes the old "portfolio sign-in guard disabled" testing bypass as
+  a side effect (now covered by the blanket gate).
+
+### 2026-07-18 — financials display fixes (branch `fix-earnings-order`). Merged to main.
+
+- **Balance sheet** BS_MAP reordered to **Yahoo hierarchy** (Assets→Liabilities→Equity;
+  subtotals bold, components indented) + many added us-gaap concepts (PP&E, goodwill,
+  intangibles, non-current sections, retained earnings, minority interest, shares).
+  Dashboard row render now does multi-level indent (`paddingLeft: 12+(in)*15`) + bold at
+  any level; added `shares` fmt (no $).
+- **Q4 in quarterly**: `vmBuildQuarterly(qPayload, aPayload)` — 10-Qs = Q1–Q3 only, so pull
+  annual 10-K too; **balance sheet Q4 = year-end snapshot as-filed**, **income/cashflow Q4 =
+  annual − (Q1+Q2+Q3)** derived (`_deriveQ4`). `useVMFinancials` fetches both freqs on quarterly.
+- **Units:** `unit` state + "Show in: Relative/Thousands" toggle; **$ removed from all cells**,
+  "Currency in USD · …" caption added; Thousands = plain `value×1000` with commas.
+- EPS-surprise card sorts quarters chronologically (`signals.jsx`).
+
+### 2026-07-18 — data-capture-1.2: admin reports + favourites table. Merged to main.
+
+- **`vm-admin-analytics`** Lambda (`lambda/capture/vm-admin-analytics/`): admin-only (checks
+  `cognito:groups` includes `admin`); Scans `vm-events` + Cognito **ListUsers** → views
+  `overview`/`users`/`user&id=`. Env TABLE, COGNITO_POOL_ID, COGNITO_REGION. IAM needs
+  **AmazonDynamoDBReadOnlyAccess + AmazonCognitoReadOnly**. Uses AWS SDK v3
+  `@aws-sdk/client-cognito-identity-provider` (bundled in Node 20; Cognito call wrapped in
+  try/catch so it degrades to events-only if not).
+- **`adminanalytics.jsx`** (`useAdminAnalytics`) + `LiveCapturePanel` atop Admin→Overview:
+  real users/active-7d/plans/top-favourites/top-viewed/funnel. Hidden if not admin (403).
+- **`vm-favourites`** table (pk+sk = userId, TICKER): `vm-capture` now mirrors favourite
+  add/remove there (best-effort). **Two AWS steps still needed by user: create `vm-favourites`
+  table + redeploy `vm-capture`.** **Data lives in DynamoDB us-east-1** — report via Explore
+  items/Scan→CSV, PartiQL, the admin Lambda, or (later) S3 export + Athena. Cognito ≠ database.
+  **Next idea: wire Admin Users tab to the real Cognito+activity roster.**
+
+### 2026-07-18 — data-capture-1.1: first-party analytics → DynamoDB. Merged to main.
+
+- **`vm-capture`** Lambda (`lambda/capture/vm-capture/`): batched event ingest → **`vm-events`**
+  table (COMPOSITE key **`pk`+`sk`** — first table with a sort key; pk=`u#<sub>`/`a#<anonId>`,
+  sk=`<ts>#rand` for events or `#profile` for the rolling identity+counter row). Public POST
+  beacon, no auth, TTL_DAYS. **Gotcha fixed: `plan` (like `name`) is a DynamoDB reserved word**
+  — alias in UpdateExpression (`#pl`). Env TABLE, TTL_DAYS. IAM: BatchWriteItem+UpdateItem.
+- **`capture.jsx`** (`vmCapture`/`vmIdentify`/`vmFavs`/`vmToggleFav`): batched (flush every 2.5s
+  or 12 events, `sendBeacon` on pagehide), sent as text/plain = no CORS preflight; no-op until
+  `VM_CAPTURE.url` set.
+- **Wired:** ⭐ favourite star in `CompanyHead` (persists localStorage + logs); global `click`
+  listener; `navigate`/`session_start`(+referrer/UTM/device)/`paywall_hit`/`checkout_start` in
+  app.jsx & billing.jsx; `search_select`, `tab_view`, `feature`(export). Next ideas: search
+  no-results, dwell time, cancel-reason, an Admin "Users & activity" view reading `vm-events`.
+
+### 2026-07-18 — payments-1.3: proper checkout (no duplicate customers). Merged to main.
+
+- **`vm-billing-checkout`** Lambda (`lambda/billing/checkout/`): JWT verify → reuse ONE
+  Stripe customer per Cognito user (stored `stripeCustomerId` + reverse map `cust#id`→sub)
+  → create subscription Checkout Session → return url. Replaces Payment Links (kills
+  duplicate customers). Env: STRIPE_SECRET_KEY, TABLE, COGNITO_POOL_ID, COGNITO_REGION,
+  PRICE_PLUS, PRICE_PRO, SUCCESS_URL, CANCEL_URL. Guards a deleted customer via
+  `customerLives()`. `billing.jsx` apiBase → this Lambda; sends `email` in the body
+  (access token lacks email). **Set timeout 30s** (checkout.session.completed 502'd on
+  the webhook's 3s default — the extra Stripe line-items call; same fix due on checkout).
+- **Phase 4** = webhook already handles subscription.updated/deleted; just raise
+  `vm-billing-webhook` timeout to 30s + ensure the 3 events subscribed. **User hasn't
+  run the full test yet.** Still pending: GBP→USD prices. **Next: data-capture-1.1.**
+
+### 2026-07-18 — payments-1.2: billing portal + admin access. Merged to main.
+
+- **`vm-billing-portal`** Lambda (`lambda/billing/portal/`): verifies Cognito JWT →
+  reads `stripeCustomerId` from `vm-subscriptions` → creates a Stripe Customer Portal
+  session → returns URL. Env: STRIPE_SECRET_KEY, TABLE, COGNITO_POOL_ID, COGNITO_REGION,
+  RETURN_URL. Function URL Auth NONE, CORS off. Frontend `vmOpenPortal()` + "Manage /
+  cancel subscription" button in Settings. Works only for subs made **while signed in**
+  (webhook stored the customer id) — Phase 3 (`vm-billing-checkout`, one customer per
+  Cognito user) still pending to kill duplicate Stripe customers + reliable plan sync.
+- **Admin bypasses paywall**: `isPaying = signedIn && (plan!=='free' || user.role==='admin')`.
+- **Fixed** pre-existing `StList` crash — used `planTier` without the prop; blanked the
+  Settings menu on a direct `/settings` deep-link. **Payments still test-mode**; see
+  `review.md` (currency GBP→USD, single-customer checkout, go-live) + the payments
+  problem list. **Next: customer data capture.**
+
+### 2026-07-17 — Generic Finnhub proxy + extra calendars. Merged to main.
+
+- **`vm-finnhub`** — ONE generic caching proxy Lambda for many free Finnhub GETs.
+  Call `?endpoint=<key>[&params]`; an `EP` map holds path + **per-endpoint TTL** (no
+  `TTL_SECONDS` env var) + allowed params + default date windows. One table
+  `vm-finnhub` (key `pk`). Endpoints: ipo-calendar, fda-calendar, market-status(5m),
+  market-holiday, insider-sentiment, usa-spending, lobbying, sec-filings. Skips
+  caching payloads >380KB. **This is the pattern for adding more endpoints — edit the
+  EP map, no new Lambda.**
+- **`calendars.jsx`** (`useVMCalendars`) puts **IPO / FDA / market-holiday** onto the
+  Calendar page as new event types (added to `CAL_TYPES` + `CAL_EDU` + `calEduFor`), so
+  filter chips/legend/day-panel/education pick them up automatically. Branch
+  `api-links-2.1.1`. **Still unwired (deployed, on vm-finnhub):** insider-sentiment,
+  usa-spending, lobbying, sec-filings, market-status → belong in Signals/Overview/header.
+
+### 2026-07-17 — Finnhub data build-out (6 Lambdas). Merged to main.
+
+Same read-through-cache recipe each time (DynamoDB key **`pk`**, code-set CORS +
+Function-URL CORS **off**, 30s timeout, `AmazonDynamoDBFullAccess`). All stacked
+branches merged via `earnings-calendar`. Roadmap/tracker: `finnhub-roadmap.md`.
+
+- **`vm-search`** (`/search`) → `symbolsearch.jsx` `SymbolSearchBox` on Home+Search;
+  opens any US ticker (non-curated = real price/financials + `TabUnavailable` for
+  mock-only tabs). Table key `q` (not `pk`).
+- **`vm-profile`** (`/stock/profile2` + `/stock/metric`) → `profile.jsx`: header mkt
+  cap/P/E/yield (replaced hardcoded 37.36), `LiveMetrics` on every Overview,
+  `ProfileOverview` for searched tickers.
+- **`vm-news`** (`/news` + `/company-news`) → `newsfeed.jsx`: Home tiles, News page
+  (source links), company News tab + "Latest headlines" strip. 15m TTL.
+- **`vm-signals`** (recommendation/earnings/peers/insider) → `signals.jsx`
+  `SignalsPanel`; Screener Analyst filter live via `useVMConsensus`.
+- **`vm-patents`** (`/stock/uspto-patent`) → `patents.jsx` `PatentsLive` (stat row,
+  title-classified tech breakdown, filing trend, recent). Free tier caps ~250.
+- **`vm-earnings-cal`** (`/calendar/earnings`) → `earningscal.jsx`: month's biggest
+  reporters (ranked by revenue est — curated-only was too sparse) on the Calendar
+  grid/day-panel/list. Free tier chokes on >~1-month ranges → fetch per month.
+
+**Gotcha:** `news.jsx` collides with `News.jsx` on Windows (case-insensitive FS) —
+the helper is `newsfeed.jsx`. Remaining free endpoints (Phase 2) in `finnhub-roadmap.md`.
+
+### 2026-07-14
+
+- **`financials-1.1` — financials as reported (cached). Merged to main.** `vm-financials`
+  Lambda caches Finnhub `/stock/financials-reported` in DynamoDB (`vm-financials`, key
+  `symbol#freq`, **24h TTL**, whole payload as one JSON `S` attr to dodge the 400KB limit,
+  trimmed to 8 latest filings). `financials.jsx` (`vmFinancials`/`vmBuildStatements`/
+  `useVMFinancials`) maps raw **us-gaap concepts** → the curated Income/Balance/Cashflow
+  rows (matched by concept suffix after `_`, first-wins; values ÷1e6 to USD millions, EPS
+  raw) → same `{periods,income,balance,cashflow}` shape the tab already renders/exports.
+  `DashFinancials` uses live filings per ticker/period, else the mock, with an "as reported
+  vs illustrative" source line. **US filers only** (free tier). Same Lambda recipe as
+  `vm-quote`: CORS in code + Function URL CORS off, 30s timeout, DynamoDB Get/PutItem IAM.
+
+- **`marketdata-1.1` — live Finnhub quotes (cached). Merged to main.** Read-through
+  cache shipped: `vm-quote` Lambda serves a **`vm-quotes`** DynamoDB entry (2-min TTL) or
+  fetches Finnhub on a miss. Frontend `marketdata.jsx` (`vmQuotes`/`useVMQuotes`/`vmApply`,
+  2-min client cache) drives **company header, Home, Search** in **USD** with a live dot;
+  non-equities stay mock (free tier = US stocks only). **Setup gotchas (fixed):** CORS must
+  be single-source — code sets the headers, so the **Function URL CORS config is OFF** (had
+  `*, *` → blocked); **Lambda timeout raised to 30s** (default 3s timed out on the 10-symbol
+  Home request → no CORS header on the error). IAM role needs DynamoDB Get/PutItem. Guide
+  `marketdataapi.md`.
+
+### 2026-06-30
+
+- **Started `marketdata-1.1`.** New branch (from main) for **live market data** via the
+  **Finnhub API** (backend track, `-1.1`). Strategy (`marketdataapi.md`): **read-through
+  cache** in DynamoDB (`vm-quotes`) with a **2-minute TTL** — quotes fetched from Finnhub
+  **only when a user accesses a symbol AND the cached copy is stale** (>120s); one fetch
+  serves all users; key stays server-side in a `vm-quote` Lambda; `data.jsx` seam swaps
+  mock → cached quotes. Build TBD (user gets Finnhub key first).
+
+- **`backend-signin-AWS-1.1` — real Cognito sign-in. Merged to main.** Replaced the
+  placeholder `VM_ACCOUNTS`/SHA-256 auth with **AWS Cognito** (pool `us-east-1_FusGT8Ntu`,
+  public app client `7idj7ncoa195pgqiaqs7376k8d`, no secret, `USER_PASSWORD_AUTH`). New
+  `auth.jsx` (global `VM_AUTH` + `cognito()` REST helper + flows, no SDK/build step);
+  `SignIn.jsx` five modes; `app.jsx` session/refresh/sign-out via Cognito; admin = Cognito
+  group. Guide `backend-signin.md`. **Still test-stage:** move to SES email + adaptive auth
+  before scale.
+- **`payments-1.1` — payment/paywall + real Stripe (test). Merged to main.** (Numbered
+  `-1.1`, payments/backend track.) Gates **News/Calendar/Dependency map** behind a paying
+  plan → lock → **/upgrade** page (`Pricing.jsx`). Shared `billing.jsx` (`VM_BILLING` +
+  `vmStartCheckout` + `vmFetchPlan`), also wired into Settings→Subscription. **Real Stripe
+  loop works (sandbox):** Payment Links (Plus £9 `price_1TsTEt…` / Pro £19 `price_1TsTF8…`)
+  tagged with Cognito `sub` → **`vm-billing-webhook`** Lambda verifies signature + writes plan
+  to DynamoDB `vm-subscriptions` → **`vm-billing-status`** Lambda verifies the Cognito JWT +
+  returns plan → app `vmFetchPlan` on load unlocks. Lambdas in `lambda/billing/` (fetch-based,
+  no npm; use only `@aws-sdk/client-dynamodb` — `lib-dynamodb` 502s). **Deferred to pre-launch:**
+  `vm-billing-portal` (cancel/switch — user chose to skip for now), single-customer
+  `vm-billing-checkout` (Payment Links create **duplicate subs**), live keys. Guide `payment.md`.
+
+- **Started `backend-signin-AWS-1.1`.** New branch (from main) — **first real backend
+  work**: replacing the placeholder client-side auth (`VM_ACCOUNTS` / SHA-256 / localStorage
+  session in `app.jsx`) with **real AWS-backed sign-in** (Cognito, per the README data/backend
+  plan). Branch name given verbatim by the user (kept the `AWS` casing + `-1.1`, a fresh
+  counter for the new backend track rather than the Foundation-2 UI counter).
+
+- **Started `analysis-tools-2.1`.** New branch (from main) for additional **analysis
+  tools**. (User said "analysis tools" → feature-scoped `-2.1`.) Clarified to mean
+  **admin-facing operator analytics**, not market tools for end users.
+- **Admin Analytics tab (`analysis-tools-2.1`). Merged to main + live.** Replaced the
+  Admin **Heatmap** top-level tab with an **Analytics** tab (`AnalyticsTab` in
+  `AdminPanel.jsx`); the heatmap is preserved as a sub-tool inside it. Seven sub-tools,
+  all derived deterministically from `VM_USERS`: **Retention** (cohort grid + avg curve),
+  **Growth** (growth accounting + Quick Ratio, synthesised monthly activity w/ gaps),
+  **Funnel**, **Revenue** (MRR/ARPU/LTV/LTV:CAC + MRR-movement waterfall + 12-mo trend +
+  NRR/GRR + plan-movement bars), **Engagement** (DAU/WAU/MAU, stickiness, **L28** power-user
+  curve, top pages), **Churn risk** (scored save-list + CSV), **Heatmap**. Reusable
+  helpers added: `AnStat`, `AnLine`. Mock until the real event stream (heatmap pipeline)
+  can feed the behavioural metrics. Open ideas next: path/flow analysis, event explorer,
+  A/B experiments, virality k-factor (all want real event data).
 
 ### 2026-06-11
 
@@ -520,7 +1211,7 @@ GitHub URLs stay clean (no spaces).
    log (Code Name + full slug + timestamp).
 
 **Current foundation:** 2 *(refinement phase, began 2026-06-01)*
-**Latest branch (this scheme):** `code-cleanup-2.1` (code quality pass across 23 JSX files; **merged to main**). Recent: `admin-refinement-2.1` (clickable KPI/chart modals + CSV download; merged), `my-business-2.1` (Tidy button + UX polish + Analysis/Impact/Signals tabs + Import; merged), `learn-veridian-markets-2.2` (tutorial overlays for Dependency Map + Admin; merged), `learn-veridian-markets-2.1` (tutorial overlays on every page; merged), `business-page-2.8` (Personal⇄Business rail switcher + My Business map builder; merged), `financials-2.7` (Financials export CSV/Excel + Calendar ⓘ modals; merged), `indices-2.6` (indices/commodities/forex + asset-class maps + breadcrumb drill; merged), `dependency-map-2.5` (map tabs + News filters + Financials deltas + AI assistant; merged). Note: recent branches (`my-business-2.1`, `learn-veridian-markets-2.1/2.2`, `admin-refinement-2.1`, `code-cleanup-2.1`) use **feature-scoped versioning** rather than the global running counter — the per-feature minor number tracks that feature's iteration.
+**Latest branch (this scheme):** `payments-1.1` (payment/paywall + real Stripe test loop — webhook + status Lambdas; **merged to main**). Previous: `backend-signin-AWS-1.1` (real AWS Cognito sign-in; merged), `analysis-tools-2.1` (Admin Analytics tab; merged), `code-cleanup-2.1` (code quality pass across 23 JSX files; merged). Recent: `admin-refinement-2.1` (clickable KPI/chart modals + CSV download; merged), `my-business-2.1` (Tidy button + UX polish + Analysis/Impact/Signals tabs + Import; merged), `learn-veridian-markets-2.2` (tutorial overlays for Dependency Map + Admin; merged), `learn-veridian-markets-2.1` (tutorial overlays on every page; merged), `business-page-2.8` (Personal⇄Business rail switcher + My Business map builder; merged), `financials-2.7` (Financials export CSV/Excel + Calendar ⓘ modals; merged), `indices-2.6` (indices/commodities/forex + asset-class maps + breadcrumb drill; merged), `dependency-map-2.5` (map tabs + News filters + Financials deltas + AI assistant; merged). Note: recent branches (`my-business-2.1`, `learn-veridian-markets-2.1/2.2`, `admin-refinement-2.1`, `code-cleanup-2.1`) use **feature-scoped versioning** rather than the global running counter — the per-feature minor number tracks that feature's iteration.
 
 > ⚠️ **Parallel-work numbering clash (2026-05-31):** a laptop worked in parallel and
 > reused the counter — `company-profiles-1.13` (alongside `admin-backend-access-1.13`),
@@ -528,7 +1219,7 @@ GitHub URLs stay clean (no spaces).
 > When working on two machines, pull main first to pick the next number, or
 > namespace by machine.
 
-**Next free iteration:** For global-counter branches: `<code-name>-2.9`. For feature-scoped branches: use `<feature-name>-2.<n>` where `n` is the next minor for that feature.
+**Next free iteration:** For global-counter branches: `<code-name>-2.9`. For feature-scoped branches: use `<feature-name>-2.<n>` (or the backend track `<code-name>-1.<n>`, e.g. `payments-1.2`). *In progress:* none — `payments-1.1` + `backend-signin-AWS-1.1` merged to main.
 
 > ✅ Confirmed (2026-06-01): **restart each foundation.** The iteration is a
 > running counter *within* a foundation (`x.1, x.2, x.3 …` across all code names)

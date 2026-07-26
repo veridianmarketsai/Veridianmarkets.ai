@@ -13,6 +13,9 @@ const CAL_TYPES = {
   cb:   { label: 'Central bank', color: VM.forest, desc: 'Central-bank actions — rate decisions, minutes, speeches.' },
   div:  { label: 'Dividend',     color: VM.ink3,   desc: 'Dividend dates — ex-dividend and payment.' },
   mkt:  { label: 'Markets',      color: VM.rust,   desc: 'Structural market events — options expiry, holidays, index changes.' },
+  ipo:  { label: 'IPO',          color: '#185FA5', desc: 'New listings — a company selling shares to the public for the first time.' },
+  fda:  { label: 'FDA',          color: '#8A5CB0', desc: 'FDA advisory-committee meetings — rulings that can move pharma & biotech.' },
+  holiday: { label: 'Holiday',   color: VM.ink3,   desc: 'US market holiday — exchanges closed or on a shortened session.' },
 };
 // Column meanings, shown in the Legend popup.
 const CAL_COL_HELP = [
@@ -110,12 +113,32 @@ const CAL_EDU = {
     moves: "The simultaneous expiry forces traders to roll or close huge positions, spiking volume and volatility — especially in the final hour. The moves are often technical and short-lived rather than driven by fundamentals.",
     note: "Expect choppier prices and heavier volume; the swings usually fade afterwards. Not a directional good/bad signal.",
   },
+  ipo: {
+    what: "An initial public offering — the first time a private company sells shares to the public and lists on an exchange. The date shown is the expected pricing/debut, with the offer price and share count.",
+    moves: "IPOs are a read on risk appetite. A hot market welcomes new listings with a first-day 'pop'; a nervous one sees deals priced low, postponed, or 'broken' (trading below the offer price). A wave of large IPOs often marks a confident — sometimes frothy — market.",
+    good: { label: 'Strong demand · first-day pop', text: 'Oversubscribed and trading above the offer price — signals healthy risk appetite across growth names.' },
+    bad:  { label: 'Weak demand · priced low or breaks', text: 'Cut price, delayed, or falling below offer — a sign investors are cautious on risk.' },
+  },
+  fda: {
+    what: "An FDA advisory-committee meeting — a panel of independent experts reviews a drug or device and recommends whether the FDA should approve it. The vote isn't binding, but the agency usually follows it.",
+    moves: "For the company involved these are binary, high-stakes events: a favourable review can send a biotech soaring, an unfavourable one can halve it. The ripple reaches partners, licensees and competitors developing rival treatments.",
+    good: { label: 'Favourable vote / positive review', text: 'Clears a path to approval and revenue — typically a sharp move up for the drug\'s owner.' },
+    bad:  { label: 'Negative vote / safety concerns', text: 'Approval in doubt — usually a steep drop, and a potential lift for competing therapies.' },
+  },
+  holiday: {
+    what: "A US market holiday — the NYSE and Nasdaq are fully closed, or trading on a shortened session (an early close, often the day before or after the holiday).",
+    moves: "No trading means no price discovery; volume around holidays is typically thin, which can exaggerate the moves that do happen just before and after.",
+    note: "Purely mechanical — plan around it. Settlement timelines shift, and liquidity is lighter on the sessions either side.",
+  },
 };
 // Resolve an event to its educational entry, falling back to a generic note.
 function calEduFor(e) {
   const t = (e.title || '').toLowerCase();
   let key = null;
   if (e.type === 'earn') key = 'earnings';
+  else if (e.type === 'ipo') key = 'ipo';
+  else if (e.type === 'fda') key = 'fda';
+  else if (e.type === 'holiday') key = 'holiday';
   else if (e.type === 'div') key = 'exdiv';
   else if (t.includes('payroll') || t.includes('non-farm')) key = 'nfp';
   else if (t.includes('jobless') || t.includes('claims')) key = 'claims';
@@ -161,7 +184,20 @@ function Calendar({ go, isMobile }) {
   // Mock events are keyed by day only, so they belong to the seed month (June 2026).
   const isEventsMonth = ym.y === CAL_YEAR && ym.m === CAL_MONTH;
   const events = CAL_EVENTS.filter(e => filter === 'all' || e.type === filter);
-  const dayEvents = (d) => (isEventsMonth && d != null) ? events.filter(e => e.d === d) : [];
+  // Real earnings (Finnhub, cached) for whichever month the active view shows —
+  // the month grid uses `ym`; the list view uses `listAnchor`.
+  const activeY = view === 'list' ? listAnchor.getFullYear() : ym.y;
+  const activeM = view === 'list' ? listAnchor.getMonth() : ym.m;
+  const liveEarn = typeof useVMEarningsMonth === 'function' ? useVMEarningsMonth(activeY, activeM) : { events: [], live: false };
+  const liveCal  = typeof useVMCalendars === 'function' ? useVMCalendars(activeY, activeM) : { events: [], live: false };
+  const liveAll  = [...liveEarn.events, ...liveCal.events];
+  const liveEvents = liveAll.filter(e => filter === 'all' || e.type === filter);
+  const dayEvents = (d) => {
+    if (d == null) return [];
+    const mock = isEventsMonth ? events.filter(e => e.d === d) : [];
+    const live = liveEvents.filter(e => e.y === ym.y && e.m === ym.m && e.d === d);
+    return [...mock, ...live];
+  };
   const selEvents = dayEvents(sel);
 
   // List view: a navigable week / month window over the events (seeded in June 2026).
@@ -176,10 +212,12 @@ function Calendar({ go, isMobile }) {
     winEnd = new Date(listAnchor.getFullYear(), listAnchor.getMonth() + 1, 0, 23, 59, 59, 999);
     rangeLabel = listAnchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
-  const inRange = events
-    .map(e => ({ ...e, date: new Date(CAL_YEAR, CAL_MONTH, e.d) }))
+  const inRange = [
+    ...events.map(e => ({ ...e, date: new Date(CAL_YEAR, CAL_MONTH, e.d) })),
+    ...liveEvents,   // already carry a real `date`
+  ]
     .filter(e => e.date >= winStart && e.date <= winEnd)
-    .sort((a, b) => a.date - b.date || a.time.localeCompare(b.time));
+    .sort((a, b) => a.date - b.date || (a.time || '').localeCompare(b.time || ''));
   const seedToday = new Date(CAL_YEAR, CAL_MONTH, CAL_TODAY);
   const listHasToday = seedToday >= winStart && seedToday <= winEnd;
   const shiftList = (delta) => setListAnchor(prev => { const x = new Date(prev); if (range === 'week') x.setDate(x.getDate() + delta * 7); else x.setMonth(x.getMonth() + delta); return x; });
@@ -205,7 +243,7 @@ function Calendar({ go, isMobile }) {
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 60px', maxWidth: 1120, margin: '0 auto' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
         <div data-tour="vm-cal-header">
-          <Kicker>Calendar · {CAL_EVENTS.length} events</Kicker>
+          <Kicker>Calendar{(liveEarn.live || liveCal.live) ? ` · ${liveEvents.length} live events this month` : ` · ${CAL_EVENTS.length} events`}</Kicker>
           <h1 style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: isMobile ? 27 : 32, lineHeight: 1.05, margin: '8px 0 0' }}>Calendar.</h1>
           <p style={{ fontFamily: VM.serif, fontSize: isMobile ? 15 : 16, color: VM.ink2, maxWidth: 620, margin: '8px 0 0' }}>
             Earnings, economic releases and central-bank decisions — the week ahead, read against history.
@@ -303,7 +341,7 @@ function Calendar({ go, isMobile }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
                       <Mono size={10} color={VM.ink3}>{e.time}</Mono>
                       <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, color: t.color, border: `1px solid ${t.color}`, borderRadius: 4, padding: '1px 5px' }}>{t.label}</span>
-                      {e.ticker && <Mono size={10} color={VM.teal} style={{ cursor: 'pointer' }} onClick={() => { const c = VM_COMPANIES.find(x => x.ticker === e.ticker); if (c) go('dashboard', c); }}>{e.ticker} →</Mono>}
+                      {e.ticker && <Mono size={10} color={VM.teal} style={{ cursor: 'pointer' }} onClick={() => { const c = VM_COMPANIES.find(x => x.ticker === e.ticker); go('dashboard', c || { ticker: e.ticker, name: e.ticker, cap: '—' }); }}>{e.ticker} →</Mono>}
                     </div>
                   </div>
                 </div>
@@ -376,7 +414,7 @@ function Calendar({ go, isMobile }) {
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ width: 6, height: 6, borderRadius: 999, background: t.color, flexShrink: 0 }}></span>
                           <span style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink }}>{e.title}</span>
-                          {e.ticker && <Mono size={10} color={VM.teal} style={{ cursor: 'pointer' }} onClick={() => { const c = VM_COMPANIES.find(x => x.ticker === e.ticker); if (c) go('dashboard', c); }}>{e.ticker} →</Mono>}
+                          {e.ticker && <Mono size={10} color={VM.teal} style={{ cursor: 'pointer' }} onClick={() => { const c = VM_COMPANIES.find(x => x.ticker === e.ticker); go('dashboard', c || { ticker: e.ticker, name: e.ticker, cap: '—' }); }}>{e.ticker} →</Mono>}
                           <i className="ti ti-info-circle" title="What is this event?" onClick={() => setEduEvent(e)}
                             style={{ fontSize: 15, color: VM.teal, cursor: 'pointer', flexShrink: 0,
                               opacity: (isMobile || hoverRow === i) ? 1 : 0, transition: 'opacity .12s' }}></i>

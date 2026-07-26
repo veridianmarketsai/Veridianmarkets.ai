@@ -315,6 +315,159 @@ the prototype outgrows the CDN/Babel approach.)
 
 ## Changelog
 
+### 2026-07-18 (financials display — Yahoo-style balance sheet, Q4, units)
+
+- **Balance sheet reordered to Yahoo's hierarchy** (Assets → Liabilities → Equity,
+  subtotals with indented components) and expanded with many us-gaap line items
+  (PP&E, goodwill, intangibles, non-current sections, retained earnings, minority
+  interest, shares). Renderer now supports multi-level indent + bold subtotals.
+- **Q4 in the quarterly view.** US companies file 10-Qs for Q1–Q3 only, so the
+  quarterly view now also pulls the annual 10-K to fill Q4: balance sheet = year-end
+  snapshot (as filed), income/cash-flow = annual − (Q1+Q2+Q3) (derived).
+  ([`financials.jsx`](ui_kits/web/financials.jsx) `vmBuildQuarterly`)
+- **"Show in: Relative / Thousands" toggle** + a **"Currency in USD"** caption; the
+  `$` is dropped from cells (Thousands = plain numbers in thousands, no `$`/`B`).
+- EPS-surprise card now sorts quarters chronologically. _(branch: `fix-earnings-order`)_
+
+### 2026-07-18 (data-capture-1.2 — admin reports + favourites table)
+
+- **Admin analytics in the panel.** New admin-only **`vm-admin-analytics`** Lambda
+  ([`lambda/capture/vm-admin-analytics/`](lambda/capture/vm-admin-analytics/)) joins the
+  **Cognito** roster (ListUsers) with **`vm-events`** behaviour; enforces the `admin`
+  group. A **"Live · captured data"** panel now tops **Admin → Overview**
+  ([`adminanalytics.jsx`](ui_kits/web/adminanalytics.jsx) + [`AdminPanel.jsx`](ui_kits/web/AdminPanel.jsx)):
+  real users / active-7d / plan split / **most-favourited** & **most-viewed** companies / funnel.
+- **Dedicated `vm-favourites` table** — the star now also writes `(user, ticker)` rows
+  via `vm-capture`, so "who favourited what" is a direct lookup. _(branch: `data-capture-1.2`)_
+
+### 2026-07-18 (data-capture-1.1 — first-party analytics)
+
+- **Silent data capture → DynamoDB.** New **`vm-capture`** Lambda
+  ([`lambda/capture/vm-capture/`](lambda/capture/vm-capture/)) ingests batched events
+  into **`vm-events`** (composite key `pk`+`sk`: per-user event stream + a rolling
+  `#profile` row with identity + counters). Frontend [`capture.jsx`](ui_kits/web/capture.jsx)
+  (`vmCapture`/`vmIdentify`, batched, `sendBeacon` on page-hide, no-preflight).
+- **Captured for every client:** `favourite` (new ⭐ star button in the company
+  header), global `click` stream, `navigate` (pages + companies), `session_start`
+  (+ referrer/UTM/device), `paywall_hit`, `checkout_start`, `search_select`,
+  `tab_view`, `feature` (financials export), and identity (name/email/plan). _(branch: `data-capture-1.1`)_
+
+### 2026-07-18 (payments-1.3 — proper checkout, no duplicate customers)
+
+- **`vm-billing-checkout` Lambda** ([`lambda/billing/checkout/`](lambda/billing/checkout/)):
+  verifies the Cognito token, reuses **one Stripe customer per user** (stored in
+  DynamoDB), and creates a subscription **Checkout Session** — replacing Payment
+  Links, so repeat checkouts no longer spawn duplicate customers. Guards against a
+  manually-deleted customer by making a fresh one.
+- **`billing.jsx`** now points `apiBase` at the checkout Lambda (both Pricing and
+  Settings use it) and passes the user's email for the customer record.
+- **Phase 4:** the webhook already handles `customer.subscription.updated/deleted`;
+  raise the `vm-billing-webhook` timeout to 30s (the `checkout.session.completed`
+  path makes a Stripe API call and was 502-ing on the 3s default). _(branch: `payments-1.3`)_
+
+### 2026-07-18 (payments-1.2 — portal + admin access)
+
+- **Billing portal (cancel / switch).** New **`vm-billing-portal`** Lambda
+  ([`lambda/billing/portal/`](lambda/billing/portal/)) verifies the Cognito JWT, looks
+  up the user's stored `stripeCustomerId`, and opens a **Stripe Customer Portal**
+  session. Wired to a **"Manage / cancel subscription"** button in Settings
+  ([`billing.jsx`](ui_kits/web/billing.jsx) `vmOpenPortal` + [`AccountSettings.jsx`](ui_kits/web/AccountSettings.jsx)).
+- **Admins bypass the paywall** — `isPaying` now also true for admins, so News /
+  Calendar / Dependency map open regardless of plan.
+- **Fixed** a pre-existing crash: `StList` used `planTier` without receiving it as a
+  prop (blanked the Settings menu on direct `/settings` load). _(branch: `payments-1.2`)_
+
+### 2026-07-17 (generic Finnhub proxy + extra calendars)
+
+- **`vm-finnhub` — one generic caching proxy** for many free Finnhub GET endpoints
+  ([`lambda/marketdata/vm-finnhub/`](lambda/marketdata/vm-finnhub/)): call `?endpoint=<key>`;
+  per-endpoint TTL baked in (no env var), one table `vm-finnhub` (key `pk`). Serves
+  ipo-calendar, fda-calendar, market-status, market-holiday, insider-sentiment,
+  usa-spending, lobbying, sec-filings.
+- **Extra calendars on the Calendar page** ([`calendars.jsx`](ui_kits/web/calendars.jsx)):
+  **IPO**, **FDA** advisory committees, and **market holidays** now render as their own
+  colour-coded event types (filter chips, legend, day panel, ⓘ education) alongside
+  earnings. _(branch: `api-links-2.1.1`)_
+
+### 2026-07-17 (Finnhub data build-out)
+
+Six cached Lambdas + frontend wiring, all read-through DynamoDB caches (key `pk`,
+Function-URL CORS off, 30s timeout). See [`finnhub-roadmap.md`](finnhub-roadmap.md).
+
+- **Symbol search.** `vm-search` (Finnhub `/search`) → [`symbolsearch.jsx`](ui_kits/web/symbolsearch.jsx)
+  `SymbolSearchBox` live dropdown on Home + Search: curated companies then the whole
+  US universe. Any ticker opens a dashboard — non-curated ones get real price +
+  financials, honest placeholders elsewhere. _(branch: `symbolsearch`)_
+- **Company profile + metrics.** `vm-profile` (`/stock/profile2` + `/stock/metric`) →
+  [`profile.jsx`](ui_kits/web/profile.jsx): real header mkt cap · P/E · yield (kills the
+  hardcoded `37.36`), `LiveMetrics` panel on every Overview, `ProfileOverview` for
+  searched tickers. _(branch: `profile`)_
+- **Market + company news.** `vm-news` (`/news` + `/company-news`) →
+  [`newsfeed.jsx`](ui_kits/web/newsfeed.jsx): real Home story tiles, News page (links to
+  source), company News tab + a live "Latest headlines" strip. _(branch: `news`)_
+- **Company signals.** `vm-signals` (recommendation · earnings · peers · insider) →
+  [`signals.jsx`](ui_kits/web/signals.jsx) `SignalsPanel` in the Overview; the Screener
+  **Analyst filter is now live** (`useVMConsensus`). _(branch: `signals`)_
+- **Real patents.** `vm-patents` (`/stock/uspto-patent`) → [`patents.jsx`](ui_kits/web/patents.jsx)
+  `PatentsLive`: stat row, title-classified technology breakdown, filing trend, recent
+  patents. _(branch: `patents`)_
+- **Earnings calendar.** `vm-earnings-cal` (`/calendar/earnings`, ranked by revenue) →
+  [`earningscal.jsx`](ui_kits/web/earningscal.jsx): the month's biggest reporters on the
+  Calendar grid + day panel + list. _(branch: `earnings-calendar`)_
+
+### 2026-07-14 (financials as reported)
+
+- **Real financial statements (SEC filings via Finnhub).** The company **Financials**
+  tab now shows **as-reported** Income / Balance / Cash-flow figures (USD millions)
+  when available, falling back to the illustrative mock otherwise (a source line marks
+  which). New [`financials.jsx`](ui_kits/web/financials.jsx) maps raw **us-gaap concepts**
+  → the curated rows (by concept, so periods/companies line up), so the existing %Δ/$Δ
+  toggles and CSV/Excel export work unchanged. Backed by a **read-through cache**:
+  **`vm-financials`** Lambda ([`lambda/marketdata/vm-financials/`](lambda/marketdata/vm-financials/))
+  caches Finnhub `/stock/financials-reported` in DynamoDB (`vm-financials`, 24h TTL,
+  8 latest filings, payload as one JSON attr). US filers only. _(branch: `financials-1.1`)_
+
+### 2026-07-14 (market data: live quotes)
+
+- **Live prices (Finnhub, cached).** Real-time US-equity quotes now drive the
+  company header, **Home**, and **Search**, shown in **USD** with a green live dot.
+  New [`marketdata.jsx`](ui_kits/web/marketdata.jsx) (`vmQuotes` / `useVMQuotes` /
+  `vmApply`, 2-min client cache, non-equities left as mock). Backed by a
+  **read-through cache**: **`vm-quote`** Lambda ([`lambda/marketdata/vm-quote/`](lambda/marketdata/vm-quote/))
+  serves a DynamoDB-cached quote (`vm-quotes`, 2-min TTL) or fetches from Finnhub on
+  a miss — one fetch serves every user, ≤1 Finnhub call per symbol per 2 min. Finnhub
+  key stays server-side; CORS handled in code (Function URL CORS off); Lambda timeout
+  30s for bulk requests. Guide: [`marketdataapi.md`](marketdataapi.md). _(branch: `marketdata-1.1`)_
+
+### 2026-06-30 (backend: auth + payments)
+
+- **Real sign-in (AWS Cognito).** Replaced the client-side placeholder auth with
+  real Cognito: new [`auth.jsx`](ui_kits/web/auth.jsx) (`VM_AUTH` + `cognito()` REST
+  helper, public app client, no SDK/build step) and a five-mode [`SignIn.jsx`](ui_kits/web/SignIn.jsx)
+  (sign in / sign up / confirm code / forgot / reset). `app.jsx` session/refresh now
+  Cognito-driven; sign-out returns to the landing page; admin role = Cognito group.
+  Guide: [`backend-signin.md`](backend-signin.md). _(branch: `backend-signin-AWS-1.1`)_
+- **Payments & paywall (Stripe).** News / Calendar / Dependency map are now gated
+  behind a paying plan — non-payers see a lock and hit an **/upgrade** page
+  ([`Pricing.jsx`](ui_kits/web/Pricing.jsx)); Settings → Subscription wired to the same
+  flow. Shared [`billing.jsx`](ui_kits/web/billing.jsx) config. **Real Stripe** (test):
+  Payment Links → **`vm-billing-webhook`** Lambda records the plan in DynamoDB →
+  **`vm-billing-status`** Lambda returns it → the app unlocks. Lambdas in
+  [`lambda/billing/`](lambda/billing/); guide: [`payment.md`](payment.md). Portal +
+  single-customer checkout deferred to pre-launch. _(branch: `payments-1.1`)_
+
+### 2026-06-30 (analysis-tools)
+
+- **Admin Analytics tab — operator analytics suite.** Replaced the Admin **Heatmap**
+  tab with an **Analytics** tab (the heatmap lives on as a sub-tool inside it). Seven
+  sub-tools, all derived deterministically from the mock `VM_USERS` dataset: **Retention**
+  (cohort grid + average curve), **Growth** (growth accounting — Retained/New/Resurrected/
+  Churned with the Quick Ratio), **Funnel** (visitor→signup→activated→paying→retained),
+  **Revenue** (MRR/ARPU/LTV/LTV:CAC, MRR-movement waterfall, 12-mo trend, NRR/GRR, plan
+  movement), **Engagement** (DAU/WAU/MAU, stickiness, L28 power-user curve, top pages),
+  **Churn risk** (scored "save list" of at-risk paying accounts + CSV export), and the
+  existing **Heatmap**. _(branch: `analysis-tools-2.1`)_
+
 ### 2026-06-11
 
 - **Code cleanup 2.1.** Multi-file cleanup pass across all 23 JSX source files —

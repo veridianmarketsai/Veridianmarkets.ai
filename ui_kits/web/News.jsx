@@ -25,17 +25,30 @@ const NEWS = [
     summary: 'Growth-at-any-price is over. The survivors look like the post-dotcom cohort that quietly compounded for a decade.', source: 'The Ledger', time: '18h ago' },
 ];
 
-function News({ go, isMobile }) {
+function News({ go, isMobile, user }) {
+  const signedIn = !!user;
   const [cat, setCat] = useStateNews('All');
   const [searchOpen, setSearchOpen] = useStateNews(false);
   const [query, setQuery] = useStateNews('');
   const [article, setArticle] = useStateNews(null);
+  // Real market news (Finnhub, cached) when available; else the editorial mock.
+  const liveNews = typeof useVMNews === 'function' ? useVMNews('general') : { cards: [], live: false, loading: false };
+  // Personalization (signed-in only) — same interest tickers that drive the
+  // Home page (interests.jsx); offered here as its own "For you" filter
+  // rather than replacing the general feed outright.
+  const interests = useVMInterests(signedIn);
+  const personalized = useVMPersonalizedNews(interests.tickers);
+  const showForYou = signedIn && interests.tickers.length > 0;
+  const cats = showForYou ? ['For you', ...NEWS_CATS] : NEWS_CATS;
+
+  const isForYou = cat === 'For you' && showForYou;
+  const source = isForYou ? personalized.cards : (liveNews.live ? liveNews.cards : NEWS);
   const q = query.trim().toLowerCase();
-  const list = NEWS.filter(n => (cat === 'All' || n.cat === cat) &&
-    (!q || (n.headline + ' ' + n.summary + ' ' + n.kicker).toLowerCase().includes(q)));
+  const list = source.filter(n => (isForYou || cat === 'All' || n.cat === cat) &&
+    (!q || ((n.headline || '') + ' ' + (n.summary || '') + ' ' + (n.kicker || '')).toLowerCase().includes(q)));
   const lead = list[0];
   const rest = list.slice(1);
-  const openTicker = (t) => { const c = VM_COMPANIES.find(x => x.ticker === t); if (c) go('dashboard', c); };
+  const openTicker = (t) => { const c = VM_COMPANIES.find(x => x.ticker === t); go('dashboard', c || { ticker: t, name: t, cap: '—' }); };
 
   return (
     <div style={{ padding: isMobile ? '16px 16px 80px' : '26px 32px 60px', maxWidth: 1120, margin: '0 auto' }}>
@@ -48,7 +61,7 @@ function News({ go, isMobile }) {
       {/* search button + category filter */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, alignItems: 'center' }}>
         <IconBtn icon="search" round size={32} active={searchOpen} title="Search news" onClick={() => setSearchOpen(o => !o)} />
-        {NEWS_CATS.map(c => <Pill key={c} active={cat === c} onClick={() => setCat(c)}>{c}</Pill>)}
+        {cats.map(c => <Pill key={c} active={cat === c} onClick={() => setCat(c)}>{c}</Pill>)}
       </div>
       {searchOpen && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: VM.paper, border: `1px solid ${VM.border}`, borderRadius: 10, padding: '10px 14px', marginTop: 12 }}>
@@ -59,7 +72,11 @@ function News({ go, isMobile }) {
         </div>
       )}
 
-      {list.length === 0 && <div style={{ marginTop: 20, fontFamily: VM.serif, color: VM.ink3 }}>No stories in {cat}.</div>}
+      {list.length === 0 && (
+        <div style={{ marginTop: 20, fontFamily: VM.serif, color: VM.ink3 }}>
+          {isForYou && personalized.loading ? 'Finding stories for you…' : `No stories in ${cat}.`}
+        </div>
+      )}
 
       {/* featured lead */}
       {lead && (
@@ -82,7 +99,7 @@ function News({ go, isMobile }) {
 
       {/* article grid */}
       <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-        {rest.map(n => <NewsCard key={n.kicker} n={n} onOpen={() => setArticle(n)} />)}
+        {rest.map((n, i) => <NewsCard key={n.url || n.kicker || i} n={n} onOpen={() => setArticle(n)} />)}
       </div>
 
       {article && <ArticleModal article={article} onClose={() => setArticle(null)} onTicker={openTicker} isMobile={isMobile} />}
@@ -106,13 +123,24 @@ function ArticleModal({ article: a, onClose, onTicker, isMobile }) {
             {a.ticker && <span onClick={() => onTicker(a.ticker)} style={{ marginLeft: 'auto', fontFamily: VM.mono, fontSize: 10, fontWeight: 600, color: VM.teal, background: VM.tealTint, border: `1px solid ${VM.tealTint2}`, borderRadius: 5, padding: '3px 9px', cursor: 'pointer' }}>View {a.ticker} →</span>}
           </div>
           <p style={{ fontFamily: VM.serif, fontSize: isMobile ? 16 : 17, color: VM.ink, lineHeight: 1.55, margin: '16px 0 0', fontStyle: 'italic' }}>{a.summary}</p>
-          <p style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink2, lineHeight: 1.6, margin: '14px 0 0' }}>
-            The pattern isn’t new. Markets have a long memory, and the closest historical analogue rarely rhymes perfectly — but it sets a base rate worth respecting rather than a forecast to bet on.
-          </p>
-          <p style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink2, lineHeight: 1.6, margin: '14px 0 0' }}>
-            What matters now is less the headline than the path that follows it. We weight the outcomes of similar past episodes — what happened next, and how often — instead of reaching for a single number.
-          </p>
-          <p style={{ fontFamily: VM.serif, fontStyle: 'italic', fontSize: 13, color: VM.ink3, margin: '18px 0 0' }}>Base rates only. Not advice.</p>
+          {a.url ? (
+            <>
+              <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 18, fontFamily: VM.mono, fontSize: 12, fontWeight: 700, color: VM.paperWarm, background: VM.forest, border: `1px solid ${VM.forest}`, borderRadius: 8, padding: '9px 16px', textDecoration: 'none' }}>
+                Read full article at {a.source || 'source'} <i className="ti ti-external-link" style={{ fontSize: 13 }}></i>
+              </a>
+              <p style={{ fontFamily: VM.serif, fontStyle: 'italic', fontSize: 13, color: VM.ink3, margin: '16px 0 0' }}>Headline & summary via Finnhub. Full story at the source.</p>
+            </>
+          ) : (
+            <>
+              <p style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink2, lineHeight: 1.6, margin: '14px 0 0' }}>
+                The pattern isn’t new. Markets have a long memory, and the closest historical analogue rarely rhymes perfectly — but it sets a base rate worth respecting rather than a forecast to bet on.
+              </p>
+              <p style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink2, lineHeight: 1.6, margin: '14px 0 0' }}>
+                What matters now is less the headline than the path that follows it. We weight the outcomes of similar past episodes — what happened next, and how often — instead of reaching for a single number.
+              </p>
+              <p style={{ fontFamily: VM.serif, fontStyle: 'italic', fontSize: 13, color: VM.ink3, margin: '18px 0 0' }}>Base rates only. Not advice.</p>
+            </>
+          )}
         </div>
       </div>
     </div>

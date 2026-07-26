@@ -1,4 +1,16 @@
 // Veridian Markets — Company search / screener with eye-preview.
+
+// Does a live consensus score satisfy the chosen ANALYST filter value?
+// Unknown score (still loading / no coverage) → keep the row (don't hide).
+function analystMatch(score, v) {
+  if (score == null) return true;
+  if (v === 'Strong buy')     return score >= 4.3;
+  if (v === 'Buy or better')  return score >= 3.5;
+  if (v === 'Hold or better') return score >= 2.5;
+  if (v === 'Underperform')   return score < 2.5;
+  return true;
+}
+
 function Screener({ go, isMobile }) {
   const [open, setOpen] = React.useState(null);
   const [filters, setFilters] = React.useState([
@@ -8,6 +20,32 @@ function Screener({ go, isMobile }) {
   const setFilterVal = (i, v) => setFilters(fs => fs.map((f, j) => j === i ? { ...f, v } : f));
   const removeFilter = (i) => setFilters(fs => fs.filter((_, j) => j !== i));
   const addFilter = (k) => setFilters(fs => [...fs, { k, v: FILTER_DEFS[k][0] }]);
+  const [query, setQuery] = React.useState('');   // search box (ticker/name filter + symbol dropdown)
+  const ql = query.trim().toLowerCase();
+  const searched = ql ? VM_COMPANIES.filter(c => c.ticker.toLowerCase().includes(ql) || (c.name || '').toLowerCase().includes(ql)) : VM_COMPANIES;
+  // Real analyst filter: when an ANALYST chip is active, fetch each company's
+  // live consensus and keep only those that meet the threshold.
+  const analystFilter = filters.find(f => f.k === 'ANALYST');
+  const consensus = typeof useVMConsensus === 'function' ? useVMConsensus(analystFilter ? searched.map(c => c.ticker) : []) : {};
+  const shown = analystFilter ? searched.filter(c => analystMatch(consensus[c.ticker], analystFilter.v)) : searched;
+  const liveMap = useVMQuotes(shown.map(c => c.ticker));   // live quotes overlay
+
+  // No curated match — look up the query against the whole US listing universe
+  // (same lookup the search box's own dropdown uses) and show any hit as a row
+  // right here instead of only in a floating dropdown. A category query like
+  // "index fund" or "etf" also pulls in our curated ETF list (vmTopicTickers) —
+  // Finnhub's search only matches literal name/symbol text, so it wouldn't
+  // otherwise surface SPY/VOO/QQQ for a phrase like that.
+  const { results: symbolResults, loading: symbolLoading } = typeof useVMSymbolSearch === 'function' ? useVMSymbolSearch(query) : { results: [], loading: false };
+  const topicResults = typeof vmTopicTickers === 'function' ? vmTopicTickers(query) : [];
+  const isMutualFundQuery = ql.includes('mutual fund');
+  // A curated hit (e.g. "index" also matching SPX by name) shouldn't hide the
+  // topic rows — those two things answer different intents.
+  const showFallback = !!ql && (shown.length === 0 || topicResults.length > 0);
+  const mergedResults = [...topicResults, ...symbolResults.filter(r => !topicResults.some(t => t.ticker === r.ticker) && !shown.some(c => c.ticker === r.ticker))];
+  const liveMatches = showFallback ? mergedResults.slice(0, 12) : [];
+  const liveQuoteMap = useVMQuotes(liveMatches.map(r => r.ticker));
+
   return (
     <div style={{ padding: isMobile ? '16px 14px 80px' : '26px 32px 60px', maxWidth:1120, margin:'0 auto' }}>
       <Mono size={11} color={VM.ink3} style={{ letterSpacing:'0.04em' }}>Explore  ›  <b style={{color:VM.ink}}>Search</b></Mono>
@@ -16,9 +54,9 @@ function Screener({ go, isMobile }) {
       <p style={{ fontFamily:VM.serif, fontSize: isMobile ? 14 : 16, color:VM.ink3, margin:'0 0 18px' }}>Search by ticker, name, or person. Filter by sector, size, fundamentals, or which 5-year historical analogue matches today.</p>
 
       <div data-tour="vm-screener-search" style={{ display:'flex', gap:9, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
-        <div style={{ flex:1, display:'flex', alignItems:'center', gap:9, border:`1px solid ${VM.border}`, borderRadius:999, padding:'9px 16px', background:VM.paper }}>
-          <i className="ti ti-search" style={{ color:VM.ink3 }}></i>
-          <input placeholder="search ticker, company, person, era" style={{ border:0, background:'transparent', outline:0, fontFamily:VM.serif, fontSize:14, color:VM.ink, flex:1 }} />
+        <div style={{ flex:1, minWidth:220 }}>
+          <SymbolSearchBox value={query} onChange={setQuery} go={go} round noDropdown
+            placeholder="Search any US stock — ticker or company name…" />
         </div>
         <Btn style={{ borderRadius:999 }}>Filter <i className="ti ti-chevron-down" style={{fontSize:12}}></i></Btn>
         <IconBtn icon="arrows-sort" round size={38} title="Sort" />
@@ -39,7 +77,7 @@ function Screener({ go, isMobile }) {
           </span>
         )}
       </div>
-      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {VM_COMPANIES.length} of 487 matches · sort: 5Y analogue match</Mono>
+      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {shown.length} of {VM_COMPANIES.length} companies{ql ? ` · “${query}”` : ''}{analystFilter ? ` · analyst: ${analystFilter.v} (live)` : ''} · sort: 5Y analogue match</Mono>
 
       <div data-tour="vm-screener-results" style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
         {!isMobile && (
@@ -48,11 +86,40 @@ function Screener({ go, isMobile }) {
             <Label style={{textAlign:'right'}}>Chg</Label><Label></Label><Label style={{textAlign:'right'}}>Actions</Label>
           </div>
         )}
-        {VM_COMPANIES.map((c,i)=>(
-          <Row key={c.ticker} c={c} open={open===c.ticker} last={i===VM_COMPANIES.length-1} isMobile={isMobile}
-            onEye={()=>setOpen(open===c.ticker?null:c.ticker)}
-            onNet={()=>go('supply', c)} onOpen={()=>go('dashboard', c)} />
-        ))}
+        {showFallback && topicResults.length === 0 && symbolLoading && (
+          <div style={{ padding:'18px', fontFamily:VM.mono, fontSize:11, color:VM.ink3 }}>
+            <i className="ti ti-loader-2" style={{ fontSize:13 }}></i> Searching all US listings for “{query}”…
+          </div>
+        )}
+        {showFallback && isMutualFundQuery && (
+          <div style={{ padding:'12px 18px 0', fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>
+            Mutual funds aren't covered by our market-data provider yet — no ticker-level pricing available, so we can't list them here.
+          </div>
+        )}
+        {showFallback && (topicResults.length > 0 || !symbolLoading) && liveMatches.length > 0 && (
+          <>
+            <div style={{ padding:'12px 18px 0', fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>
+              {topicResults.length > 0 ? 'Related tickers:' : `“${query}” isn't in our curated list, but it's a real US listing:`}
+            </div>
+            {liveMatches.map((r, i) => (
+              <LiveMatchRow key={r.ticker} r={r} liveMap={liveQuoteMap} go={go} last={i === liveMatches.length - 1} isMobile={isMobile} />
+            ))}
+          </>
+        )}
+        {showFallback && !symbolLoading && liveMatches.length === 0 && !isMutualFundQuery && (
+          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No listings found for “{query}”.</div>
+        )}
+        {shown.length === 0 && !ql && (
+          <div style={{ padding:'18px', fontFamily:VM.serif, fontSize:14, color:VM.ink3 }}>No companies match the current filters.</div>
+        )}
+        {shown.map((c,i)=>{
+          const lc = vmApply(c, liveMap);
+          return (
+            <Row key={c.ticker} c={lc} open={open===c.ticker} last={i===shown.length-1} isMobile={isMobile}
+              onEye={()=>setOpen(open===c.ticker?null:c.ticker)}
+              onNet={()=>go('supply', lc)} onOpen={()=>go('dashboard', lc)} />
+          );
+        })}
       </div>
     </div>
   );
@@ -130,6 +197,55 @@ function Row({ c, open, last, onEye, onNet, onOpen, isMobile }) {
       </div>
       <div style={{ maxHeight: open?540:0, overflow:'hidden', transition:'max-height .35s ease' }}>
         <Preview c={c} onOpen={onOpen} />
+      </div>
+    </div>
+  );
+}
+
+// A real US listing that isn't in our curated set (no analogue data, no
+// Preview) — same grid as Row, just a live quote (if the ticker prices) and a
+// straight "open dashboard" action instead of the eye-preview.
+function LiveMatchRow({ r, liveMap, go, last, isMobile }) {
+  const [hover, setHover] = React.useState(false);
+  const q = liveMap && liveMap[String(r.ticker).toUpperCase()];
+  const price = q ? q.price.toFixed(2) : null;
+  const chg = q ? vmFmtPct(q.pct) : null;
+  const openIt = () => go('dashboard', { ticker: r.ticker, name: r.name, cap: '—' });
+
+  if (isMobile) {
+    return (
+      <div onClick={openIt} style={{ padding:'12px 15px', cursor:'pointer', borderBottom: last ? 'none' : `1px solid ${VM.borderSoft}` }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:20, flexShrink:0 }}>{r.ticker}</span>
+          <div style={{ flex:1, minWidth:0 }}>
+            <Mono size={11.5} color={VM.ink2} style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</Mono>
+            <Label>{r.type || 'US listing'}</Label>
+          </div>
+          {price != null && (
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <Mono size={13} weight={700}>${price}</Mono>
+              <div><Chg dir={q.dir}>{chg}</Chg></div>
+            </div>
+          )}
+          <i className="ti ti-arrow-right" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={openIt}
+      style={{ display:'grid', gridTemplateColumns:GRID, alignItems:'center', gap:10, padding:'12px 18px', cursor:'pointer',
+        borderBottom: last ? 'none' : `1px solid ${VM.borderSoft}`,
+        background: hover ? VM.paperWarm : 'transparent', transition:'background .14s ease' }}>
+      <span style={{ fontFamily:VM.serif, fontWeight:700, fontSize:22,
+        textDecoration: hover ? 'underline' : 'none', textUnderlineOffset:3, textDecorationColor:VM.teal }}>{r.ticker}</span>
+      <div><Mono size={11.5} color={VM.ink2}>{r.name}</Mono><div><Label>{r.type || 'US listing'}</Label></div></div>
+      <Mono size={13} weight={700} style={{textAlign:'right'}}>{price != null ? `$${price}` : '—'}</Mono>
+      <span style={{textAlign:'right'}}>{chg != null ? <Chg dir={q.dir}>{chg}</Chg> : <Mono size={12} color={VM.ink3}>—</Mono>}</span>
+      <span></span>
+      <div style={{ display:'flex', gap:8, justifyContent:'flex-end', opacity: hover ? 1 : 0, pointerEvents: hover ? 'auto' : 'none', transition:'opacity .16s ease' }}>
+        <SqBtn icon="arrow-right" onAct={openIt} title={`Open ${r.ticker} dashboard`} />
       </div>
     </div>
   );

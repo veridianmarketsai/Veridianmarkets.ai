@@ -3,7 +3,10 @@
 // in the VM editorial style: a profile summary, sectioned rows with icon chips +
 // chevrons, each row drilling into its own sub-page. Sub-navigation is internal
 // state (one /settings route); a back arrow returns to the list. Mock/scaffold.
-const { useState: useStateSettings, useEffect: useEffectSettings } = React;
+const { useState: useStateSettings, useEffect: useEffectSettings, useRef: useRefSettings } = React;
+
+// Connect-accounts feature hidden 2026-07-21 per user request — flip true to bring it back.
+const SHOW_CONNECT_ACCOUNTS = false;
 
 // ── settings model: groups → rows. `action` rows fire a handler instead of a page.
 const SETTINGS_GROUPS = [
@@ -11,7 +14,7 @@ const SETTINGS_GROUPS = [
     { id: 'profile',      icon: 'user',            label: 'Personal details',     desc: 'Name, email, profile photo' },
     { id: 'security',     icon: 'lock',            label: 'Password & security',  desc: 'Password, two-factor, sessions' },
     { id: 'subscription', icon: 'star',            label: 'Subscription & billing', desc: 'Plan, payment method, invoices' },
-    { id: 'connected',    icon: 'plug-connected',  label: 'Connected accounts',   desc: 'Brokers and data sources' },
+    ...(SHOW_CONNECT_ACCOUNTS ? [{ id: 'connected', icon: 'plug-connected',  label: 'Connected accounts',   desc: 'Brokers and data sources' }] : []),
   ]},
   { head: 'How you use Veridian', items: [
     { id: 'saved',         icon: 'bookmark',  label: 'Saved',         desc: 'Companies and stories you saved' },
@@ -37,11 +40,69 @@ const SETTINGS_GROUPS = [
 const SETTINGS_TITLES = SETTINGS_GROUPS.flatMap(g => g.items).reduce((m, i) => (m[i.id] = i.label, m), {});
 const initials = name => (name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
 
-function DeleteAccountModal({ email, onConfirm, onClose }) {
+// ── profile photo (mock — stored as a data URL in localStorage, keyed by the
+// stable Cognito `sub`, not email, since email can now change) ──
+const vmAvatarKey = sub => 'vm_avatar_' + (sub || 'guest');
+const vmGetAvatar = sub => { try { return localStorage.getItem(vmAvatarKey(sub)) || ''; } catch { return ''; } };
+const vmSetAvatar = (sub, dataUrl) => {
+  try { dataUrl ? localStorage.setItem(vmAvatarKey(sub), dataUrl) : localStorage.removeItem(vmAvatarKey(sub)); } catch {}
+};
+// ── username (mock — Cognito's real username is the fixed sign-up email and
+// can't be renamed; this is a purely local display handle, keyed by `sub`) ──
+const vmUsernameKey = sub => 'vm_username_' + (sub || 'guest');
+const vmGetUsername = (sub, email) => {
+  try { return localStorage.getItem(vmUsernameKey(sub)) || (email || 'you').split('@')[0]; } catch { return (email || 'you').split('@')[0]; }
+};
+const vmSetUsername = (sub, name) => { try { localStorage.setItem(vmUsernameKey(sub), name); } catch {} };
+// ── toggle preferences (Notifications / Privacy / Data permissions) — one
+// consolidated localStorage map, keyed by a per-toggle id ──
+const VM_TOGGLES_KEY = 'vm_toggles';
+const vmGetToggle = (id, def) => {
+  try { const all = JSON.parse(localStorage.getItem(VM_TOGGLES_KEY) || '{}'); return id in all ? all[id] : def; } catch { return def; }
+};
+const vmSetToggle = (id, val) => {
+  try { const all = JSON.parse(localStorage.getItem(VM_TOGGLES_KEY) || '{}'); all[id] = val; localStorage.setItem(VM_TOGGLES_KEY, JSON.stringify(all)); } catch {}
+};
+// Draw the given source rect (from a loaded <img>) into a square JPEG data URL
+// — used by AvatarCropModal once the user's pan/zoom picks the crop region.
+function vmCropImageToDataUrl(img, sx, sy, swidth, sheight, outSize = 320) {
+  const canvas = document.createElement('canvas');
+  canvas.width = outSize; canvas.height = outSize;
+  canvas.getContext('2d').drawImage(img, sx, sy, swidth, sheight, 0, 0, outSize, outSize);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+// Profile photo if set, else the initials square — used on the settings list
+// card and the Personal details page. `src` is tried first (the real S3 URL,
+// for cross-device sync); if it 404s/errors (never uploaded from this
+// account, or offline), falls back to `fallbackSrc` (this browser's cached
+// copy); if that's empty too, shows initials. Resets whenever the candidates
+// change (e.g. right after a fresh upload, or switching users). `src`/
+// `fallbackSrc` are just URL *candidates*, not proof a photo exists — callers
+// that need to know whether one actually resolved (e.g. to show/hide a
+// "Remove photo" action) can pass `onResolved(hasPhoto)`.
+function StAvatar({ name, src, fallbackSrc, size, radius, onResolved }) {
+  const [phase, setPhase] = useStateSettings(src ? 'primary' : fallbackSrc ? 'fallback' : 'initials');
+  useEffectSettings(() => { setPhase(src ? 'primary' : fallbackSrc ? 'fallback' : 'initials'); }, [src, fallbackSrc]);
+  useEffectSettings(() => { onResolved && onResolved(phase !== 'initials'); }, [phase]);
+  const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, overflow: 'hidden' };
+  const current = phase === 'primary' ? src : phase === 'fallback' ? fallbackSrc : null;
+  if (current) {
+    const onError = () => setPhase(p => p === 'primary' && fallbackSrc ? 'fallback' : 'initials');
+    return <img src={current} onError={onError} alt="" style={{ ...base, objectFit: 'cover' }} />;
+  }
+  return (
+    <span style={{ ...base, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: Math.round(size * 0.375) }}>
+      {initials(name)}
+    </span>
+  );
+}
+
+function DeleteAccountModal({ email, busy, onConfirm, onClose }) {
   const [typed, setTyped] = useStateSettings('');
-  const ready = typed === 'DELETE';
+  const ready = typed === 'DELETE' && !busy;
   return ReactDOM.createPortal(
-    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+    <div onClick={busy ? undefined : onClose} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
       <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:460, width:'100%', boxShadow:'0 24px 64px rgba(31,29,26,0.32)' }}>
         <div style={{ padding:'22px 22px 0', display:'flex', alignItems:'flex-start', gap:14 }}>
           <div style={{ width:42, height:42, borderRadius:10, background:'#FDE8E8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -69,12 +130,12 @@ function DeleteAccountModal({ email, onConfirm, onClose }) {
             />
           </div>
           <div style={{ display:'flex', gap:10 }}>
-            <button onClick={onClose} style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor:'pointer' }}>
+            <button onClick={busy ? undefined : onClose} style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor: busy ? 'default' : 'pointer' }}>
               Cancel
             </button>
             <button onClick={ready ? onConfirm : undefined} style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 0', borderRadius:999, border:'none',
               background: ready ? VM.downInk : VM.faint, color: ready ? '#fff' : VM.ink3, cursor: ready ? 'pointer' : 'default', transition:'all .15s' }}>
-              Delete account
+              {busy ? 'Deleting…' : 'Delete account'}
             </button>
           </div>
         </div>
@@ -84,7 +145,159 @@ function DeleteAccountModal({ email, onConfirm, onClose }) {
   );
 }
 
-function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }) {
+// Preview + adjust popup shown after picking a photo: drag to reposition, a
+// zoom slider to scale, then Save crops exactly what's framed in the square
+// into the final avatar (matches the app's square/rounded-square avatar style).
+function AvatarCropModal({ file, busy, onCancel, onConfirm }) {
+  const VP = 240;   // crop viewport, CSS px (square)
+  const [imgUrl] = useStateSettings(() => URL.createObjectURL(file));
+  const [natural, setNatural] = useStateSettings(null);   // { w, h }
+  const [zoom, setZoom] = useStateSettings(1);
+  const [pos, setPos] = useStateSettings({ x: 0, y: 0 }); // displayed-image offset within the viewport
+  const imgRef = useRefSettings(null);
+  const dragRef = useRefSettings(null);
+
+  useEffectSettings(() => () => URL.revokeObjectURL(imgUrl), [imgUrl]);
+
+  const baseScale = natural ? VP / Math.min(natural.w, natural.h) : 1;
+  const scale = baseScale * zoom;
+
+  const clampAt = (x, y, sc) => {
+    const dw = natural.w * sc, dh = natural.h * sc;
+    return {
+      x: Math.min(0, Math.max(Math.min(0, VP - dw), x)),
+      y: Math.min(0, Math.max(Math.min(0, VP - dh), y)),
+    };
+  };
+
+  const onImgLoad = (e) => {
+    const w = e.target.naturalWidth, h = e.target.naturalHeight;
+    setNatural({ w, h });
+    const bs = VP / Math.min(w, h);
+    setPos({ x: (VP - w * bs) / 2, y: (VP - h * bs) / 2 });
+  };
+
+  const onPointerDown = (e) => {
+    if (!natural) return;
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX, dy = e.clientY - dragRef.current.startY;
+    setPos(clampAt(dragRef.current.origX + dx, dragRef.current.origY + dy, scale));
+  };
+  const onPointerUp = () => { dragRef.current = null; };
+
+  const onZoom = (e) => {
+    const z = parseFloat(e.target.value);
+    setZoom(z);
+    if (natural) setPos(p => clampAt(p.x, p.y, baseScale * z));
+  };
+
+  const save = () => {
+    if (!natural) return;
+    const sx = -pos.x / scale, sy = -pos.y / scale;
+    const swh = VP / scale;
+    onConfirm(vmCropImageToDataUrl(imgRef.current, sx, sy, swh, swh, 320));
+  };
+
+  return ReactDOM.createPortal(
+    <div onClick={busy ? undefined : onCancel} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:340, width:'100%', boxShadow:'0 24px 64px rgba(31,29,26,0.32)', padding:'22px' }}>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginBottom:4 }}>Adjust photo</div>
+        <Mono size={11} color={VM.ink3} style={{ display:'block', marginBottom:14 }}>Drag to reposition, use the slider to zoom.</Mono>
+        <div
+          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
+          style={{ width:VP, height:VP, margin:'0 auto', borderRadius:16, overflow:'hidden', position:'relative',
+            background:VM.paperDeep, border:`1px solid ${VM.borderSoft}`, cursor: natural ? 'grab' : 'default', touchAction:'none' }}>
+          <img ref={imgRef} src={imgUrl} alt="" onLoad={onImgLoad} draggable={false}
+            style={{ position:'absolute', left:0, top:0, transformOrigin:'top left',
+              transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`,
+              width: natural ? natural.w : VP, height: natural ? natural.h : VP,
+              opacity: natural ? 1 : 0 }} />
+        </div>
+        <input type="range" min="1" max="3" step="0.02" value={zoom} onChange={onZoom} disabled={!natural}
+          style={{ width:'100%', margin:'14px 0 4px' }} />
+        <div style={{ display:'flex', gap:10, marginTop:14 }}>
+          <button onClick={busy ? undefined : onCancel}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor: busy ? 'default' : 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={natural && !busy ? save : undefined}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 0', borderRadius:999, border:'none',
+              background: natural && !busy ? VM.forest : VM.faint, color: natural && !busy ? VM.paperWarm : VM.ink3,
+              cursor: natural && !busy ? 'pointer' : 'default', transition:'all .15s' }}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// Shown after saving a new email: Cognito sent a code to it, and the change
+// isn't final until it's confirmed here.
+function VerifyEmailModal({ email, onCancel, onConfirmed, showToast }) {
+  const [code, setCode] = useStateSettings('');
+  const [busy, setBusy] = useStateSettings(false);
+  const ready = code.trim().length >= 4;
+
+  const confirm = async () => {
+    if (!ready || busy) return;
+    setBusy(true);
+    try {
+      await vmConfirmEmailChange(code.trim());
+      showToast('Email updated.');
+      onConfirmed();
+    } catch (e) {
+      showToast(e.message || 'That code didn’t work — try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const resend = async () => {
+    try { await vmResendEmailCode(); showToast('Sent a new code.'); }
+    catch (e) { showToast(e.message || 'Could not resend the code.'); }
+  };
+
+  return ReactDOM.createPortal(
+    <div onClick={busy ? undefined : onCancel} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(31,29,26,0.52)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 16px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:VM.paper, borderRadius:14, maxWidth:360, width:'100%', boxShadow:'0 24px 64px rgba(31,29,26,0.32)', padding:'22px' }}>
+        <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:18, color:VM.ink, marginBottom:6 }}>Confirm your new email</div>
+        <Mono size={12} color={VM.ink2} style={{ display:'block', lineHeight:1.5, marginBottom:16 }}>
+          We sent a code to <strong style={{color:VM.ink}}>{email}</strong>. Enter it below to finish changing your email.
+        </Mono>
+        <label style={{ display:'block', marginBottom:14 }}>
+          <span style={{ fontFamily:VM.mono, fontSize:9, letterSpacing:'0.06em', textTransform:'uppercase', color:VM.ink3, display:'block', marginBottom:5 }}>Verification code</span>
+          <input value={code} onChange={e => setCode(e.target.value)} placeholder="123456" autoFocus
+            style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:`1.5px solid ${ready ? VM.tealInk : VM.border}`, background:VM.paper, color:VM.ink, outline:'none', fontFamily:VM.mono, fontSize:16, letterSpacing:'0.08em' }} />
+        </label>
+        <button onClick={busy ? undefined : resend}
+          style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3, background:'transparent', border:'none', cursor: busy ? 'default' : 'pointer', textDecoration:'underline', padding:0, marginBottom:16 }}>
+          Resend code
+        </button>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={busy ? undefined : onCancel}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, padding:'10px 0', borderRadius:999, border:`1px solid ${VM.border}`, background:'transparent', color:VM.ink2, cursor: busy ? 'default' : 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={ready && !busy ? confirm : undefined}
+            style={{ flex:1, fontFamily:VM.serif, fontSize:14, fontWeight:600, padding:'10px 0', borderRadius:999, border:'none',
+              background: ready && !busy ? VM.forest : VM.faint, color: ready && !busy ? VM.paperWarm : VM.ink3,
+              cursor: ready && !busy ? 'pointer' : 'default', transition:'all .15s' }}>
+            {busy ? 'Confirming…' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, onThemeChange, plan }) {
   const initSection = () => {
     const m = window.location.pathname.match(/^\/settings\/(.+)$/);
     return m ? m[1] : null;
@@ -92,8 +305,17 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }
   const [section, setSection] = useStateSettings(initSection);
   const [toast, setToast] = useStateSettings('');
   const [showDelete, setShowDelete] = useStateSettings(false);
+  const [deleting, setDeleting] = useStateSettings(false);
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 2800); };
   const u = user || { name: 'Guest', email: 'not signed in', tier: 'Free' };
+  // Real plan comes from the backend (app-level `plan`); fall back to the mock tier.
+  const planTier = { free: 'Free', plus: 'Plus', pro: 'Pro' }[plan] || u.tier || 'Free';
+  // Try the real S3 photo first (works on any device/browser); fall back to
+  // this browser's cached copy if that 404s (offline, or uploaded before this
+  // synced) — see StAvatar's onError handling.
+  const [avatar, setAvatarState] = useStateSettings(() => vmAvatarS3Url(u.sub) || vmGetAvatar(u.sub));
+  const avatarFallback = vmGetAvatar(u.sub);
+  const onAvatarChange = (dataUrl) => { setAvatarState(dataUrl); vmSetAvatar(u.sub, dataUrl); };
 
   const navTo = (id) => {
     setSection(id);
@@ -117,12 +339,23 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }
     navTo(item.id);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await vmDeleteAccount();   // real Cognito DeleteUser — permanently removes the account
+    } catch (e) {
+      showToast(e.message || 'Could not delete your account — try again.');
+      setDeleting(false);
+      return;
+    }
     // Clear all local data (prototype — admin credentials remain hardcoded in app.jsx)
     try {
-      ['vm_session','vm_theme','vm_2fa_app','vm_2fa_sms','vm_2fa_phone',
-       'vm_other_sessions','vm_pf_brokers','vm_mock_password','vm_account_mode'].forEach(k => localStorage.removeItem(k));
+      ['vm_session','vm_theme','vm_2fa_sms','vm_2fa_phone',
+       'vm_pf_brokers','vm_account_mode',
+       vmAvatarKey(u.sub), vmUsernameKey(u.sub)].forEach(k => localStorage.removeItem(k));
     } catch(e) {}
+    setDeleting(false);
     setShowDelete(false);
     onSignOut && onSignOut();
   };
@@ -130,10 +363,10 @@ function AccountSettings({ go, user, onSignOut, isMobile, theme, onThemeChange }
   return (
     <div data-tour="vm-settings-nav" style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
-        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange })}</StSubPage>
-        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} />}
+        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh })}</StSubPage>
+        : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} avatar={avatar} avatarFallback={avatarFallback} />}
       {toast && <StToast text={toast} />}
-      {showDelete && <DeleteAccountModal email={u.email} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
+      {showDelete && <DeleteAccountModal email={u.email} busy={deleting} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
     </div>
   );
 }
@@ -151,7 +384,7 @@ const ACCT_STEPS = [
 ];
 
 // ── the main list ───────────────────────────────────────────────────────────
-function StList({ u, onRow, isMobile }) {
+function StList({ u, onRow, isMobile, planTier, avatar, avatarFallback }) {
   const [tutorialOpen, setTutorialOpen] = useStateSettings(false);
   const tutBtn = {
     display:'inline-flex', alignItems:'center', gap:6, fontFamily:VM.mono, fontSize:10,
@@ -172,12 +405,12 @@ function StList({ u, onRow, isMobile }) {
 
       <div data-tour="vm-settings-profile" onClick={() => onRow({ id: 'profile' })} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', cursor: 'pointer',
         background: `linear-gradient(100deg, ${VM.tealTint} 0%, ${VM.paper} 75%)`, border: `1px solid ${VM.borderSoft}`, borderRadius: 14 }}>
-        <span style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 20 }}>{initials(u.name)}</span>
+        <StAvatar name={u.name} src={avatar} fallbackSrc={avatarFallback} size={52} radius={14} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 18 }}>{u.name}</div>
           <Mono size={11} color={VM.ink3}>{u.email}</Mono>
         </div>
-        <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: VM.tealInk, background: VM.paper, border: `1px solid ${VM.tealTint2}`, borderRadius: 6, padding: '3px 8px' }}>{u.tier || 'Free'}</span>
+        <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: VM.tealInk, background: VM.paper, border: `1px solid ${VM.tealTint2}`, borderRadius: 6, padding: '3px 8px' }}>{planTier}</span>
         <i className="ti ti-chevron-right" style={{ fontSize: 18, color: VM.ink3 }}></i>
       </div>
 
@@ -252,25 +485,28 @@ function StCard({ title, children, style }) {
     </div>
   );
 }
-function StField({ label, value, placeholder, type = 'text' }) {
-  const [v, setV] = useStateSettings(value || '');
+function StField({ label, value, onChange, placeholder, type = 'text' }) {
   return (
     <label style={{ display: 'block', padding: '11px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
       <span style={{ fontFamily: VM.mono, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: VM.ink3, display: 'block', marginBottom: 5 }}>{label}</span>
-      <input type={type} value={v} placeholder={placeholder} onChange={e => setV(e.target.value)}
+      <input type={type} value={value} placeholder={placeholder} onChange={e => onChange && onChange(e.target.value)}
         style={{ width: '100%', boxSizing: 'border-box', border: 'none', outline: 'none', background: 'transparent', fontFamily: VM.serif, fontSize: 16, color: VM.ink }} />
     </label>
   );
 }
-function StToggle({ label, desc, on = false, last }) {
-  const [v, setV] = useStateSettings(on);
+// `id` (optional) persists the toggle's state to localStorage (vm_toggles) so
+// it survives reloads — pass one to make a toggle "real"; omit it to keep the
+// old ephemeral per-mount behaviour (used by the purely cosmetic ones).
+function StToggle({ id, label, desc, on = false, last }) {
+  const [v, setV] = useStateSettings(() => id ? vmGetToggle(id, on) : on);
+  const flip = () => setV(x => { const next = !x; if (id) vmSetToggle(id, next); return next; });
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: last ? 'none' : `1px solid ${VM.borderHair}` }}>
       <div style={{ flex: 1 }}>
         <div style={{ fontFamily: VM.serif, fontSize: 15, color: VM.ink }}>{label}</div>
         {desc && <Mono size={10} color={VM.ink3} style={{ display: 'block', marginTop: 1 }}>{desc}</Mono>}
       </div>
-      <button onClick={() => setV(x => !x)} style={{ width: 42, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', flexShrink: 0,
+      <button onClick={flip} style={{ width: 42, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', flexShrink: 0,
         background: v ? VM.forest : VM.paperDeep, position: 'relative', transition: 'background .16s' }}>
         <span style={{ position: 'absolute', top: 2, left: v ? 20 : 2, width: 20, height: 20, borderRadius: 999, background: VM.paper, transition: 'left .16s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}></span>
       </button>
@@ -471,32 +707,24 @@ function BrokerRow({ b, on, last, confirming, onClick, onConfirmDisconnect, onCa
   );
 }
 
-function SessionRow({ s, last, onSignOut }) {
-  const [hover, setHover] = useStateSettings(false);
+// Real sign-in history (from captured session_start events) — informational
+// only. Cognito has no concept of individual sessions to selectively revoke,
+// so unlike the old mock there's no per-row "Sign out" here; only the
+// all-or-nothing GlobalSignOut button below the list is real.
+function SessionRow({ s, last }) {
   const isMobile = /iPhone|Android/i.test(s.label);
   return (
-    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
-      style={{ display:'flex', alignItems:'center', gap:10,
-        borderBottom: last ? 'none' : `1px solid ${VM.borderHair}`,
-        background: hover ? VM.paperWarm : 'transparent', transition:'background .12s',
-        borderRadius: hover ? 8 : 0, padding:'11px 8px', margin:'0 -8px' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:10,
+        borderBottom: last ? 'none' : `1px solid ${VM.borderHair}`, padding:'11px 8px', margin:'0 -8px' }}>
       <i className={'ti ti-'+(isMobile?'device-mobile':'device-laptop')} style={{ fontSize:16, color:VM.ink3, flexShrink:0 }}></i>
       <span style={{ flex:1, fontFamily:VM.serif, fontSize:15, color:VM.ink2 }}>{s.label}</span>
-      {hover
-        ? <button onClick={onSignOut} style={{ display:'inline-flex', alignItems:'center', gap:5, fontFamily:VM.serif, fontSize:12,
-            padding:'5px 11px', borderRadius:999, border:`1px solid ${VM.downInk}`, background:'transparent',
-            color:VM.downInk, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-            <i className="ti ti-logout" style={{fontSize:13}}></i>Sign out
-          </button>
-        : <Mono size={11} color={VM.ink3} style={{flexShrink:0}}>{s.time}</Mono>
-      }
+      <Mono size={11} color={VM.ink3} style={{ flexShrink:0 }}>{s.time}</Mono>
     </div>
   );
 }
 
-// ── security sub-page — fully interactive, localStorage-backed ───────────────
-const QR_GRID = [[1,1,1,1,1,1,1,0,1,0,0,0,1,1,1,1,1],[1,0,0,0,0,0,1,0,0,1,1,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,1,1],[1,0,1,1,1,0,1,0,0,0,0,0,1,0,1,0,1],[1,0,1,1,1,0,1,0,1,1,0,1,1,0,1,1,1],[1,0,0,0,0,0,1,0,1,0,1,0,1,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0],[1,1,0,1,1,0,1,1,1,0,1,0,1,0,1,1,0],[0,0,1,0,0,1,0,0,0,1,0,1,0,1,0,0,1],[1,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,1],[0,1,0,0,1,1,0,1,0,1,0,1,1,0,0,1,0],[1,1,1,1,1,1,1,0,1,0,1,0,1,1,0,1,0],[1,0,0,0,0,0,1,0,0,1,0,1,0,1,0,0,1],[1,0,1,1,1,0,1,0,1,0,0,0,1,0,0,1,1],[1,0,0,0,0,0,1,0,0,1,1,0,0,1,1,0,0],[1,1,1,1,1,1,1,0,1,0,0,1,0,0,1,0,1]];
-
+// ── security sub-page — password + 2FA + sign-in history are real (Cognito /
+// vm-events); GlobalSignOut is all-or-nothing (no per-session revoke exists) ──
 function StSecuritySection({ u, showToast }) {
   const [cur, setCur]           = useStateSettings('');
   const [newPw, setNewPw]       = useStateSettings('');
@@ -506,26 +734,44 @@ function StSecuritySection({ u, showToast }) {
   const [showConf, setShowConf] = useStateSettings(false);
   const [errors, setErrors]     = useStateSettings({});
   const [pwSaved, setPwSaved]   = useStateSettings(false);
+  const [pwBusy, setPwBusy]     = useStateSettings(false);
 
-  const [authApp, setAuthApp]   = useStateSettings(() => { try { return JSON.parse(localStorage.getItem('vm_2fa_app') || 'false'); } catch { return false; } });
+  // Real Cognito TOTP 2FA — authApp reflects what Cognito actually has on
+  // file (fetched on mount), not a locally-cached guess.
+  const [authApp, setAuthApp]   = useStateSettings(false);
+  const [mfaBusy, setMfaBusy]   = useStateSettings(false);
+  const [qrDataUrl, setQrDataUrl] = useStateSettings('');
+  const [secret, setSecret]     = useStateSettings('');
   const [smsBak, setSmsBak]     = useStateSettings(() => { try { return JSON.parse(localStorage.getItem('vm_2fa_sms') || 'false'); } catch { return false; } });
   const [phone, setPhone]       = useStateSettings(() => localStorage.getItem('vm_2fa_phone') || '');
   const [showQR, setShowQR]     = useStateSettings(false);
   const [showSmsIn, setShowSmsIn] = useStateSettings(false);
   const [verifyCode, setVerifyCode] = useStateSettings('');
 
-  const [otherSessions, setOtherSessions] = useStateSettings(() => {
-    try { return JSON.parse(localStorage.getItem('vm_other_sessions') || 'null') ||
-      [{ id:1, label:'iPhone · Veridian app', time:'2d ago' }, { id:2, label:'MacBook · Safari', time:'5d ago' }];
-    } catch { return []; }
-  });
-
-  const currentDevice = React.useMemo(() => {
-    const ua = navigator.userAgent;
-    const os = /Win/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : /iPhone/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : 'Linux';
-    const br = /Edg/.test(ua) ? 'Edge' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Browser';
-    return `This device · ${os} · ${br}`;
+  useEffectSettings(() => {
+    let live = true;
+    vmGetMfaStatus().then(on => { if (live) setAuthApp(on); }).catch(() => {});
+    return () => { live = false; };
   }, []);
+
+  // Real sign-in history (session_start events, via vm-my-activity) — replaces
+  // the old fake 2-device list. { items:null } while loading/unavailable.
+  const [sessions, setSessions] = useStateSettings({ items: null, loading: true });
+  useEffectSettings(() => {
+    let live = true;
+    (async () => {
+      const data = typeof vmFetchMyActivity === 'function' ? await vmFetchMyActivity() : null;
+      if (live) setSessions({ items: (data && data.sessions) || [], loading: false });
+    })();
+    return () => { live = false; };
+  }, []);
+  const sessRel = (ts) => {
+    if (!ts) return '';
+    const days = Math.floor((Date.now() - ts) / 86400000);
+    return days <= 0 ? 'today' : days === 1 ? '1d ago' : days < 30 ? days + 'd ago' : Math.round(days / 30) + 'mo ago';
+  };
+  const [signingOutAll, setSigningOutAll] = useStateSettings(false);
+  const currentDevice = React.useMemo(() => `This device · ${typeof vmDeviceString === 'function' ? vmDeviceString() : 'Unknown'}`, []);
 
   const strength = React.useMemo(() => {
     if (!newPw) return 0;
@@ -540,31 +786,67 @@ function StSecuritySection({ u, showToast }) {
   const SW_COLOR = [VM.faint, VM.down, VM.down, VM.terra, VM.up, VM.up];
   const SW_LABEL = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 
-  const savePw = () => {
-    const stored = localStorage.getItem('vm_mock_password') || 'password';
+  const savePw = async () => {
+    if (pwBusy) return;
     const errs = {};
     if (!cur)               errs.cur   = 'Required';
-    else if (cur !== stored) errs.cur   = 'Incorrect password';
     if (!newPw)             errs.newPw = 'Required';
     else if (newPw.length < 8) errs.newPw = 'Minimum 8 characters';
     if (!conf)              errs.conf  = 'Required';
     else if (newPw !== conf) errs.conf  = 'Passwords do not match';
     setErrors(errs);
-    if (!Object.keys(errs).length) {
-      localStorage.setItem('vm_mock_password', newPw);
+    if (Object.keys(errs).length) return;
+
+    setPwBusy(true);
+    try {
+      await vmChangePassword(cur, newPw);
       setCur(''); setNewPw(''); setConf('');
       setPwSaved(true); setTimeout(() => setPwSaved(false), 3000);
+    } catch (e) {
+      // Cognito's own NotAuthorizedException here genuinely means "wrong
+      // current password" — show it inline like the other field errors.
+      if (e.code === 'NotAuthorizedException') setErrors({ cur: 'Incorrect password' });
+      else showToast(e.message || 'Could not change your password.');
+    } finally {
+      setPwBusy(false);
     }
   };
 
-  const toggleAuthApp = () => {
-    if (authApp) { setAuthApp(false); localStorage.setItem('vm_2fa_app','false'); showToast('Authenticator app disabled.'); }
-    else setShowQR(true);
+  const toggleAuthApp = async () => {
+    if (mfaBusy) return;
+    if (authApp) {
+      setMfaBusy(true);
+      try { await vmSetSoftwareMfaPreference(false); setAuthApp(false); showToast('Authenticator app disabled.'); }
+      catch (e) { showToast(e.message || 'Could not disable 2FA.'); }
+      finally { setMfaBusy(false); }
+      return;
+    }
+    setMfaBusy(true);
+    try {
+      const secretCode = await vmAssociateSoftwareToken();
+      const otpauth = `otpauth://totp/Veridian%20Markets:${encodeURIComponent(u.email || '')}?secret=${secretCode}&issuer=Veridian%20Markets`;
+      const dataUrl = await window.QRCode.toDataURL(otpauth, { width: 180, margin: 1 });
+      setSecret(secretCode); setQrDataUrl(dataUrl); setShowQR(true);
+    } catch (e) {
+      showToast(e.message || 'Could not start 2FA setup.');
+    } finally {
+      setMfaBusy(false);
+    }
   };
-  const confirmQR = () => {
-    if (verifyCode.length < 6) return;
-    setAuthApp(true); localStorage.setItem('vm_2fa_app','true');
-    setShowQR(false); setVerifyCode(''); showToast('Authenticator app enabled.');
+  const confirmQR = async () => {
+    if (verifyCode.length < 6 || mfaBusy) return;
+    setMfaBusy(true);
+    try {
+      await vmVerifySoftwareToken(verifyCode);
+      await vmSetSoftwareMfaPreference(true);
+      setAuthApp(true);
+      setShowQR(false); setVerifyCode(''); setSecret(''); setQrDataUrl('');
+      showToast('Authenticator app enabled.');
+    } catch (e) {
+      showToast(e.message || 'That code didn’t match — try again.');
+    } finally {
+      setMfaBusy(false);
+    }
   };
   const toggleSms = () => {
     if (smsBak) { setSmsBak(false); localStorage.setItem('vm_2fa_sms','false'); showToast('SMS backup disabled.'); }
@@ -575,9 +857,17 @@ function StSecuritySection({ u, showToast }) {
     setSmsBak(true); localStorage.setItem('vm_2fa_sms','true'); localStorage.setItem('vm_2fa_phone', phone);
     setShowSmsIn(false); showToast('SMS backup enabled.');
   };
-  const signOutEverywhere = () => {
-    setOtherSessions([]); localStorage.setItem('vm_other_sessions','[]');
-    showToast('Signed out of all other sessions.');
+  const signOutEverywhere = async () => {
+    if (signingOutAll) return;
+    setSigningOutAll(true);
+    try {
+      await vmGlobalSignOut();   // real Cognito GlobalSignOut — all-or-nothing, no per-session revoke exists
+      showToast('Signed out everywhere — this browser may need a fresh sign-in soon too.');
+    } catch (e) {
+      showToast(e.message || 'Could not sign out of other sessions.');
+    } finally {
+      setSigningOutAll(false);
+    }
   };
 
   const eyeBtn = (on, toggle) => (
@@ -639,9 +929,8 @@ function StSecuritySection({ u, showToast }) {
         ? <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'10px 16px', background:VM.tealTint, border:`1px solid ${VM.up}`, borderRadius:10, fontFamily:VM.serif, fontSize:14, color:VM.upInk, marginBottom:16 }}>
             <i className="ti ti-circle-check-filled" style={{fontSize:16}}></i>Password updated
           </div>
-        : <StSave onClick={savePw} />
+        : <StSave onClick={pwBusy ? undefined : savePw} label={pwBusy ? 'Saving…' : 'Save changes'} />
       }
-      <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:6, marginBottom:18 }}>Mock default: "password"</Mono>
 
       <StCard title="Two-factor authentication">
         <div style={{ padding:'13px 0', borderBottom:`1px solid ${VM.borderHair}` }}>
@@ -649,7 +938,7 @@ function StSecuritySection({ u, showToast }) {
             <div style={{ flex:1 }}>
               <div style={{ fontFamily:VM.serif, fontSize:15 }}>Authenticator app</div>
               <Mono size={10} color={VM.ink3} style={{ display:'block', marginTop:1 }}>
-                {authApp ? <span style={{color:VM.upInk}}><i className="ti ti-circle-check-filled" style={{fontSize:11,marginRight:3}}></i>Enabled</span> : 'Require a code at sign-in'}
+                {authApp ? <span style={{color:VM.upInk}}><i className="ti ti-circle-check-filled" style={{fontSize:11,marginRight:3}}></i>Enabled — required at sign-in</span> : 'Require a code at sign-in'}
               </Mono>
             </div>
             {toggle(authApp, toggleAuthApp)}
@@ -658,17 +947,15 @@ function StSecuritySection({ u, showToast }) {
             <div style={{ marginTop:14, padding:16, background:VM.paperWarm, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
               <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:12 }}>Scan with Google Authenticator, Authy, or 1Password</Mono>
               <div style={{ display:'inline-block', background:'#fff', padding:10, borderRadius:8, marginBottom:12 }}>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(17, 5px)', gap:0 }}>
-                  {QR_GRID.flat().map((cell,i)=><div key={i} style={{ width:5, height:5, background:cell?'#000':'#fff' }} />)}
-                </div>
+                {qrDataUrl && <img src={qrDataUrl} width={180} height={180} alt="" />}
               </div>
-              <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:10, wordBreak:'break-all' }}>Manual key: JBSWY3DPEHPK3PXP (mock)</Mono>
+              <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:10, wordBreak:'break-all' }}>Manual key: {secret}</Mono>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                 <input value={verifyCode} onChange={e=>setVerifyCode(e.target.value.replace(/\D/g,'').slice(0,6))}
                   placeholder="6-digit code" maxLength={6}
                   style={{ flex:1, border:`1px solid ${VM.border}`, borderRadius:8, padding:'8px 12px', fontFamily:VM.mono, fontSize:18, letterSpacing:'0.25em', textAlign:'center', outline:'none', background:VM.paper }} />
-                <Btn solid onClick={confirmQR} style={{ opacity:verifyCode.length<6?0.5:1 }}>Verify</Btn>
-                <Btn onClick={()=>{setShowQR(false);setVerifyCode('');}}>Cancel</Btn>
+                <Btn solid onClick={confirmQR} style={{ opacity: (verifyCode.length<6 || mfaBusy) ?0.5:1 }}>{mfaBusy ? 'Verifying…' : 'Verify'}</Btn>
+                <Btn onClick={mfaBusy ? undefined : ()=>{setShowQR(false);setVerifyCode('');setSecret('');setQrDataUrl('');}}>Cancel</Btn>
               </div>
             </div>
           )}
@@ -697,28 +984,28 @@ function StSecuritySection({ u, showToast }) {
         </div>
       </StCard>
 
-      <StCard title="Active sessions">
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 0', borderBottom: otherSessions.length ? `1px solid ${VM.borderHair}` : 'none' }}>
+      <StCard title="Sign-in history">
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
           <i className="ti ti-device-laptop" style={{ fontSize:16, color:VM.teal, flexShrink:0 }}></i>
           <span style={{ flex:1, fontFamily:VM.serif, fontSize:15 }}>{currentDevice}</span>
           <Mono size={11} color={VM.upInk}>now</Mono>
         </div>
-        {otherSessions.length === 0
-          ? <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>No other active sessions.</Mono>
-          : otherSessions.map((s,i) => <SessionRow key={s.id||i} s={s} last={i===otherSessions.length-1}
-              onSignOut={()=>{
-                const next = otherSessions.filter((_,j)=>j!==i);
-                setOtherSessions(next);
-                localStorage.setItem('vm_other_sessions', JSON.stringify(next));
-                showToast(`Signed out of ${s.label}.`);
-              }} />)
-        }
+        {(() => {
+          // Skip the single most-recent entry if it's this same page load's own
+          // session_start (captured moments ago) — otherwise "This device · now"
+          // would duplicate right above it.
+          const items = (sessions.items || []).filter((s, i) => !(i === 0 && s.ts && (Date.now() - s.ts) < 60000));
+          if (sessions.loading) return <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>Loading…</Mono>;
+          if (items.length === 0) return <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'13px 0' }}>No earlier sign-ins recorded yet.</Mono>;
+          return items.map((s, i) => <SessionRow key={i} s={{ label: s.device, time: sessRel(s.ts) }} last={i === items.length - 1} />);
+        })()}
       </StCard>
-      {otherSessions.length > 0 && (
-        <Btn onClick={signOutEverywhere} style={{ color:VM.downInk, borderColor:VM.downInk }}>
-          <i className="ti ti-logout" style={{fontSize:15}}></i>Sign out everywhere else
-        </Btn>
-      )}
+      <Btn onClick={signingOutAll ? undefined : signOutEverywhere} style={{ color:VM.downInk, borderColor:VM.downInk }}>
+        <i className="ti ti-logout" style={{fontSize:15}}></i>{signingOutAll ? 'Signing out…' : 'Sign out of all sessions'}
+      </Btn>
+      <Mono size={9.5} color={VM.faint} style={{ display:'block', marginTop:8, maxWidth:440 }}>
+        Cognito can't sign out one specific session — this signs out everywhere, including this browser once its current session expires.
+      </Mono>
 
     </React.Fragment>
   );
@@ -875,11 +1162,32 @@ function HelpSection() {
   return (
     <React.Fragment>
       <StCard title="Help centre">
-        {Object.keys(HELP_ARTICLES).map((h, i, a) => (
-          <StLink key={h} label={h} onClick={() => setOpen(h)} last={i === a.length - 1} />
-        ))}
+        {Object.keys(HELP_ARTICLES)
+          .filter(h => SHOW_CONNECT_ACCOUNTS || h !== 'Connecting a broker')
+          .map((h, i, a) => (
+            <StLink key={h} label={h} onClick={() => setOpen(h)} last={i === a.length - 1} />
+          ))}
       </StCard>
       {open && <HelpModal article={open} onClose={() => setOpen(null)} />}
+    </React.Fragment>
+  );
+}
+
+// Real favourites (the ⭐ on any company page) — vmFavs() is the same
+// localStorage-backed source of truth CompanyHead reads for the star itself
+// (mirrored best-effort to the vm-favourites DynamoDB table server-side).
+function SavedSection({ go }) {
+  const [favs] = useStateSettings(() => {
+    const tickers = typeof vmFavs === 'function' ? vmFavs() : [];
+    return tickers.map(t => VM_COMPANIES.find(c => c.ticker === t)).filter(Boolean);
+  });
+  return (
+    <React.Fragment>
+      <StNote>Companies you've saved — tap the ★ on any company page to add or remove one.</StNote>
+      {favs.length
+        ? <StCard>{favs.map((c, i, a) => <StLink key={c.ticker} label={`${c.ticker} · ${c.name}`} value="View" onClick={() => go('dashboard', c)} last={i === a.length - 1} />)}</StCard>
+        : <Mono size={11} color={VM.ink3} style={{ display: 'block', padding: '13px 0' }}>No saved companies yet.</Mono>
+      }
     </React.Fragment>
   );
 }
@@ -890,15 +1198,33 @@ const MOCK_VIEWED    = VM_COMPANIES.slice(0, 3);
 function ActivitySection({ go, showToast }) {
   const [confirming, setConfirming] = useStateSettings(false);
   const [cleared, setCleared]       = useStateSettings(false);
+  // Seed with the mock preview; replaced by the real vm-my-activity data once
+  // it loads (falls back to staying on the mock if that Lambda isn't
+  // configured/deployed yet, or the call fails).
   const [searches, setSearches]     = useStateSettings(MOCK_SEARCHES);
   const [viewed, setViewed]         = useStateSettings(MOCK_VIEWED);
+  const initial = useRefSettings({ searches: MOCK_SEARCHES, viewed: MOCK_VIEWED });
+
+  useEffectSettings(() => {
+    let live = true;
+    (async () => {
+      const data = typeof vmFetchMyActivity === 'function' ? await vmFetchMyActivity() : null;
+      if (!live || !data) return;
+      const realSearches = data.searches || [];
+      const realViewed = (data.viewed || []).map(v => VM_COMPANIES.find(c => c.ticker === v.ticker) || v);
+      initial.current = { searches: realSearches, viewed: realViewed };
+      setSearches(realSearches);
+      setViewed(realViewed);
+    })();
+    return () => { live = false; };
+  }, []);
 
   const doClear = () => {
     setSearches([]); setViewed([]);
     setCleared(true); setConfirming(false);
   };
   const doRestore = () => {
-    setSearches(MOCK_SEARCHES); setViewed(MOCK_VIEWED);
+    setSearches(initial.current.searches); setViewed(initial.current.viewed);
     setCleared(false);
     showToast('Activity restored.');
   };
@@ -961,38 +1287,148 @@ function ActivitySection({ go, showToast }) {
   );
 }
 
+function StProfileSection({ u, avatar, avatarFallback, onAvatarChange, onUserRefresh, showToast }) {
+  const fileRef = useRefSettings(null);
+  const [busy, setBusy] = useStateSettings(false);
+  const [pendingFile, setPendingFile] = useStateSettings(null);   // File awaiting crop confirmation
+  // `avatar` is always a URL *candidate* (the deterministic S3 URL) once
+  // signed in, even if nothing's been uploaded — so "does a photo actually
+  // exist" comes from StAvatar's onResolved, not truthiness of `avatar` itself.
+  const [hasPhoto, setHasPhoto] = useStateSettings(false);
+
+  const [nameInput, setNameInput] = useStateSettings(u.name || '');
+  const [emailInput, setEmailInput] = useStateSettings(u.email || '');
+  const [usernameInput, setUsernameInput] = useStateSettings(() => vmGetUsername(u.sub, u.email));
+  const [saving, setSaving] = useStateSettings(false);
+  const [pendingEmail, setPendingEmail] = useStateSettings(null);   // set once a code has been sent
+
+  const onSaveProfile = async () => {
+    const name = nameInput.trim(), email = emailInput.trim(), username = usernameInput.trim();
+    if (!name || !email) { showToast('Name and email can’t be empty.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('That email doesn’t look right.'); return; }
+
+    const nameChanged = name !== u.name;
+    const emailChanged = email !== u.email;
+    const usernameChanged = username !== vmGetUsername(u.sub, u.email);
+
+    if (!nameChanged && !emailChanged && !usernameChanged) { showToast('Nothing to save.'); return; }
+
+    setSaving(true);
+    try {
+      if (usernameChanged) vmSetUsername(u.sub, username);
+      if (nameChanged) {
+        await vmUpdateAttributes({ name });
+        if (typeof onUserRefresh === 'function') await onUserRefresh();
+      }
+      if (emailChanged) {
+        await vmRequestEmailChange(email);
+        setPendingEmail(email);
+        showToast(`We sent a code to ${email} — confirm it to finish changing your email.`);
+      } else {
+        showToast('Profile saved.');
+      }
+    } catch (e) {
+      showToast(e.message || 'Could not save changes.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';   // allow re-picking the same file later
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Please choose an image file.'); return; }
+    if (file.size > 8 * 1024 * 1024) { showToast('That image is too large (max 8MB).'); return; }
+    setPendingFile(file);   // opens AvatarCropModal
+  };
+
+  const onCropConfirm = async (dataUrl) => {
+    setBusy(true);
+    try {
+      // Try the real backend (S3 via vm-avatar-upload) first; fall back to a
+      // local-only copy (this browser only) if it's not configured or fails.
+      const uploaded = typeof vmUploadAvatar === 'function' ? await vmUploadAvatar(dataUrl) : { ok: false };
+      onAvatarChange(uploaded.ok ? uploaded.url : dataUrl);
+      showToast(uploaded.ok ? 'Profile photo updated.' : 'Profile photo updated (saved on this device only).');
+    } catch {
+      showToast('Could not save that photo — try again.');
+    } finally {
+      setBusy(false);
+      setPendingFile(null);
+    }
+  };
+
+  return (
+    <React.Fragment>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+        <StAvatar name={u.name} src={avatar} fallbackSrc={avatarFallback} size={64} radius={16} onResolved={setHasPhoto} />
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
+        <Btn onClick={() => fileRef.current && fileRef.current.click()}>
+          <i className="ti ti-camera" style={{ fontSize: 15 }}></i>Change photo
+        </Btn>
+        {hasPhoto && (
+          <button onClick={async () => {
+            onAvatarChange(''); setHasPhoto(false); showToast('Profile photo removed.');
+            const r = await vmDeleteAvatar();   // best-effort — keeps a "removed" photo from reappearing via the S3 URL elsewhere
+            if (!r.ok && r.error !== 'not configured') showToast('Removed here, but the stored copy may still exist elsewhere.');
+          }} style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+            Remove
+          </button>
+        )}
+      </div>
+      {pendingFile && (
+        <AvatarCropModal file={pendingFile} busy={busy} onCancel={() => setPendingFile(null)} onConfirm={onCropConfirm} />
+      )}
+      {pendingEmail && (
+        <VerifyEmailModal email={pendingEmail} showToast={showToast}
+          onCancel={() => setPendingEmail(null)}
+          onConfirmed={async () => { if (typeof onUserRefresh === 'function') await onUserRefresh(); setPendingEmail(null); }} />
+      )}
+      <StCard>
+        <StField label="Full name" value={nameInput} onChange={setNameInput} />
+        <StField label="Email" value={emailInput} onChange={setEmailInput} type="email" />
+        <StField label="Username" value={usernameInput} onChange={setUsernameInput} />
+      </StCard>
+      <StSave onClick={saving ? undefined : onSaveProfile} label={saving ? 'Saving…' : 'Save changes'} />
+    </React.Fragment>
+  );
+}
+
 // ── per-section content ───────────────────────────────────────────────────────
 function renderSection(id, ctx) {
-  const { go, u, showToast, isMobile, theme, onThemeChange } = ctx;
+  const { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh } = ctx;
+  const tier = planTier || u.tier || 'Free';   // current plan (backend-driven)
   switch (id) {
-    case 'profile': return (
-      <React.Fragment>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <span style={{ width: 64, height: 64, borderRadius: 16, background: VM.forest, color: VM.paperWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: VM.serif, fontWeight: 700, fontSize: 24 }}>{initials(u.name)}</span>
-          <Btn onClick={() => showToast('Photo upload (mock).')}><i className="ti ti-camera" style={{ fontSize: 15 }}></i>Change photo</Btn>
-        </div>
-        <StCard>
-          <StField label="Full name" value={u.name} />
-          <StField label="Email" value={u.email} type="email" />
-          <StField label="Username" value={(u.email || 'you').split('@')[0]} />
-        </StCard>
-        <StSave onClick={() => showToast('Profile saved (mock).')} />
-      </React.Fragment>
-    );
+    case 'profile': return <StProfileSection u={u} avatar={avatar} avatarFallback={avatarFallback} onAvatarChange={onAvatarChange} onUserRefresh={onUserRefresh} showToast={showToast} />;
     case 'security': return <StSecuritySection u={u} showToast={showToast} />;
     case 'subscription': return (
       <React.Fragment>
         <div style={{ background: `linear-gradient(110deg, ${VM.forest}, ${VM.teal})`, color: VM.paperWarm, borderRadius: 16, padding: '20px 22px', marginBottom: 16 }}>
           <Mono size={10} color="rgba(255,255,255,0.7)" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Current plan</Mono>
-          <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 26, margin: '4px 0 2px' }}>{u.tier || 'Free'}</div>
-          <div style={{ fontFamily: VM.serif, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>{u.tier === 'Business' ? 'Everything, for teams.' : 'Upgrade for live data, alerts and more.'}</div>
+          <div style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 26, margin: '4px 0 2px' }}>{tier}</div>
+          <div style={{ fontFamily: VM.serif, fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>{tier === 'Business' ? 'Everything, for teams.' : tier === 'Free' ? 'Upgrade for live data, alerts and more.' : 'Thanks for subscribing — full access unlocked.'}</div>
+          {tier !== 'Free' && tier !== 'Business' && (
+            <button onClick={async () => {
+              const r = await vmOpenPortal();
+              if (!r.ok) showToast(r.error && r.error.includes('customer') ? 'No active subscription found on this account yet.' : 'Could not open the billing portal.');
+            }} style={{ marginTop: 14, fontFamily: VM.mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.32)', background: 'rgba(255,255,255,0.14)', color: VM.paperWarm, cursor: 'pointer' }}>
+              Manage / cancel subscription ↗
+            </button>
+          )}
         </div>
         <Label style={{ display: 'block', marginBottom: 8 }}>Plans</Label>
-        {[{ p: 'Free', price: '£0', d: 'History-led research, delayed data' }, { p: 'Plus', price: '£9/mo', d: 'Live data, watchlists, alerts' }, { p: 'Pro', price: '£19/mo', d: 'Analogue engine, exports, priority' }, { p: 'Business', price: 'Contact', d: 'Teams, seats, admin & SSO' }].map((pl, i) => (
-          <div key={pl.p} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', background: VM.paper, border: `1px solid ${pl.p === (u.tier || 'Free') ? VM.forest : VM.borderSoft}`, borderRadius: 12, marginBottom: 8 }}>
+        {[{ p: 'Free', price: '$0', d: 'History-led research, delayed data' }, { p: 'Plus', price: '$9/mo', d: 'Live data, watchlists, alerts' }, { p: 'Pro', price: '$19/mo', d: 'Analogue engine, exports, priority' }, { p: 'Business', price: 'Contact', d: 'Teams, seats, admin & SSO' }].map((pl, i) => (
+          <div key={pl.p} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', background: VM.paper, border: `1px solid ${pl.p === tier ? VM.forest : VM.borderSoft}`, borderRadius: 12, marginBottom: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}><span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 16 }}>{pl.p}</span><div><Mono size={10} color={VM.ink3}>{pl.d}</Mono></div></div>
             <Mono size={13} weight={700}>{pl.price}</Mono>
-            {pl.p === (u.tier || 'Free') ? <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.tealInk }}>CURRENT</span> : <Btn onClick={() => showToast('Checkout (mock) — Stripe later.')} style={{ fontSize: 13, padding: '6px 14px' }}>Choose</Btn>}
+            {pl.p === tier ? <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.tealInk }}>CURRENT</span> : <Btn onClick={async () => {
+              const id = pl.p.toLowerCase();   // 'plus' | 'pro' | 'business' | 'free'
+              if (id === 'business') return showToast('Contact sales — coming soon.');
+              if (id === 'free')     { const r = await vmOpenPortal(); if (!r.ok) showToast(r.error && r.error.includes('customer') ? 'No active subscription to cancel yet.' : 'Could not open the billing portal.'); return; }
+              const started = await vmStartCheckout(id);   // → real Stripe checkout
+              if (!started) showToast('Billing isn’t set up yet.');
+            }} style={{ fontSize: 13, padding: '6px 14px' }}>Choose</Btn>}
           </div>
         ))}
         <StCard title="Payment method" style={{ marginTop: 8 }}>
@@ -1004,19 +1440,19 @@ function renderSection(id, ctx) {
     case 'notifications': return (
       <React.Fragment>
         <StCard title="Alerts">
-          <StToggle label="Price alerts" desc="When a watched company moves sharply" on />
-          <StToggle label="Analogue alerts" desc="New historical pattern matches" on />
-          <StToggle label="Supply-chain events" desc="Disruptions affecting your holdings" last />
+          <StToggle id="notif_price" label="Price alerts" desc="When a watched company moves sharply" on />
+          <StToggle id="notif_analogue" label="Analogue alerts" desc="New historical pattern matches" on />
+          <StToggle id="notif_supply" label="Supply-chain events" desc="Disruptions affecting your holdings" last />
         </StCard>
         <StCard title="Updates">
-          <StToggle label="Course updates" desc="New lessons in your enrolled courses" on />
-          <StToggle label="Product news" />
-          <StToggle label="Weekly digest" desc="A Sunday market recap" on last />
+          <StToggle id="notif_course" label="Course updates" desc="New lessons in your enrolled courses" on />
+          <StToggle id="notif_product" label="Product news" />
+          <StToggle id="notif_digest" label="Weekly digest" desc="A Sunday market recap" on last />
         </StCard>
         <StCard title="Channels">
-          <StToggle label="Email" on />
-          <StToggle label="Push" on />
-          <StToggle label="SMS" last />
+          <StToggle id="notif_email" label="Email" on />
+          <StToggle id="notif_push" label="Push" on />
+          <StToggle id="notif_sms" label="SMS" last />
         </StCard>
       </React.Fragment>
     );
@@ -1051,39 +1487,39 @@ function renderSection(id, ctx) {
         </StCard>
       </React.Fragment>
     );
-    case 'saved': return (
-      <React.Fragment>
-        <StNote>Companies and stories you've saved for later.</StNote>
-        <StCard>
-          {VM_COMPANIES.slice(0, 4).map((c, i, a) => <StLink key={c.ticker} label={`${c.ticker} · ${c.name}`} value="View" onClick={() => go('dashboard', c)} last={i === a.length - 1} />)}
-        </StCard>
-      </React.Fragment>
-    );
+    case 'saved': return <SavedSection go={go} />;
     case 'activity': return <ActivitySection go={go} showToast={showToast} />;
-    case 'learning': return (
-      <React.Fragment>
-        <StNote>Pick up where you left off.</StNote>
-        <StCard>
-          <div style={{ padding: '12px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
-            <div style={{ fontFamily: VM.serif, fontSize: 15, marginBottom: 8 }}>Reading a supply chain map · 62%</div>
-            <ProgressBar v={62} />
-          </div>
-          <StLink label="Browse all courses" onClick={() => go('learn')} last />
-        </StCard>
-      </React.Fragment>
-    );
+    case 'learning': {
+      // Real progress (Learn.jsx's LessonViewer records it as you go) —
+      // whichever course you most recently opened a lesson in.
+      const progress = typeof vmLatestLearnProgress === 'function' ? vmLatestLearnProgress() : null;
+      return (
+        <React.Fragment>
+          <StNote>{progress ? "Pick up where you left off." : "You haven't started a course yet."}</StNote>
+          <StCard>
+            {progress && (
+              <div style={{ padding: '12px 0', borderBottom: `1px solid ${VM.borderHair}` }}>
+                <div style={{ fontFamily: VM.serif, fontSize: 15, marginBottom: 8 }}>{progress.title} · {progress.pct}%</div>
+                <ProgressBar v={progress.pct} />
+              </div>
+            )}
+            <StLink label="Browse all courses" onClick={() => go('learn')} last />
+          </StCard>
+        </React.Fragment>
+      );
+    }
     case 'permissions': return (
       <StCard title="Data & permissions">
-        <StToggle label="Personalised recommendations" desc="Use my activity to tailor content" on />
-        <StToggle label="Usage analytics" desc="Share anonymous usage to improve the app" on />
-        <StToggle label="Marketing emails" last />
+        <StToggle id="perm_personalised" label="Personalised recommendations" desc="Use my activity to tailor content" on />
+        <StToggle id="perm_analytics" label="Usage analytics" desc="Share anonymous usage to improve the app" on />
+        <StToggle id="perm_marketing" label="Marketing emails" last />
       </StCard>
     );
     case 'privacy': return (
       <StCard title="Account privacy">
-        <StToggle label="Private profile" desc="Only you can see your activity" on />
-        <StToggle label="Show online status" />
-        <StToggle label="Searchable by email" on last />
+        <StToggle id="privacy_private_profile" label="Private profile" desc="Only you can see your activity" on />
+        <StToggle id="privacy_online_status" label="Show online status" />
+        <StToggle id="privacy_searchable" label="Searchable by email" on last />
       </StCard>
     );
     case 'help': return <HelpSection showToast={showToast} />;
