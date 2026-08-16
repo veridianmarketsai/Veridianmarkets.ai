@@ -348,7 +348,7 @@ function App() {
   // bounces a signed-out visitor to sign-in first. Admin still additionally
   // needs the admin role once signed in.
   const isAdmin = !!(user && user.role === 'admin');
-  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates';
+  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates' && route !== 'betasignup';
   const gatedFromAdmin = route==='admin' && !isAdmin;
   const gatedByPlan = GATED_ROUTES.includes(route) && !isPaying;   // paywall
   const effRoute = appGated ? 'signin'
