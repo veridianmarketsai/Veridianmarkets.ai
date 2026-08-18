@@ -51,13 +51,14 @@
 // to set the new groups up in the Cognito console.
 //
 // Env vars: COGNITO_POOL_ID, COGNITO_REGION=us-east-1, SUBS_TABLE=vm-subscriptions,
-//           INVITES_TABLE=vm-beta-invites
+//           INVITES_TABLE=vm-beta-invites, FEEDBACK_TABLE=vm-feedback
 // IAM: cognito-idp:AdminDisableUser, AdminEnableUser, AdminDeleteUser,
 //      ListUsersInGroup, AdminListGroupsForUser, AdminAddUserToGroup,
 //      AdminRemoveUserFromGroup on the pool ARN
 //      (arn:aws:cognito-idp:<region>:<account>:userpool/<poolId>);
 //      dynamodb:UpdateItem on SUBS_TABLE;
-//      dynamodb:GetItem, PutItem, UpdateItem, Scan on INVITES_TABLE.
+//      dynamodb:GetItem, PutItem, UpdateItem, Scan on INVITES_TABLE;
+//      dynamodb:Scan on FEEDBACK_TABLE.
 
 import crypto from 'node:crypto';
 import {
@@ -71,8 +72,9 @@ const db  = new DynamoDBClient({});
 const REGION        = process.env.COGNITO_REGION || 'us-east-1';
 const POOL          = process.env.COGNITO_POOL_ID;
 const ISS           = `https://cognito-idp.${REGION}.amazonaws.com/${POOL}`;
-const SUBS_TABLE    = process.env.SUBS_TABLE || 'vm-subscriptions';
-const INVITES_TABLE = process.env.INVITES_TABLE || 'vm-beta-invites';
+const SUBS_TABLE     = process.env.SUBS_TABLE || 'vm-subscriptions';
+const INVITES_TABLE  = process.env.INVITES_TABLE || 'vm-beta-invites';
+const FEEDBACK_TABLE = process.env.FEEDBACK_TABLE || 'vm-feedback';
 const PLANS      = ['free', 'plus', 'pro', 'business'];
 
 const PERMISSION_GROUPS  = [
@@ -124,6 +126,7 @@ export const handler = async (event) => {
 
     if (action === 'createInvite') return resp(200, { ok: true, invite: await createInvite() });
     if (action === 'listInvites') return resp(200, { ok: true, invites: await listInvites() });
+    if (action === 'listFeedback') return resp(200, { ok: true, feedback: await listFeedback() });
 
     if (action === 'listTeam') {
       if (!isFullAdmin(groups)) return resp(403, { error: 'Only a full admin can view team permissions.' });
@@ -222,6 +225,25 @@ async function listInvites() {
     token: i.token?.S, createdAt: i.createdAt ? Number(i.createdAt.N) : null,
     usedAt: i.usedAt ? Number(i.usedAt.N) : null, usedBy: i.usedBy?.S || null,
   })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+// Real feedback submissions (vm-feedback wrote these) — powers the Feedback
+// tab. `items` was stored as a JSON string (each item's screenshotUrl is a
+// public-but-unguessable S3 URL, not the image itself).
+async function listFeedback() {
+  const items = [];
+  let key;
+  do {
+    const r = await db.send(new ScanCommand({ TableName: FEEDBACK_TABLE, ExclusiveStartKey: key }));
+    items.push(...(r.Items || []));
+    key = r.LastEvaluatedKey;
+  } while (key && items.length < 2000);
+  return items.map(i => ({
+    id: i.id?.S, page: i.page?.S || '', route: i.route?.S || '',
+    ts: i.ts ? Number(i.ts.N) : null, userEmail: i.userEmail?.S || '', userName: i.userName?.S || '',
+    status: i.status?.S || 'new',
+    items: (() => { try { return JSON.parse(i.items?.S || '[]'); } catch { return []; } })(),
+  })).sort((a, b) => (b.ts || 0) - (a.ts || 0));
 }
 // The real security boundary for beta signup — see the top-of-file comment.
 // Throws on anything invalid; only reaches the bottom (group + plan grant)

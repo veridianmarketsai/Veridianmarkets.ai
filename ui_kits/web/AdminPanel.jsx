@@ -1996,9 +1996,19 @@ function FeedbackTab({ isMobile }) {
   const { useState: useStateFb, useEffect: useEffectFb } = React;
   const [feedback, setFeedback] = useStateFb([]);
   const [fbExpanded, setFbExp]  = useStateFb(null);
+  const [loading, setLoading]   = useStateFb(true);
+  const [real, setReal]         = useStateFb(false);
 
+  // Real submissions (vm-feedback wrote these, listed via vm-admin-actions'
+  // listFeedback) — falls back to the local-only record (same browser the
+  // widget was used in) if the real call isn't configured or fails.
   useEffectFb(() => {
-    setFeedback(window.loadFeedback ? window.loadFeedback() : []);
+    (async () => {
+      const r = typeof vmAdminAction === 'function' ? await vmAdminAction('listFeedback') : { ok: false };
+      if (r.ok) { setFeedback(r.feedback); setReal(true); }
+      else { setFeedback(window.loadFeedback ? window.loadFeedback() : []); setReal(false); }
+      setLoading(false);
+    })();
   }, []);
 
   const mono = { fontFamily: VM.mono, fontSize: 11, color: VM.ink3 };
@@ -2012,16 +2022,18 @@ function FeedbackTab({ isMobile }) {
     <div style={{ maxWidth: 1000 }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink }}>Feedback</div>
-        <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 4 }}>
+        <div style={{ fontFamily: VM.mono, fontSize: 11, marginTop: 4, color: real ? VM.upInk : VM.ink3 }}>
           {feedback.length} submission{feedback.length === 1 ? '' : 's'} from the in-app feedback widget
+          {real ? ' · live' : ' · this browser only (not configured or unreachable)'}
         </div>
       </div>
 
       <BetaSection label="Feedback submissions" icon="message-2-star">
-        {feedback.length === 0 && (
+        {loading && <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}><i className="ti ti-loader-2"></i> Loading…</div>}
+        {!loading && feedback.length === 0 && (
           <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No feedback yet.</div>
         )}
-        {[...feedback].reverse().map(fb => (
+        {!loading && (real ? feedback : [...feedback].reverse()).map(fb => (
           <div key={fb.id} style={{ borderBottom: `1px solid ${VM.borderSoft}`, padding: '12px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 600, color: VM.ink }}>{fb.userName}</span>
@@ -2040,8 +2052,8 @@ function FeedbackTab({ isMobile }) {
 
             {fbExpanded === fb.id && (fb.items || []).map((item, i) => (
               <div key={i} style={{ marginTop: 10, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                {item.screenshot && (
-                  <img src={item.screenshot} alt={`Suggestion ${i+1}`}
+                {(item.screenshot || item.screenshotUrl) && (
+                  <img src={item.screenshot || item.screenshotUrl} alt={`Suggestion ${i+1}`}
                     style={{ width: 220, borderRadius: 6, border: `1px solid ${VM.border}`, flexShrink: 0 }} />
                 )}
                 <div style={{ flex: 1, minWidth: 180 }}>

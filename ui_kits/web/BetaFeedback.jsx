@@ -1,10 +1,18 @@
 // Veridian Markets — Beta Feedback Widget
-// Floating button visible to beta users on every page.
-// Click → captures a screenshot of the current page → canvas annotation
-//       → comment → submit (stored in localStorage + optional AWS endpoint).
+// Floating button, visible to beta testers AND paying subscribers on every
+// page (app.jsx gates rendering; vm-feedback re-checks server-side — see
+// lambda/feedback/vm-feedback). Click → captures a screenshot of the
+// current page → canvas annotation → comment → submit.
+//
+// Real submission: each screenshot uploads directly to S3 (presigned PUT,
+// same technique as the founder-video upload), then the record (metadata +
+// the resulting S3 URLs, NOT the raw image data) posts to vm-feedback.
+// Admin reads happen via vm-admin-actions' listFeedback, a separate
+// Lambda/role on purpose — same self-service-write / admin-read split as
+// beta invites. Also saved to localStorage as a same-browser fallback if
+// the real calls aren't configured/fail.
 //
 // Requires html2canvas (loaded via CDN in index.html).
-// window.VM_FEEDBACK_URL — optional: POST feedback JSON here.
 // Storage key: 'vm_beta_feedback'
 
 const { useState: useStateFb, useEffect: useEffectFb, useRef: useRefFb, useCallback: useCallbackFb } = React;
@@ -13,6 +21,27 @@ const FEEDBACK_KEY = 'vm_beta_feedback';
 function loadFeedback() { try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '[]'); } catch { return []; } }
 function saveFeedback(a) { try { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(a)); } catch {} }
 Object.assign(window, { loadFeedback, saveFeedback });
+
+// vm-feedback Lambda client — same shape/pattern as vmAdminAction, but a
+// separate Lambda/URL since submitters (beta/paying users) aren't admins.
+// URL comes from window.VM_FEEDBACK_URL, set in index.html (same convention
+// as window.VM_MEDIA_UPLOAD_URL / VM_FOUNDER_VIDEO_URL) — fill in once deployed.
+const VM_FEEDBACK = { get url() { return window.VM_FEEDBACK_URL || ''; } };
+async function vmFeedbackAction(action, extra) {
+  if (!VM_FEEDBACK.url) return { ok: false, error: 'not configured' };
+  let session = null; try { session = JSON.parse(localStorage.getItem('vm_session') || 'null'); } catch {}
+  if (!session || !session.access) return { ok: false, error: 'not signed in' };
+  try {
+    const res = await fetch(VM_FEEDBACK.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access}` },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    const data = await res.json();
+    return data.ok ? { ok: true, ...data } : { ok: false, error: data.error || 'request failed' };
+  } catch { return { ok: false, error: 'network error' }; }
+}
+Object.assign(window, { VM_FEEDBACK, vmFeedbackAction });
 
 // ── Drawing canvas ────────────────────────────────────────────────────────────
 function AnnotationCanvas({ screenshotUrl, canvasRef, tool, color, lineWidth }) {
@@ -217,29 +246,37 @@ function BetaFeedback({ user }) {
     const finalScreenshot = canvas ? canvas.toDataURL('image/jpeg', 0.85) : items[activeIdx].screenshot;
     const finalItems = items.map((it, i) => i === activeIdx ? { ...it, screenshot: finalScreenshot } : it);
 
-    const feedback = {
-      id:        Math.random().toString(36).slice(2, 12),
-      page:      location.pathname,
-      route:     location.pathname.replace(/^\//, '') || 'front',
-      ts:        Date.now(),
-      userEmail: user?.email || 'unknown',
-      userName:  user?.name  || 'unknown',
-      items:     finalItems.map(it => ({ screenshot: it.screenshot, comment: it.comment })),
-      status:    'new',
-    };
-
     setSubmit(true);
+
+    // Always keep a same-browser local copy — cheap, instant, and a fallback
+    // if the real upload below isn't configured or fails.
+    const localFeedback = {
+      id: Math.random().toString(36).slice(2, 12), page: location.pathname,
+      route: location.pathname.replace(/^\//, '') || 'front', ts: Date.now(),
+      userEmail: user?.email || 'unknown', userName: user?.name || 'unknown',
+      items: finalItems.map(it => ({ screenshot: it.screenshot, comment: it.comment })), status: 'new',
+    };
     const all = loadFeedback();
-    all.push(feedback);
+    all.push(localFeedback);
     saveFeedback(all);
 
-    if (window.VM_FEEDBACK_URL) {
-      fetch(window.VM_FEEDBACK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...feedback, items: finalItems.map(it => ({ comment: it.comment })) }),
-      }).catch(() => {});
-    }
+    // Real path: upload each screenshot to S3 (presigned PUT), then submit
+    // the record — metadata + the resulting S3 URLs, not the raw images.
+    try {
+      const uploaded = [];
+      for (let i = 0; i < finalItems.length; i++) {
+        const it = finalItems[i];
+        if (!it.screenshot) { uploaded.push({ screenshotUrl: '', comment: it.comment }); continue; }
+        const urlRes = await vmFeedbackAction('uploadUrl', { filename: `img-${i}.jpg`, type: 'image/jpeg' });
+        if (!urlRes.ok) { uploaded.push({ screenshotUrl: '', comment: it.comment }); continue; }
+        const blob = await (await fetch(it.screenshot)).blob();
+        await fetch(urlRes.uploadUrl, { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/jpeg' } });
+        uploaded.push({ screenshotUrl: urlRes.publicUrl, comment: it.comment });
+      }
+      await vmFeedbackAction('submit', {
+        page: location.pathname, route: location.pathname.replace(/^\//, '') || 'front', items: uploaded,
+      });
+    } catch { /* local copy above still stands even if the real path fails */ }
 
     setSubmit(false);
     setSubmitted(true);

@@ -62,6 +62,45 @@ placeholders until their page exists.
 
 ## Change log
 
+### 2026-08-18 — `beta-testing-feature`: real beta signup, real invite validation, feedback widget storage.
+
+Real Cognito accounts on beta signup (was a fake localStorage record + a
+silent, failing real `signIn()` call — users never actually got a session).
+Invite tokens (`/invite/:token`) are now validated server-side against a new
+`vm-beta-invites` DynamoDB table (`redeemInvite` action on
+`vm-admin-actions`, race-guarded with a `ConditionExpression`) instead of
+accepting any well-formed string — this closed a real "anyone can guess a
+URL and get a free Pro plan" gap, since valid redemption auto-grants the
+real `beta` Cognito group and sets `plan:'pro'` in `vm-subscriptions`.
+`vmUserFromClaims` (`auth.jsx`) now derives `role:'beta'` from that group
+(previously only admin/user were reachable).
+
+- **Feedback widget → real AWS storage.** The screenshot-annotate-comment
+  button (`BetaFeedback.jsx`) now uploads for real instead of only saving to
+  `localStorage`: new `vm-feedback` Lambda with two actions — `uploadUrl`
+  (presigned S3 PUT, same technique as the founder-video/media upload,
+  random unguessable `feedback/<folder>/…` key since screenshots can carry
+  real session data) and `submit` (writes metadata + the S3 URLs, not the
+  raw image, to a new `vm-feedback` DynamoDB table). Both require a real JWT
+  and re-check eligibility server-side (`beta`/`admin` Cognito group, or a
+  real non-free plan via `vm-subscriptions` — **not** trusted from the
+  client), gating it to beta testers and paying subscribers as asked.
+  `vm-admin-actions` gained an admin-gated `listFeedback` action (same
+  self-service-write/admin-read Lambda split as beta invites); Admin got its
+  own **Feedback** tab (split out of Beta) that reads real submissions with
+  a mock/local fallback and "· live" labeling, same convention as Users/
+  Overview/Beta. Local Babel-transform check + a live headless-Edge/CDP run
+  verified: the button is hidden for a signed-in free/non-beta user, shown
+  for both beta and paying accounts, and the admin Feedback tab renders a
+  mocked real submission (comment + `screenshotUrl` image) with zero JS
+  exceptions. **Not yet deployed to AWS** — `vm-feedback` needs a Function
+  URL (deploy as a zip, not paste — it needs `s3-request-presigner`, unlike
+  `vm-admin-actions`), the `vm-feedback` table + IAM policy need creating,
+  `vm-admin-actions` needs redeploying with `listFeedback`, and
+  `window.VM_FEEDBACK_URL` needs setting in `index.html` once that URL
+  exists (same override convention as `VM_MEDIA_UPLOAD_URL`/
+  `VM_FOUNDER_VIDEO_URL`).
+
 ### 2026-07-20 — `feature-idea-refinements`: Release Notes, Admin Overview real data, per-employee admin permissions.
 
 New branch collecting quick wins off `feature-ideas.md` (a new running list,
