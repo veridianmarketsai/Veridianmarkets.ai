@@ -207,6 +207,7 @@ function AdminPanel({ go, user, isMobile }) {
     { id: 'courses',   label: 'Courses',   icon: 'book',              show: canCourses },
     { id: 'heatmap',   label: 'Heatmap',   icon: 'flame',             show: true },
     { id: 'beta',      label: 'Beta',      icon: 'test-pipe',         show: true },
+    { id: 'feedback',  label: 'Feedback',  icon: 'message-2-star',    show: true },
     { id: 'media',     label: 'Media',     icon: 'photo-video',       show: true },
     { id: 'analytics', label: 'Analytics', icon: 'chart-histogram',   show: canAnalytics },
     { id: 'team',      label: 'Team',      icon: 'shield-lock',       show: isFullAdmin },
@@ -254,6 +255,7 @@ function AdminPanel({ go, user, isMobile }) {
         {tab === 'courses'   && <CoursesTab go={go} isMobile={isMobile} />}
         {tab === 'heatmap'   && <HeatmapAdmin isMobile={isMobile} />}
         {tab === 'beta'      && <BetaTab isMobile={isMobile} />}
+        {tab === 'feedback'  && <FeedbackTab isMobile={isMobile} />}
         {tab === 'media'     && <MediaTab isMobile={isMobile} />}
         {tab === 'analytics' && <AnalyticsTab stats={stats} isMobile={isMobile} />}
         {tab === 'team'      && <TeamTab user={user} isMobile={isMobile} />}
@@ -1866,14 +1868,11 @@ function BetaTab({ isMobile }) {
   const { useState: useStateBeta, useEffect: useEffectBeta } = React;
   const [invites,  setInvites]  = useStateBeta([]);
   const [users,    setUsers]    = useStateBeta([]);
-  const [feedback, setFeedback] = useStateBeta([]);
   const [copied,   setCopied]   = useStateBeta('');
-  const [fbExpanded, setFbExp]  = useStateBeta(null);
 
   const reload = () => {
     setInvites(window.loadBetaInvites  ? window.loadBetaInvites()  : []);
     setUsers(  window.loadBetaUsers    ? window.loadBetaUsers()    : []);
-    setFeedback(window.loadFeedback    ? window.loadFeedback()    : []);
   };
   useEffectBeta(reload, []);
 
@@ -1905,7 +1904,7 @@ function BetaTab({ isMobile }) {
         <div>
           <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink }}>Beta programme</div>
           <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 4 }}>
-            {users.length} beta users · {invites.filter(i => !i.usedAt).length} unused invites · {feedback.length} feedback items
+            {users.length} beta users · {invites.filter(i => !i.usedAt).length} unused invites
           </div>
         </div>
         <button onClick={generateLink}
@@ -1971,9 +1970,40 @@ function BetaTab({ isMobile }) {
           </table>
         </div>
       </BetaSection>
+    </div>
+  );
+}
 
-      {/* Feedback */}
-      <BetaSection label="Feedback submissions" icon="message-2-star" style={{ marginTop: 28 }}>
+// ── Feedback ───────────────────────────────────────────────────────────────────
+// Split out of the Beta tab into its own tab — feedback submissions from the
+// in-app screenshot/annotate widget (BetaFeedback.jsx), independent of the
+// invite/user management above it.
+function FeedbackTab({ isMobile }) {
+  const { useState: useStateFb, useEffect: useEffectFb } = React;
+  const [feedback, setFeedback] = useStateFb([]);
+  const [fbExpanded, setFbExp]  = useStateFb(null);
+
+  useEffectFb(() => {
+    setFeedback(window.loadFeedback ? window.loadFeedback() : []);
+  }, []);
+
+  const mono = { fontFamily: VM.mono, fontSize: 11, color: VM.ink3 };
+  const badge = (txt, color) => (
+    <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+      textTransform: 'uppercase', padding: '2px 7px', borderRadius: 4,
+      background: color + '18', color, border: `1px solid ${color}40` }}>{txt}</span>
+  );
+
+  return (
+    <div style={{ maxWidth: 1000 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink }}>Feedback</div>
+        <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 4 }}>
+          {feedback.length} submission{feedback.length === 1 ? '' : 's'} from the in-app feedback widget
+        </div>
+      </div>
+
+      <BetaSection label="Feedback submissions" icon="message-2-star">
         {feedback.length === 0 && (
           <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No feedback yet.</div>
         )}
