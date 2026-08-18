@@ -82,12 +82,22 @@ function realUserStatus(u) {
   if (u.lastActive && (Date.now() - u.lastActive.getTime()) < 7 * DAY_MS) return 'active';
   return 'inactive';
 }
+// Beta signups are tracked client-side only (BetaSignup.jsx, this browser's
+// localStorage) — Cognito/vm-admin-analytics has no concept of "beta" at
+// all. This cross-references by email so the real Users table can still
+// label them, purely a display join; it doesn't change what plan is
+// actually enforced (that still needs a real Change-plan grant).
+function isLocalBetaUser(email) {
+  if (!email || typeof loadBetaUsers !== 'function') return false;
+  return loadBetaUsers().some(b => b.email.toLowerCase() === email.toLowerCase());
+}
 function normalizeAdminUser(u) {
   const plan = u.plan || 'free';
   return {
     id: u.sub, name: u.name || (u.email ? u.email.split('@')[0] : 'Member'), email: u.email || '',
     plan: plan.charAt(0).toUpperCase() + plan.slice(1),
     planRaw: plan,
+    isBeta: isLocalBetaUser(u.email),
     cognitoStatus: u.status,
     enabled: u.enabled !== false,
     joined: u.created ? new Date(u.created) : null,
@@ -1278,17 +1288,33 @@ const A_USER_COLS = '1.7fr 0.6fr 0.8fr 0.9fr 0.7fr 34px';
 function UsersTab({ onAccess, isMobile }) {
   const { users: realUsers, loading: realLoading, refresh: refreshRealUsers } = useRealAdminUsers();
   const real = !!realUsers;
-  const source = real ? realUsers : VM_USERS;
-  const statusMap = real ? A_STATUS_REAL : A_STATUS;
-  const statusFilters = real ? ['all', 'active', 'inactive', 'unconfirmed', 'suspended'] : ['all', 'active', 'trial', 'churned'];
-  const statusOf = (u) => real ? realUserStatus(u) : u.status;
 
+  // Every hook this component uses must run on every render (Rules of
+  // Hooks) — the loading spinner below is an early *render* branch, not an
+  // early *return*, so it can't skip any of these.
   const [q, setQ] = useStateAdmin('');
   const [status, setStatus] = useStateAdmin('all');
   const [shown, setShown] = useStateAdmin(40);
   const [detail, setDetail] = useStateAdmin(null);
   const [pendingAction, setPendingAction] = useStateAdmin(null);
   const [toast, setToast] = useStateAdmin('');
+
+  // While the real roster is still loading, show a spinner rather than the
+  // 100-user mock set — that was flashing full (but fake) content on every
+  // load, not just a genuine "live data unavailable" fallback.
+  if (realLoading) {
+    return (
+      <div style={{ padding: '48px 16px', textAlign: 'center', fontFamily: VM.mono, fontSize: 11, color: VM.ink3 }}>
+        <i className="ti ti-loader-2" style={{ fontSize: 18 }}></i> Loading live user data…
+      </div>
+    );
+  }
+
+  const source = real ? realUsers : VM_USERS;
+  const statusMap = real ? A_STATUS_REAL : A_STATUS;
+  const statusFilters = real ? ['all', 'active', 'inactive', 'unconfirmed', 'suspended'] : ['all', 'active', 'trial', 'churned'];
+  const statusOf = (u) => real ? realUserStatus(u) : u.status;
+
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
   const access = (u) => { setDetail(null); onAccess(u); };
   const actionDone = (msg) => { setPendingAction(null); setDetail(null); if (real) refreshRealUsers(); showToast(msg); };
@@ -1327,7 +1353,7 @@ function UsersTab({ onAccess, isMobile }) {
           ))}
           {visible.length === 0 && (
             <div style={{ padding: '32px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>
-              {(users||[]).length === 0 ? 'No beta users have signed up yet.' : 'No users match.'}
+              {source.length === 0 ? 'No users yet.' : 'No users match.'}
             </div>
           )}
         </div>
@@ -1373,7 +1399,9 @@ function UserRow({ u, real, last, onView, onAccess, onAction, onToast }) {
           <div style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 600, color: VM.ink }}>{u.name}</div>
           <Mono size={10} color={VM.ink3} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{u.email}</Mono>
         </div>
-        <div style={{ textAlign: 'center' }}><Mono size={10.5} weight={600} color={A_PLAN_COLOR[u.plan] || VM.ink2}>{u.plan}</Mono></div>
+        <div style={{ textAlign: 'center' }}>
+          <Mono size={10.5} weight={600} color={u.isBeta ? VM.terra : (A_PLAN_COLOR[u.plan] || VM.ink2)}>{u.isBeta ? 'PRO-BETA' : u.plan}</Mono>
+        </div>
         <div style={{ textAlign: 'center' }}>
           <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5, color: st.fg, background: st.bg, border: `1px solid ${st.bd}` }}>{st.label}</span>
         </div>
@@ -1458,7 +1486,7 @@ function UserDetailModal({ u, real, onClose, onAccess, onAction, onToast }) {
   if (real) {
     const st = A_STATUS_REAL[realUserStatus(u)];
     const detail = [
-      ['User ID', u.id], ['Plan', u.plan], ['Status', st.label],
+      ['User ID', u.id], ['Plan', u.isBeta ? 'PRO-BETA' : u.plan], ['Status', st.label],
       ['Joined', u.joined ? aDate(u.joined) : '—'],
       ['Last active', u.lastActive ? aRelReal(u.lastActive) : 'never'],
       ['Events captured', u.eventCount.toLocaleString('en-US')],
