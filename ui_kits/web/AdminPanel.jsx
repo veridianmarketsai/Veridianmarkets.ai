@@ -1400,7 +1400,12 @@ function UserRow({ u, real, last, onView, onAccess, onAction, onToast }) {
           <Mono size={10} color={VM.ink3} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{u.email}</Mono>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <Mono size={10.5} weight={600} color={u.isBeta ? VM.terra : (A_PLAN_COLOR[u.plan] || VM.ink2)}>{u.isBeta ? 'PRO-BETA' : u.plan}</Mono>
+          {u.isBeta ? (
+            <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5,
+              color: VM.rustDeep || VM.terra, background: 'rgba(196,106,59,0.14)', border: `1px solid ${VM.terra}` }}>PRO-BETA</span>
+          ) : (
+            <Mono size={10.5} weight={600} color={A_PLAN_COLOR[u.plan] || VM.ink2}>{u.plan}</Mono>
+          )}
         </div>
         <div style={{ textAlign: 'center' }}>
           <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5, color: st.fg, background: st.bg, border: `1px solid ${st.bd}` }}>{st.label}</span>
