@@ -71,7 +71,10 @@ function vmUserFromClaims(idToken) {
   return {
     email: p.email || p['cognito:username'] || '',
     name:  p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Member'),
-    role:  groups.includes('admin') ? 'admin' : 'user',   // admin = Cognito group membership
+    // admin/beta = real Cognito group membership. Checked in that order since
+    // an admin who's also a beta tester should still get full admin UI, not
+    // get shunted into the beta-only role.
+    role:  groups.includes('admin') ? 'admin' : groups.includes('beta') ? 'beta' : 'user',
     sub:   p.sub,
     groups,   // raw Cognito groups — AdminPanel reads the admin-view-*/admin-* ones for tab/action gating
   };

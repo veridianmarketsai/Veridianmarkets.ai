@@ -1869,20 +1869,28 @@ function BetaTab({ isMobile }) {
   const [invites,  setInvites]  = useStateBeta([]);
   const [users,    setUsers]    = useStateBeta([]);
   const [copied,   setCopied]   = useStateBeta('');
+  const [invitesLoading, setInvitesLoading] = useStateBeta(true);
+  const [genError, setGenError] = useStateBeta('');
 
-  const reload = () => {
-    setInvites(window.loadBetaInvites  ? window.loadBetaInvites()  : []);
-    setUsers(  window.loadBetaUsers    ? window.loadBetaUsers()    : []);
+  // Invites are real now (vm-admin-actions' createInvite/listInvites/
+  // redeemInvite) — this is the list a token actually has to exist in for
+  // signup to grant anything. Beta users themselves are still the local
+  // tracking record for now (a separate, smaller gap — see PRO-BETA badge
+  // notes elsewhere).
+  const reload = async () => {
+    setUsers(window.loadBetaUsers ? window.loadBetaUsers() : []);
+    setInvitesLoading(true);
+    const r = typeof vmAdminAction === 'function' ? await vmAdminAction('listInvites') : { ok: false };
+    setInvites(r.ok ? r.invites : []);
+    setInvitesLoading(false);
   };
-  useEffectBeta(reload, []);
+  useEffectBeta(() => { reload(); }, []);
 
-  const generateLink = () => {
-    const token = window.generateInviteToken ? window.generateInviteToken() : Math.random().toString(36).slice(2, 14);
-    const inv = { token, createdAt: Date.now(), usedAt: null, usedBy: null };
-    const all = window.loadBetaInvites ? window.loadBetaInvites() : [];
-    all.push(inv);
-    if (window.saveBetaInvites) window.saveBetaInvites(all);
-    setInvites([...all]);
+  const generateLink = async () => {
+    setGenError('');
+    const r = typeof vmAdminAction === 'function' ? await vmAdminAction('createInvite') : { ok: false, error: 'not configured' };
+    if (r.ok) setInvites(inv => [r.invite, ...inv]);
+    else setGenError(r.error || 'Could not create an invite link.');
   };
 
   const copyLink = (token) => {
@@ -1915,12 +1923,18 @@ function BetaTab({ isMobile }) {
         </button>
       </div>
 
+      {genError && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, fontFamily: VM.mono, fontSize: 11,
+          color: VM.downInk, background: 'rgba(163,45,45,0.08)', border: `1px solid ${VM.downInk}40` }}>{genError}</div>
+      )}
+
       {/* Invite links */}
       <BetaSection label="Invite links" icon="link">
-        {invites.length === 0 && (
+        {invitesLoading && <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}><i className="ti ti-loader-2"></i> Loading invites…</div>}
+        {!invitesLoading && invites.length === 0 && (
           <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No invites yet — click Generate to create one.</div>
         )}
-        {[...invites].reverse().map(inv => {
+        {!invitesLoading && invites.map(inv => {
           const url = `${location.origin}/invite/${inv.token}`;
           return (
             <div key={inv.token} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',

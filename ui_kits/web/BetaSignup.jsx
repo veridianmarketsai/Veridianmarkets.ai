@@ -181,8 +181,13 @@ function BetaSignup({ go, signIn }) {
   };
 
   // Step 2: confirm the code Cognito emailed, then actually sign in for real.
-  // Only once that succeeds do we save the local beta-user tracking record
-  // (Admin → Beta reads it) and mark the invite used.
+  // Only once that succeeds does the real security check happen: redeemInvite
+  // (vm-admin-actions) is the actual gate now — it only grants the `beta`
+  // Cognito group + real Pro plan for a token that genuinely exists and
+  // hasn't already been redeemed, independent of the optimistic client-side
+  // check that got them to this form in the first place. The local
+  // tracking record (Admin → Beta) is only saved once that real grant
+  // succeeds, so a bogus/reused token can't leave a phantom "beta user".
   const handleConfirm = async e => {
     e.preventDefault();
     if (!code.trim()) return setError('Enter the code from your email.');
@@ -193,6 +198,12 @@ function BetaSignup({ go, signIn }) {
       if (!r || !r.ok || r.mfaRequired) {
         setLoading(false);
         return setError((r && r.error) || 'Account confirmed, but sign-in failed — try signing in manually.');
+      }
+
+      const redeemed = typeof vmAdminAction === 'function' ? await vmAdminAction('redeemInvite', null, { token }) : { ok: false, error: 'not configured' };
+      if (!redeemed.ok) {
+        setLoading(false);
+        return setError(redeemed.error || 'This invite link isn’t valid or has already been used.');
       }
 
       const passHash = await bsHash(password);
