@@ -24,6 +24,7 @@ function Dashboard({ company, go, isMobile, trail, trailIndex, tab, onTabChange,
       {curTab === 'Overview'     && (known ? <DashOverview   c={c} data={data} go={go} isMobile={isMobile} /> : <ProfileOverview c={c} go={go} isMobile={isMobile} />)}
       {curTab === 'Supply chain' && (known ? <DashScn        c={c} go={go} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Supply-chain map" />)}
       {curTab === 'Financials'   && <DashFinancials data={known ? data.financials : EMPTY_FIN} c={c} isMobile={isMobile} />}
+      {curTab === 'Chart'        && <DashChart c={c} isMobile={isMobile} />}
       {curTab === 'Patents'      && (typeof PatentsLive === 'function'
         ? <PatentsLive c={c} isMobile={isMobile} fallback={known ? <DashPatents data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />} />
         : (known ? <DashPatents data={data.patents} isMobile={isMobile} /> : <TabUnavailable ticker={c.ticker} what="Patent portfolio" />))}
@@ -135,6 +136,8 @@ function DashNews({ c, go, isMobile, scn }) {
   // Real latest headlines for this company (dashboard News tab only, not the
   // dependency-map view). Shown as a strip above the history-framed stories.
   const liveCo = typeof useVMNews === 'function' ? useVMNews(scn ? '' : c.ticker) : { cards: [], live: false };
+  const sentLive = typeof useVMNewsSentiment === 'function' ? useVMNewsSentiment(scn ? '' : c.ticker) : { data:null, live:false };
+  const prLive = typeof useVMPressReleases === 'function' ? useVMPressReleases(scn ? '' : c.ticker) : { data:null, live:false };
 
   let list;
   if (scn) {
@@ -156,6 +159,13 @@ function DashNews({ c, go, isMobile, scn }) {
           {!scn && <Mono size={10} color={VM.terra} weight={700} style={{ display:'block', marginBottom:8 }}>NEWS · {c.ticker}</Mono>}
           <h2 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile?22:28, margin:'0 0 4px' }}>What's moving {c.name.split(' ')[0]}.</h2>
           <p style={{ fontFamily:VM.serif, fontSize:15, color:VM.ink3, margin:'0 0 18px' }}>{scn ? 'Filtered by where it sits in the dependency map — upstream supply and downstream demand.' : 'Stories read through the lens of the past.'}</p>
+          {!scn && sentLive.live && (
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+              <Label>News sentiment</Label>
+              {sentLive.data.bullishPct != null && <Mono size={11} weight={700} color={VM.teal}>{sentLive.data.bullishPct}% bullish</Mono>}
+              {sentLive.data.bearishPct != null && <Mono size={11} weight={700} color={VM.terra}>{sentLive.data.bearishPct}% bearish</Mono>}
+            </div>
+          )}
         </div>
         <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn this tab" style={{...TUTORIAL_BTN_STYLE, flexShrink:0}}>
           <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
@@ -177,6 +187,22 @@ function DashNews({ c, go, isMobile, scn }) {
           </div>
           <div style={{ fontFamily:VM.mono, fontSize:9, color:VM.ink3, margin:'12px 0 0' }}>Below: the same market, read through the lens of history.</div>
           <div style={{ height:1, background:VM.borderHair, margin:'16px 0 0' }}></div>
+        </div>
+      )}
+
+      {!scn && prLive.live && (
+        <div style={{ marginBottom: 22 }}>
+          <Mono size={9} color={VM.terra} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
+            <span style={{ width:6, height:6, borderRadius:999, background:VM.teal, display:'inline-block' }}></span>Press releases · live
+          </Mono>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {prLive.data.slice(0,5).map((r,i) => (
+              <a key={r.url||i} href={r.url || undefined} target="_blank" rel="noopener noreferrer" style={{ textDecoration:'none', display:'flex', justifyContent:'space-between', gap:12, padding:'8px 0', borderBottom: i<4 ? `1px dotted ${VM.border}` : 'none' }}>
+                <span style={{ fontFamily:VM.serif, fontSize:13.5, color:VM.ink }}>{r.title}</span>
+                <Mono size={9.5} color={VM.ink3} style={{ flexShrink:0, whiteSpace:'nowrap' }}>{r.date ? String(r.date).slice(0,10) : ''}</Mono>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
@@ -243,6 +269,18 @@ function DashOverview({ c, data, go, isMobile }) {
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
   const prof = typeof useVMProfile === 'function' ? useVMProfile(c.ticker) : { profile:null };
   const p = prof.profile || {};
+  const q = typeof useVMQuote === 'function' ? useVMQuote(c.ticker) : null;
+  // Premium Finnhub panels — live-with-mock-fallback, same pattern as financials/patents.
+  const execLive = typeof useVMExecutives === 'function' ? useVMExecutives(c.ticker) : { data:null, live:false };
+  const revLive  = typeof useVMRevenueBreakdown === 'function' ? useVMRevenueBreakdown(c.ticker) : { data:null, live:false };
+  const ptLive   = typeof useVMPriceTarget === 'function' ? useVMPriceTarget(c.ticker) : { data:null, live:false };
+  const ownLive  = typeof useVMOwnership === 'function' ? useVMOwnership(c.ticker) : { data:null, live:false };
+  const fundLive = typeof useVMFundOwnership === 'function' ? useVMFundOwnership(c.ticker) : { data:null, live:false };
+  const secLive  = typeof useVMSectorMetrics === 'function' ? useVMSectorMetrics('NA') : { data:null, live:false };
+  const secRow = secLive.live ? (secLive.data || []).find((r) => String(r.sector || r.industry || '').toLowerCase() === String(overview.sector || '').toLowerCase()) : null;
+  const shownLeaders    = execLive.live ? execLive.data : leaders;
+  const shownRevenueMix = revLive.live ? revLive.data : revenueMix;
+  const shownRevMixMeta = revLive.live ? 'Live · Finnhub segment data' : revenueMixMeta;
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
@@ -308,8 +346,8 @@ function DashOverview({ c, data, go, isMobile }) {
             </Panel>
           </div>
           <div data-tour="vm-overview-revmix">
-            <Panel title="Revenue mix" meta={revenueMixMeta}>
-              {revenueMix.map((r,i) => (
+            <Panel title="Revenue mix" meta={shownRevMixMeta}>
+              {shownRevenueMix.map((r,i) => (
                 <div key={i} style={{ display:'grid', gridTemplateColumns:'70px 1fr 32px', alignItems:'center', gap:8, padding:'4px 0' }}>
                   <span style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink2 }}>{r.k}</span>
                   <ProgressBar v={r.v} color={r.c} />
@@ -319,10 +357,10 @@ function DashOverview({ c, data, go, isMobile }) {
             </Panel>
           </div>
           <div data-tour="vm-overview-leadership">
-            <Panel title="Leadership today">
-              {leaders.map((p,i) => (
+            <Panel title="Leadership today" meta={execLive.live ? 'Live · Finnhub' : null}>
+              {shownLeaders.map((p,i) => (
                 <div key={i} style={{ display:'flex', gap:10, padding:'7px 0',
-                  borderBottom: i < leaders.length-1 ? `1px dotted ${VM.border}` : 'none' }}>
+                  borderBottom: i < shownLeaders.length-1 ? `1px dotted ${VM.border}` : 'none' }}>
                   <Hatch w={34} h={34} style={{ borderRadius:999, flexShrink:0 }} />
                   <div>
                     <Label>{p.role} · since {p.since}</Label>
@@ -333,6 +371,65 @@ function DashOverview({ c, data, go, isMobile }) {
               ))}
             </Panel>
           </div>
+          {ptLive.live && (
+            <div data-tour="vm-overview-pricetarget">
+              <Panel title="Analyst price target" meta="Live · Finnhub">
+                <div style={{ display:'flex', justifyContent:'space-between', gap:8, padding:'4px 0 10px' }}>
+                  {[['Low', ptLive.data.low], ['Median', ptLive.data.median], ['Mean', ptLive.data.mean], ['High', ptLive.data.high]].map(([k,v],i) => (
+                    <div key={i} style={{ textAlign:'center' }}>
+                      <Label>{k}</Label>
+                      <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:15 }}>{v != null ? `$${Number(v).toFixed(2)}` : '—'}</div>
+                    </div>
+                  ))}
+                </div>
+                {q && q.price && ptLive.data.mean != null && (
+                  <Mono size={11} color={VM.ink3}>
+                    {`Mean target implies ${(((ptLive.data.mean - q.price) / q.price) * 100).toFixed(1)}% ${ptLive.data.mean >= q.price ? 'upside' : 'downside'} from $${q.price.toFixed(2)}`}
+                  </Mono>
+                )}
+              </Panel>
+            </div>
+          )}
+          {(ownLive.live || fundLive.live) && (
+            <div data-tour="vm-overview-ownership">
+              <Panel title="Top holders" meta="Live · Finnhub">
+                {ownLive.live && (
+                  <React.Fragment>
+                    <Label style={{ display:'block', marginBottom:4 }}>Institutional</Label>
+                    {ownLive.data.slice(0,5).map((r,i) => (
+                      <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
+                        <span style={{ fontFamily:VM.serif, fontSize:12.5 }}>{r.name}</span>
+                        <Mono size={11} weight={600}>{r.sharePct != null ? `${r.sharePct}%` : '—'}</Mono>
+                      </div>
+                    ))}
+                  </React.Fragment>
+                )}
+                {fundLive.live && (
+                  <React.Fragment>
+                    <Label style={{ display:'block', margin:'10px 0 4px' }}>Funds</Label>
+                    {fundLive.data.slice(0,5).map((r,i) => (
+                      <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
+                        <span style={{ fontFamily:VM.serif, fontSize:12.5 }}>{r.name}</span>
+                        <Mono size={11} weight={600}>{r.sharePct != null ? `${r.sharePct}%` : '—'}</Mono>
+                      </div>
+                    ))}
+                  </React.Fragment>
+                )}
+              </Panel>
+            </div>
+          )}
+          {secRow && (
+            <div data-tour="vm-overview-sector">
+              <Panel title="Sector snapshot" meta={overview.sector}>
+                {Object.entries(secRow).filter(([k,v]) => typeof v === 'number' && k !== 'peCount').slice(0,4).map(([k,v],i) => (
+                  <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
+                    <Label>{k}</Label>
+                    <Mono size={11} weight={600}>{v}</Mono>
+                  </div>
+                ))}
+              </Panel>
+            </div>
+          )}
         </div>
       </div>
       {typeof LiveMetrics === 'function' && <div style={{ marginTop:24 }}><LiveMetrics ticker={c.ticker} isMobile={isMobile} title="Key metrics · live" /></div>}
