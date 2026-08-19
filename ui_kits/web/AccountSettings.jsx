@@ -297,7 +297,7 @@ function VerifyEmailModal({ email, onCancel, onConfirmed, showToast }) {
   );
 }
 
-function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, onThemeChange, plan }) {
+function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, onThemeChange, plan, onUpgrade }) {
   const initSection = () => {
     const m = window.location.pathname.match(/^\/settings\/(.+)$/);
     return m ? m[1] : null;
@@ -363,7 +363,7 @@ function AccountSettings({ go, user, onSignOut, onUserRefresh, isMobile, theme, 
   return (
     <div data-tour="vm-settings-nav" style={{ padding: isMobile ? '16px 14px 88px' : '26px 32px 72px', maxWidth: 720, margin: '0 auto' }}>
       {section
-        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh })}</StSubPage>
+        ? <StSubPage title={SETTINGS_TITLES[section]} onBack={() => navTo(null)} isMobile={isMobile}>{renderSection(section, { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh, onUpgrade })}</StSubPage>
         : <StList u={u} onRow={onRow} go={go} isMobile={isMobile} planTier={planTier} avatar={avatar} avatarFallback={avatarFallback} />}
       {toast && <StToast text={toast} />}
       {showDelete && <DeleteAccountModal email={u.email} busy={deleting} onConfirm={handleDeleteConfirm} onClose={() => setShowDelete(false)} />}
@@ -1397,7 +1397,7 @@ function StProfileSection({ u, avatar, avatarFallback, onAvatarChange, onUserRef
 
 // ── per-section content ───────────────────────────────────────────────────────
 function renderSection(id, ctx) {
-  const { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh } = ctx;
+  const { go, u, showToast, isMobile, theme, onThemeChange, planTier, avatar, avatarFallback, onAvatarChange, onUserRefresh, onUpgrade } = ctx;
   const tier = planTier || u.tier || 'Free';   // current plan (backend-driven)
   switch (id) {
     case 'profile': return <StProfileSection u={u} avatar={avatar} avatarFallback={avatarFallback} onAvatarChange={onAvatarChange} onUserRefresh={onUserRefresh} showToast={showToast} />;
@@ -1425,9 +1425,16 @@ function renderSection(id, ctx) {
             {pl.p === tier ? <span style={{ fontFamily: VM.mono, fontSize: 9, color: VM.tealInk }}>CURRENT</span> : <Btn onClick={async () => {
               const id = pl.p.toLowerCase();   // 'plus' | 'pro' | 'business' | 'free'
               if (id === 'business') return showToast('Contact sales — coming soon.');
-              if (id === 'free')     { const r = await vmOpenPortal(); if (!r.ok) showToast(r.error && r.error.includes('customer') ? 'No active subscription to cancel yet.' : 'Could not open the billing portal.'); return; }
-              const started = await vmStartCheckout(id);   // → real Stripe checkout
-              if (!started) showToast('Billing isn’t set up yet.');
+              // Pre-launch (VM_BILLING.freeTrialMode): switching to Free is just a
+              // local plan change, same as Pricing.jsx — no real subscription exists
+              // yet to cancel. Once Stripe goes live this real-cancel path returns.
+              if (id === 'free' && !VM_BILLING.freeTrialMode) {
+                const r = await vmOpenPortal();
+                if (!r.ok) showToast(r.error && r.error.includes('customer') ? 'No active subscription to cancel yet.' : 'Could not open the billing portal.');
+                return;
+              }
+              const started = id === 'free' ? false : await vmStartCheckout(id);   // → real Stripe checkout (or false in freeTrialMode)
+              if (!started) { if (onUpgrade) onUpgrade(id); else showToast('Billing isn’t set up yet.'); }
             }} style={{ fontSize: 13, padding: '6px 14px' }}>Choose</Btn>}
           </div>
         ))}

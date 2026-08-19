@@ -101,6 +101,54 @@ real `beta` Cognito group and sets `plan:'pro'` in `vm-subscriptions`.
   exists (same override convention as `VM_MEDIA_UPLOAD_URL`/
   `VM_FOUNDER_VIDEO_URL`).
 
+### 2026-08-19 — `beta-testing-feature`: real beta signup fixed live, missing `beta` Cognito group created, free plan switching pre-launch.
+
+Live end-to-end testing of the real beta signup flow (built 2026-08-18)
+surfaced two real bugs and one deliberate product decision, all fixed on
+this branch:
+
+- **Missing `beta` Cognito group.** `redeemInvite` (`vm-admin-actions`)
+  tries to add the new user to a group literally named `beta` — that group
+  had never actually been created in the AWS console (only the six
+  `admin-*` groups existed), so every real redemption failed with
+  `Group not found`. Fixed by creating it directly in Cognito (User pool →
+  User management → Groups → Create group, name `beta`, exact lowercase
+  match required). No code change — purely a missing infra step.
+- **Sign-up name never reached Cognito.** The beta sign-up form
+  (`BetaSignup.jsx`) collects a "Full name" field, but `vmSignUp` only ever
+  sent the `email` attribute — `name` was silently dropped. Every new
+  account had no `name` claim, so the "Good evening, ___" greeting (and
+  anywhere else `vmUserFromClaims` reads `name`) fell back to the email's
+  local part, shown in caps. Fixed in `auth.jsx`: `vmSignUp` now takes an
+  optional third `name` argument and sets the Cognito `name` attribute when
+  given; `BetaSignup.jsx` passes it through. Affects the regular sign-up
+  form too in principle, but that form never collected a name to begin
+  with, so it was only ever reachable via beta signup. Accounts created
+  before this fix keep no name until set once via Settings → Personal
+  details (self-service, already existed) or edited directly in Cognito.
+- **Free plan switching, pre-launch.** User's ask, while testing: since
+  Stripe isn't live with real keys yet, let anyone freely try any plan —
+  Free, Plus, or Pro — with zero payment, not just an "Upgrade" flow that
+  quietly redirects to Stripe test-mode checkout. Both `Pricing.jsx` and
+  the Settings → Subscription section already had a local-mock fallback
+  for when no real checkout is configured; the fix was one flag,
+  `VM_BILLING.freeTrialMode` (`billing.jsx`, default `true`) — `vmStart
+  Checkout()` returns `false` immediately whenever it's set, so every
+  caller's existing mock path runs instead of hitting the real
+  `vm-billing-checkout` Lambda / Stripe Payment Links. Settings' "switch to
+  Free" previously called the real `vmOpenPortal()` (cancel a real Stripe
+  subscription) even under mock mode — gated that behind
+  `!freeTrialMode` too, and threaded a new `onUpgrade` prop
+  (`app.jsx`'s existing `upgradePlan`) into `AccountSettings` so it can
+  flip the plan locally the same way Pricing.jsx does. Flipping
+  `freeTrialMode` to `false` once Stripe goes live with real keys restores
+  real checkout/cancellation on both pages with no other changes needed.
+  Verified live (headless-Edge/CDP): clicking "Upgrade to Pro" on Pricing
+  stays on `localhost` (no Stripe redirect) and sets `vm_plan` in
+  localStorage directly; switching Pro → Free from Settings flips the plan
+  with no billing-portal call or error toast. Zero JS exceptions in either
+  run.
+
 ### 2026-07-20 — `feature-idea-refinements`: Release Notes, Admin Overview real data, per-employee admin permissions.
 
 New branch collecting quick wins off `feature-ideas.md` (a new running list,

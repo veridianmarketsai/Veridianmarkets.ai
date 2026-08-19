@@ -171,7 +171,7 @@ function BetaSignup({ go, signIn }) {
     if (existing) { setLoading(false); return setError('An account with that email already exists.'); }
 
     try {
-      await vmSignUp(email.trim(), password);
+      await vmSignUp(email.trim(), password, name);
       setStep('confirm');
       setNotice('Check your email for a confirmation code.');
     } catch (err) {

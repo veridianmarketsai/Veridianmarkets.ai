@@ -97,12 +97,17 @@ function vmLoadUser() { const s = vmGetSession(); return s && s.id ? vmUserFromC
 
 // ── flows ───────────────────────────────────────────────────────────────────
 // Register: Cognito emails a 6-digit confirmation code → then vmConfirmSignUp.
-async function vmSignUp(email, password) {
+// `name` is optional (the plain sign-up form doesn't collect one) — when
+// given, it's what the "Good evening, ___" greeting etc. show instead of
+// falling back to the email's local part.
+async function vmSignUp(email, password, name) {
+  const UserAttributes = [{ Name: 'email', Value: email }];
+  if (name && name.trim()) UserAttributes.push({ Name: 'name', Value: name.trim() });
   await cognito('SignUp', {
     ClientId: VM_AUTH.clientId,
     Username: email,
     Password: password,
-    UserAttributes: [{ Name: 'email', Value: email }],
+    UserAttributes,
   });
 }
 async function vmConfirmSignUp(email, code) {

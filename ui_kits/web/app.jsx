@@ -378,7 +378,7 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} onUpgrade={upgradePlan} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
