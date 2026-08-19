@@ -167,9 +167,12 @@ function BetaSignup({ go, signIn }) {
 
     setLoading(true); setError('');
 
-    const existing = loadBetaUsers().find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-    if (existing) { setLoading(false); return setError('An account with that email already exists.'); }
-
+    // No local "does this exist" pre-check — the local vm_beta_users record
+    // survives a real Cognito deletion (it's a separate, same-browser-only
+    // tracking record), so it can wrongly claim an email is taken after it's
+    // actually been freed up in Cognito. Real Cognito SignUp below is the one
+    // source of truth here, same as the regular sign-up form (SignIn.jsx),
+    // which never had this pre-check.
     try {
       await vmSignUp(email.trim(), password, name);
       setStep('confirm');
