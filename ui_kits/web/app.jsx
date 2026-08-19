@@ -308,6 +308,10 @@ function App() {
   // Source of truth = the backend (vm-billing-status). On load / after sign-in,
   // fetch the real plan and reconcile the local cache. No-op until statusUrl is set.
   useEffectApp(() => { if (signedIn && typeof vmFetchPlan === 'function') vmFetchPlan().then(p => { if (p) setPlan(p); }); }, [signedIn]);
+  // Pull favourites back from the account so a different browser/device
+  // shows what was starred elsewhere, instead of trusting only this
+  // browser's localStorage (see vmSyncFavourites in capture.jsx).
+  useEffectApp(() => { if (signedIn && typeof vmSyncFavourites === 'function') vmSyncFavourites(); }, [signedIn]);
   // Silent data capture: identify who the user is (name/email/plan) and mark the
   // session start. Keeps identity fresh as the user signs in / changes plan.
   useEffectApp(() => {
@@ -443,4 +447,32 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// Catches render-time errors anywhere in the tree so one bad component (e.g.
+// a page's data assumption breaking, or one of the ~40 babel-standalone
+// script tags failing to load/parse over a flaky connection) shows a
+// "something went wrong" screen instead of React silently unmounting the
+// whole app to a blank white page. Colors are hardcoded rather than read
+// from VM.* — the failure this guards against can itself be an earlier
+// script (including the one defining VM) not having loaded.
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) {
+    console.error('VM render error', error, info);
+    if (typeof vmCapture === 'function') vmCapture('render_error', { message: String((error && error.message) || error).slice(0, 200) });
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14, background:'#faf7f2', fontFamily:'Georgia, serif', padding:24, textAlign:'center' }}>
+        <div style={{ fontSize:18, color:'#1f1d1a' }}>Something went wrong loading this page.</div>
+        <button onClick={() => window.location.reload()}
+          style={{ fontFamily:'inherit', fontSize:14, padding:'10px 20px', borderRadius:999, border:'1px solid #1f1d1a', background:'#1f1d1a', color:'#faf7f2', cursor:'pointer' }}>
+          Reload
+        </button>
+      </div>
+    );
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
