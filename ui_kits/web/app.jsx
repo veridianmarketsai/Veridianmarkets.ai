@@ -419,7 +419,7 @@ function App() {
       )}
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
-      {user?.role === 'beta' && <BetaFeedback user={user} />}
+      {(user?.role === 'beta' || user?.role === 'admin') && <BetaFeedback user={user} />}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
           display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',

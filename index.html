@@ -56,14 +56,15 @@
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
   <!-- Optional overrides (hard-coded URL takes priority over admin-panel setting):
        window.VM_FOUNDER_VIDEO_URL = 'https://...your-video-url...';
-       window.VM_FEEDBACK_URL      = 'https://...aws-lambda-url.../feedback';
        window.VM_MEDIA_UPLOAD_URL  = 'https://...lambda-function-url.../media-upload';
   -->
+  <script>
+    window.VM_FEEDBACK_URL = 'https://7m4hne4w45pez7zazcp4lob34y0senti.lambda-url.us-east-1.on.aws/';
+  </script>
   <script>
     // Restore founder video URL saved via Admin > Media tab.
     (function () {

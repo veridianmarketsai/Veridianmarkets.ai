@@ -141,3 +141,64 @@ Generates a presigned S3 PUT URL so the browser uploads directly to S3 (no file 
 ```
 
 The Admin → Media tab sends `X-VM-Admin-Key` automatically when `VM_ADMIN_KEY` is set.
+
+---
+
+## Feedback — `lambda/feedback/vm-feedback/index.mjs`
+
+Backs the Feedback widget (screenshot + annotation + comment). Unlike avatars/media,
+feedback screenshots can contain sensitive account data, so the bucket stays
+**private** — screenshots are only ever served through short-lived presigned URLs,
+and only to the feedback's own author or an `admin` group member (enforced by
+this Lambda verifying the caller's Cognito access token, same as
+`vm-avatar-upload` / `vm-admin-actions`).
+
+### 1. DynamoDB table
+
+1. DynamoDB → **Create table**
+2. Table name: `vm-feedback`
+3. Partition key: `sub` (String) — the submitter's Cognito sub
+4. Sort key: `id` (String) — time-prefixed, so a Query naturally sorts newest-first
+5. On-demand capacity (default)
+
+### 2. S3 bucket (private)
+
+1. S3 → **Create bucket**
+2. Name: `vm-feedback-screenshots` (or your choice)
+3. Region: same as your Lambda
+4. **Block all public access** → stays ON (this bucket must never be public)
+5. No bucket policy needed — access is only via presigned URLs the Lambda signs
+
+### 3. IAM role
+
+Attach a policy granting:
+- `s3:PutObject`, `s3:GetObject` on `arn:aws:s3:::vm-feedback-screenshots/feedback/*`
+- `dynamodb:PutItem`, `dynamodb:Query`, `dynamodb:Scan`, `dynamodb:GetItem`, `dynamodb:UpdateItem` on `arn:aws:dynamodb:<region>:<account>:table/vm-feedback`
+
+### 4. Lambda function
+
+1. Lambda → **Create function** → Author from scratch
+2. Name: `vm-feedback`
+3. Runtime: **Node.js 22.x**
+4. Execution role: the role from step 3
+5. Paste code from `lambda/feedback/vm-feedback/index.mjs`
+6. **Environment variables**:
+   - `BUCKET` = `vm-feedback-screenshots`
+   - `TABLE_NAME` = `vm-feedback`
+   - `COGNITO_POOL_ID` = your user pool ID
+   - `COGNITO_REGION` = `us-east-1` (or your pool's region)
+7. **Function URL** → Create → Auth type: **NONE** (the Lambda verifies the
+   caller's Cognito token itself — no API Gateway authorizer) → CORS: allow `*`
+8. Copy the Function URL
+
+### 5. Wire it up in index.html
+
+```html
+<script>
+  window.VM_FEEDBACK_URL = 'https://xxxx.lambda-url.us-east-1.on.aws/';
+</script>
+```
+
+Without this set, the Feedback widget still works fully offline — it just
+keeps submissions in `localStorage` on that one browser/device instead of
+syncing them centrally, and Admin / "My feedback" fall back to that local copy.
