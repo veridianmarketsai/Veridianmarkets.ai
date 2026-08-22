@@ -399,6 +399,12 @@ function App() {
 
   return (
     <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
+      {user?.role === 'beta' && (
+        <div style={{ flexShrink:0, padding:'4px 0', textAlign:'center', background:VM.terra,
+          fontFamily:VM.mono, fontSize:10.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.paperWarm }}>
+          Beta mode
+        </div>
+      )}
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
         <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
