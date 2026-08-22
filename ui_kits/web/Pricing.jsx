@@ -51,7 +51,8 @@ function Pricing({ go, plan, signedIn, user, onUpgrade, blockedRoute, isMobile }
         <Kicker>Veridian Markets · Plans</Kicker>
         <h1 style={{ fontFamily:VM.serif, fontWeight:700, fontSize: isMobile ? 28 : 36, margin:'10px 0 6px' }}>Choose your plan.</h1>
         <p style={{ fontFamily:VM.serif, fontSize:16, color:VM.ink3, margin:'0 auto', maxWidth:560 }}>
-          History-led finance, at the depth you need. Upgrade any time — {signedIn ? 'changes apply instantly.' : 'sign in to subscribe.'}
+          History-led finance, at the depth you need. Every plan is free to try right now —
+          switch any time, {signedIn ? 'changes apply instantly.' : 'sign in to get started.'}
         </p>
       </div>
 
@@ -103,11 +104,11 @@ function Pricing({ go, plan, signedIn, user, onUpgrade, blockedRoute, isMobile }
 
       {!signedIn && (
         <div style={{ textAlign:'center', marginTop:20, fontFamily:VM.serif, fontSize:13.5, color:VM.ink3 }}>
-          You'll need an account to subscribe. <span onClick={()=>go('signin')} style={{ color:VM.teal, cursor:'pointer' }}>Sign in or create one →</span>
+          You'll need an account to try a plan. <span onClick={()=>go('signin')} style={{ color:VM.teal, cursor:'pointer' }}>Sign in or create one →</span>
         </div>
       )}
       <Mono size={9.5} color={VM.faint} style={{ display:'block', textAlign:'center', marginTop:24 }}>
-        Payments are mocked for now · Stripe billing coming · cancel any time
+        No card, no charge — every plan is free during the pre-launch period · switch back any time
       </Mono>
     </div>
   );

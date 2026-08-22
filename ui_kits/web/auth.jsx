@@ -71,8 +71,9 @@ function vmUserFromClaims(idToken) {
   return {
     email: p.email || p['cognito:username'] || '',
     name:  p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Member'),
-    // admin/beta = Cognito group membership. admin wins if someone is in both,
-    // since admin already implies (and gates) everything beta does.
+    // admin/beta = real Cognito group membership. Checked in that order since
+    // an admin who's also a beta tester should still get full admin UI, not
+    // get shunted into the beta-only role.
     role:  groups.includes('admin') ? 'admin' : groups.includes('beta') ? 'beta' : 'user',
     sub:   p.sub,
     groups,   // raw Cognito groups — AdminPanel reads the admin-view-*/admin-* ones for tab/action gating
@@ -96,12 +97,17 @@ function vmLoadUser() { const s = vmGetSession(); return s && s.id ? vmUserFromC
 
 // ── flows ───────────────────────────────────────────────────────────────────
 // Register: Cognito emails a 6-digit confirmation code → then vmConfirmSignUp.
-async function vmSignUp(email, password) {
+// `name` is optional (the plain sign-up form doesn't collect one) — when
+// given, it's what the "Good evening, ___" greeting etc. show instead of
+// falling back to the email's local part.
+async function vmSignUp(email, password, name) {
+  const UserAttributes = [{ Name: 'email', Value: email }];
+  if (name && name.trim()) UserAttributes.push({ Name: 'name', Value: name.trim() });
   await cognito('SignUp', {
     ClientId: VM_AUTH.clientId,
     Username: email,
     Password: password,
-    UserAttributes: [{ Name: 'email', Value: email }],
+    UserAttributes,
   });
 }
 async function vmConfirmSignUp(email, code) {

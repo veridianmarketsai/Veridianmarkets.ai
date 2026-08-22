@@ -137,11 +137,13 @@ function FounderVideoOverlay({ onComplete }) {
 function BetaSignup({ go, signIn }) {
   const token = location.pathname.split('/')[2] || '';
 
-  const [step,     setStep]     = useStateBs('checking');   // checking | invalid | form | video | done
+  const [step,     setStep]     = useStateBs('checking');   // checking | invalid | form | confirm | video | done
   const [name,     setName]     = useStateBs('');
   const [email,    setEmail]    = useStateBs('');
   const [password, setPassword] = useStateBs('');
+  const [code,     setCode]     = useStateBs('');
   const [error,    setError]    = useStateBs('');
+  const [notice,   setNotice]   = useStateBs('');
   const [loading,  setLoading]  = useStateBs(false);
   const [invite,   setInvite]   = useStateBs(null);
 
@@ -151,6 +153,12 @@ function BetaSignup({ go, signIn }) {
     else { setInvite(inv); setStep('form'); }
   }, [token]);
 
+  // Step 1: create a REAL Cognito account (this used to just fake a localStorage
+  // record and silently call signIn with credentials Cognito had never heard of —
+  // the person would finish the whole flow and land back at a Sign-in wall they
+  // couldn't get past). Cognito requires the email to be confirmed before it'll
+  // sign in, so this moves to a confirm-code step next, same as the regular
+  // sign-up flow in SignIn.jsx.
   const handleSubmit = async e => {
     e.preventDefault();
     if (!name.trim())     return setError('Please enter your name.');
@@ -159,31 +167,70 @@ function BetaSignup({ go, signIn }) {
 
     setLoading(true); setError('');
 
-    const existing = loadBetaUsers().find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-    if (existing) { setLoading(false); return setError('An account with that email already exists.'); }
-
-    const passHash = await bsHash(password);
-    const user = {
-      id:        Math.random().toString(36).slice(2, 12),
-      name:      name.trim(),
-      email:     email.trim().toLowerCase(),
-      passHash,
-      plan:      'Pro',
-      role:      'beta',
-      joined:    Date.now(),
-      inviteToken: token,
-    };
-
-    const users = loadBetaUsers();
-    users.push(user);
-    saveBetaUsers(users);
-    useToken(token, user.email);
-
-    // Auto sign-in
-    if (signIn) await signIn(email, password);
-
+    // No local "does this exist" pre-check — the local vm_beta_users record
+    // survives a real Cognito deletion (it's a separate, same-browser-only
+    // tracking record), so it can wrongly claim an email is taken after it's
+    // actually been freed up in Cognito. Real Cognito SignUp below is the one
+    // source of truth here, same as the regular sign-up form (SignIn.jsx),
+    // which never had this pre-check.
+    try {
+      await vmSignUp(email.trim(), password, name);
+      setStep('confirm');
+      setNotice('Check your email for a confirmation code.');
+    } catch (err) {
+      setError(err.message || 'Could not create your account — try again.');
+    }
     setLoading(false);
-    setStep('video');
+  };
+
+  // Step 2: confirm the code Cognito emailed, then actually sign in for real.
+  // Only once that succeeds does the real security check happen: redeemInvite
+  // (vm-admin-actions) is the actual gate now — it only grants the `beta`
+  // Cognito group + real Pro plan for a token that genuinely exists and
+  // hasn't already been redeemed, independent of the optimistic client-side
+  // check that got them to this form in the first place. The local
+  // tracking record (Admin → Beta) is only saved once that real grant
+  // succeeds, so a bogus/reused token can't leave a phantom "beta user".
+  const handleConfirm = async e => {
+    e.preventDefault();
+    if (!code.trim()) return setError('Enter the code from your email.');
+    setLoading(true); setError('');
+    try {
+      await vmConfirmSignUp(email.trim(), code.trim());
+      const r = signIn ? await signIn(email.trim(), password) : { ok: true };
+      if (!r || !r.ok || r.mfaRequired) {
+        setLoading(false);
+        return setError((r && r.error) || 'Account confirmed, but sign-in failed — try signing in manually.');
+      }
+
+      const redeemed = typeof vmAdminAction === 'function' ? await vmAdminAction('redeemInvite', null, { token }) : { ok: false, error: 'not configured' };
+      if (!redeemed.ok) {
+        setLoading(false);
+        return setError(redeemed.error || 'This invite link isn’t valid or has already been used.');
+      }
+
+      const passHash = await bsHash(password);
+      const user = {
+        id: Math.random().toString(36).slice(2, 12), name: name.trim(), email: email.trim().toLowerCase(),
+        passHash, plan: 'Pro', role: 'beta', joined: Date.now(), inviteToken: token,
+      };
+      const users = loadBetaUsers();
+      users.push(user);
+      saveBetaUsers(users);
+      useToken(token, user.email);
+
+      setLoading(false);
+      setStep('video');
+    } catch (err) {
+      setLoading(false);
+      setError(err.message || 'That code didn’t work — try again.');
+    }
+  };
+
+  const resendCode = async () => {
+    setError(''); setNotice('');
+    try { await vmResendCode(email.trim()); setNotice('A new code is on the way.'); }
+    catch (err) { setError(err.message || 'Could not resend the code.'); }
   };
 
   const handleVideoComplete = () => {
@@ -227,10 +274,71 @@ function BetaSignup({ go, signIn }) {
     return <FounderVideoOverlay onComplete={handleVideoComplete} />;
   }
 
-  // ── Render: sign-up form ──────────────────────────────────────────────────
   const field = { width: '100%', padding: '11px 14px', borderRadius: 8, fontFamily: VM.serif, fontSize: 15,
     border: `1.5px solid ${VM.border}`, background: VM.paper, color: VM.ink, outline: 'none',
     transition: 'border-color .15s' };
+
+  // ── Render: confirmation code ───────────────────────────────────────────────
+  if (step === 'confirm') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', padding: '32px 16px', background: VM.paperWarm }}>
+        <div style={{ fontFamily: VM.serif, fontStyle: 'italic', fontWeight: 700, fontSize: 28,
+          color: VM.forest, marginBottom: 8, letterSpacing: '-0.02em' }}>Veridian Markets</div>
+        <div style={{ fontFamily: VM.mono, fontSize: 10, color: VM.teal, letterSpacing: '0.14em',
+          textTransform: 'uppercase', marginBottom: 32 }}>Beta access · Pro account</div>
+
+        <div style={{ width: '100%', maxWidth: 420, background: VM.paper, borderRadius: 16,
+          border: `1px solid ${VM.border}`, padding: '36px 32px', boxShadow: '0 8px 40px rgba(31,29,26,0.08)' }}>
+          <div style={{ fontFamily: VM.serif, fontSize: 20, fontWeight: 700, color: VM.ink, marginBottom: 6 }}>
+            Confirm your email
+          </div>
+          <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink3, marginBottom: 28 }}>
+            We sent a code to <b>{email}</b> — enter it below to finish creating your account.
+          </div>
+
+          <form onSubmit={handleConfirm} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontFamily: VM.mono, fontSize: 10, color: VM.ink3, letterSpacing: '0.06em',
+                display: 'block', marginBottom: 6 }}>VERIFICATION CODE</label>
+              <input value={code} onChange={e => { setCode(e.target.value); setError(''); }}
+                placeholder="6-digit code" inputMode="numeric" autoComplete="one-time-code" style={field} autoFocus
+                onFocus={e => e.target.style.borderColor = VM.teal}
+                onBlur={e  => e.target.style.borderColor = VM.border} />
+            </div>
+
+            {error && (
+              <div style={{ fontFamily: VM.mono, fontSize: 11, color: '#c44', padding: '8px 12px',
+                background: 'rgba(196,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(196,68,68,0.2)' }}>
+                {error}
+              </div>
+            )}
+            {notice && !error && (
+              <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.teal, padding: '8px 12px',
+                background: 'rgba(45,94,90,0.08)', borderRadius: 6, border: '1px solid rgba(45,94,90,0.2)' }}>
+                {notice}
+              </div>
+            )}
+
+            <button type="submit" disabled={loading}
+              style={{ marginTop: 8, padding: '13px', borderRadius: 10, fontFamily: VM.serif, fontSize: 16,
+                background: VM.forest, color: VM.paper, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1, transition: 'opacity .15s', fontWeight: 600 }}>
+              {loading ? 'Confirming…' : 'Confirm →'}
+            </button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: 18 }}>
+            <span onClick={resendCode} style={{ fontFamily: VM.mono, fontSize: 11, color: VM.teal, cursor: 'pointer' }}>
+              Resend code
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render: sign-up form ──────────────────────────────────────────────────
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',

@@ -362,7 +362,7 @@ function App() {
   // bounces a signed-out visitor to sign-in first. Admin still additionally
   // needs the admin role once signed in.
   const isAdmin = !!(user && user.role === 'admin');
-  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates';
+  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates' && route !== 'betasignup';
   const gatedFromAdmin = route==='admin' && !isAdmin;
   const gatedByPlan = GATED_ROUTES.includes(route) && !isPaying;   // paywall
   const effRoute = appGated ? 'signin'
@@ -392,7 +392,7 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} onUpgrade={upgradePlan} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
@@ -413,6 +413,12 @@ function App() {
 
   return (
     <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
+      {user?.role === 'beta' && (
+        <div style={{ flexShrink:0, padding:'4px 0', textAlign:'center', background:VM.terra,
+          fontFamily:VM.mono, fontSize:10.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.paperWarm }}>
+          Beta mode
+        </div>
+      )}
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
         <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
@@ -434,9 +440,13 @@ function App() {
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
       {(() => {
-        // Admin-only preview override — see fbPreview above.
+        // Admin-only preview override — see fbPreview above. While previewing,
+        // 'normal' always hides the button regardless of the admin's real
+        // plan (that's the whole point of simulating a non-eligible user);
+        // otherwise eligibility is admin, real beta, or a paying subscriber.
         const fbUser = (user?.role === 'admin' && fbPreview) ? { ...user, role: fbPreview } : user;
-        return (fbUser?.role === 'beta' || fbUser?.role === 'admin') && <BetaFeedback user={fbUser} />;
+        const eligible = fbPreview ? fbUser.role === 'beta' : (fbUser?.role === 'admin' || fbUser?.role === 'beta' || isPaying);
+        return eligible && <BetaFeedback user={fbUser} />;
       })()}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
