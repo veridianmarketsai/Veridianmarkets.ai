@@ -84,6 +84,32 @@ function vmToggleFav(t) {
   return add;
 }
 
+// Pull favourites back from the account (vm-my-favourites Lambda → the
+// vm-favourites table vmToggleFav's mirror above writes into) so a
+// *different* browser/device picks up what was starred elsewhere, instead of
+// only ever trusting this browser's localStorage. Two-way reconcile: anything
+// remote-only is merged into the local list; anything local-only (e.g.
+// starred before this table/Lambda existed, or while offline) is pushed back
+// up via the existing capture pipeline. Call on sign-in. No-op until
+// VM_FAVOURITES.url is set, so nothing breaks before the Lambda is deployed.
+const VM_FAVOURITES = { url: 'https://sbdbu2ad7avbdajriwrggo4lmy0olpaj.lambda-url.us-east-1.on.aws/' };   // vm-my-favourites Lambda
+async function vmSyncFavourites() {
+  if (!VM_FAVOURITES.url) return;
+  let session = null; try { session = JSON.parse(localStorage.getItem('vm_session') || 'null'); } catch {}
+  if (!session || !session.access) return;
+  try {
+    const res = await fetch(VM_FAVOURITES.url, { headers: { Authorization: `Bearer ${session.access}` } });
+    const data = await res.json();
+    const remote = new Set((data && Array.isArray(data.tickers) ? data.tickers : []).map(t => String(t).toUpperCase()));
+    const local = vmFavs();
+    const merged = new Set(local);
+    let changed = false;
+    remote.forEach(t => { if (!merged.has(t)) { merged.add(t); changed = true; } });
+    if (changed) { try { localStorage.setItem('vm_favs', JSON.stringify([...merged])); } catch {} }
+    local.forEach(t => { if (!remote.has(t)) vmCapture('favourite', { ticker: t, action: 'add' }); });
+  } catch { /* best-effort — local favourites still work */ }
+}
+
 // ── Clickstream ("where do people click") ────────────────────────────────────
 // One capturing listener logs meaningful clicks (buttons, links, tabs, cards)
 // with a human label — no per-component wiring needed.
@@ -103,4 +129,17 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _vmCapFlush(true); });
 }
 
-Object.assign(window, { VM_CAPTURE, vmCapture, vmIdentify, vmAnonId, vmDeviceString, vmFavs, vmIsFav, vmToggleFav });
+// Catch anything that slips past the app's ErrorBoundary (a script that
+// failed to parse/load, an error thrown outside render) so it shows up in
+// vm-events instead of just vanishing into a blank page with a console log.
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) => {
+    vmCapture('js_error', { message: String(e.message || '').slice(0, 200), src: e.filename || '' });
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const reason = e.reason;
+    vmCapture('js_error', { message: String((reason && reason.message) || reason || '').slice(0, 200), src: 'promise' });
+  });
+}
+
+Object.assign(window, { VM_CAPTURE, vmCapture, vmIdentify, vmAnonId, vmDeviceString, vmFavs, vmIsFav, vmToggleFav, VM_FAVOURITES, vmSyncFavourites });

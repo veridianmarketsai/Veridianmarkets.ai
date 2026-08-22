@@ -534,6 +534,7 @@ function DashFinancials({ data, c, isMobile }) {
   // No $ in the cells — the "Currency in USD" caption states it once. 'thousands'
   // = plain numbers in thousands; 'relative' = auto-scaled with a B/M size letter.
   function fmt(v, fmtType) {
+    if (v == null) return '—';
     if (fmtType === 'eps') return v.toFixed(2);
     if (unit === 'thousands') { const t = Math.round(v * 1000); return t < 0 ? `(${Math.abs(t).toLocaleString()})` : t.toLocaleString(); }
     if (fmtType === 'shares') { const a = Math.abs(v); return a >= 1000 ? `${(a/1000).toFixed(2)}B` : `${a.toFixed(0)}M`; }
