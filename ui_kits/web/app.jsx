@@ -300,6 +300,16 @@ function App() {
   // logged in across days without re-entering the password).
   useEffectApp(() => { vmEnsureFreshSession().then(u => { if (u) setUser(u); }); }, []);
 
+  // ── Feedback-button preview mode (admin testing utility) ───────────────────
+  // Lets an admin preview whether the floating Feedback button shows for a
+  // 'beta'-group user vs a plain 'user', without needing to actually reassign
+  // themselves in Cognito and re-sign-in. Only ever overrides the role used by
+  // the Feedback button below — never isAdmin/isPaying/routing, so an admin can
+  // never lock themselves out by toggling this. Toggled from Admin → Beta.
+  const [fbPreview, setFbPreview] = useStateApp(() => { try { return localStorage.getItem('vm_feedback_preview') || null; } catch { return null; } });
+  useEffectApp(() => { try { fbPreview ? localStorage.setItem('vm_feedback_preview', fbPreview) : localStorage.removeItem('vm_feedback_preview'); } catch {} }, [fbPreview]);
+  window.vmSetFeedbackPreview = setFbPreview;   // read by Admin → Beta's mode buttons
+
   // ── Subscription plan (MOCK until Stripe/billing) ──────────────────────────
   // Everyone starts on 'free'; the /upgrade page flips them to a paid plan. A
   // paying user (signed in + plan≠free) unlocks the gated rail items.
@@ -419,7 +429,11 @@ function App() {
       )}
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
-      {(user?.role === 'beta' || user?.role === 'admin') && <BetaFeedback user={user} />}
+      {(() => {
+        // Admin-only preview override — see fbPreview above.
+        const fbUser = (user?.role === 'admin' && fbPreview) ? { ...user, role: fbPreview } : user;
+        return (fbUser?.role === 'beta' || fbUser?.role === 'admin') && <BetaFeedback user={fbUser} />;
+      })()}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
           display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',

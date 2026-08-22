@@ -1836,12 +1836,24 @@ function BetaTab({ isMobile }) {
   const [invites,  setInvites]  = useStateBeta([]);
   const [users,    setUsers]    = useStateBeta([]);
   const [copied,   setCopied]   = useStateBeta('');
+  const [fbPreview, setFbPreviewLocal] = useStateBeta(() => { try { return localStorage.getItem('vm_feedback_preview') || null; } catch { return null; } });
 
   const reload = () => {
     setInvites(window.loadBetaInvites  ? window.loadBetaInvites()  : []);
     setUsers(  window.loadBetaUsers    ? window.loadBetaUsers()    : []);
   };
   useEffectBeta(reload, []);
+
+  // Toggles the floating Feedback button between showing (as a beta user would
+  // see it) and hidden (as a plain signed-in user would) for YOUR OWN admin
+  // session only — a quick way to preview it without reassigning yourself in
+  // Cognito and re-signing in. Clicking the already-active mode turns it off
+  // (back to your real role). Doesn't touch anyone else's account.
+  const setFbMode = (mode) => {
+    const next = fbPreview === mode ? null : mode;
+    setFbPreviewLocal(next);
+    if (window.vmSetFeedbackPreview) window.vmSetFeedbackPreview(next);
+  };
 
   const generateLink = () => {
     const token = window.generateInviteToken ? window.generateInviteToken() : Math.random().toString(36).slice(2, 14);
@@ -1874,13 +1886,35 @@ function BetaTab({ isMobile }) {
             {users.length} beta users · {invites.filter(i => !i.usedAt).length} unused invites
           </div>
         </div>
-        <button onClick={generateLink}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8,
-            background: VM.teal, color: VM.paper, border: 'none', fontFamily: VM.mono, fontSize: 12,
-            letterSpacing: '0.06em', cursor: 'pointer' }}>
-          <i className="ti ti-plus" style={{ fontSize: 14 }}></i>Generate invite link
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={() => setFbMode('beta')} title="Preview the Feedback button as a beta user would see it (your session only)"
+              style={{ fontFamily: VM.mono, fontSize: 11, padding: '7px 14px', borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${fbPreview === 'beta' ? VM.teal : VM.border}`,
+                background: fbPreview === 'beta' ? VM.teal : VM.paper, color: fbPreview === 'beta' ? VM.paper : VM.ink2 }}>
+              Beta mode
+            </button>
+            <button onClick={() => setFbMode('normal')} title="Preview the app as a plain signed-in user would see it (your session only)"
+              style={{ fontFamily: VM.mono, fontSize: 11, padding: '7px 14px', borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${fbPreview === 'normal' ? VM.ink : VM.border}`,
+                background: fbPreview === 'normal' ? VM.ink : VM.paper, color: fbPreview === 'normal' ? VM.paper : VM.ink2 }}>
+              Normal mode
+            </button>
+          </div>
+          <button onClick={generateLink}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8,
+              background: VM.teal, color: VM.paper, border: 'none', fontFamily: VM.mono, fontSize: 12,
+              letterSpacing: '0.06em', cursor: 'pointer' }}>
+            <i className="ti ti-plus" style={{ fontSize: 14 }}></i>Generate invite link
+          </button>
+        </div>
       </div>
+      {fbPreview && (
+        <div style={{ ...mono, marginBottom: 20, padding: '7px 12px', borderRadius: 6, background: VM.faint }}>
+          <i className="ti ti-eye" style={{ fontSize: 12, marginRight: 5 }}></i>
+          Previewing the Feedback button as <strong style={{ color: VM.ink2 }}>{fbPreview === 'beta' ? 'a beta user' : 'a normal user'}</strong> — only affects your own session. Click the mode again to go back to your real role.
+        </div>
+      )}
 
       {/* Invite links */}
       <BetaSection label="Invite links" icon="link">

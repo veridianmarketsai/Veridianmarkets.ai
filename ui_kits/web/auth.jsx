@@ -71,7 +71,9 @@ function vmUserFromClaims(idToken) {
   return {
     email: p.email || p['cognito:username'] || '',
     name:  p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Member'),
-    role:  groups.includes('admin') ? 'admin' : 'user',   // admin = Cognito group membership
+    // admin/beta = Cognito group membership. admin wins if someone is in both,
+    // since admin already implies (and gates) everything beta does.
+    role:  groups.includes('admin') ? 'admin' : groups.includes('beta') ? 'beta' : 'user',
     sub:   p.sub,
     groups,   // raw Cognito groups — AdminPanel reads the admin-view-*/admin-* ones for tab/action gating
   };

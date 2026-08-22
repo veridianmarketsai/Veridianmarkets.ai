@@ -205,6 +205,7 @@ function BetaFeedback({ user }) {
   const capturedRef               = useRefFb({});            // {idx: dataUrl}
   const streamRef                 = useRefFb(null);          // shared getDisplayMedia stream for this session
   const [captureError, setCaptureError] = useStateFb(false);
+  const [hideForCapture, setHideForCapture] = useStateFb(false); // briefly hides the modal so it isn't in its own screenshot
 
   const stopCaptureStream = useCallbackFb(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -233,10 +234,14 @@ function BetaFeedback({ user }) {
       video.srcObject = streamRef.current;
       video.muted = true;
       await video.play();
-      await new Promise(r => requestAnimationFrame(r)); // let a real frame land
-      // Downscale to a max width — a raw display-resolution JPEG is overkill for
-      // context in a feedback report and needlessly bloats the upload.
-      const MAX_W = 1600;
+      // Hide the modal itself (it's already painted on screen by the time the
+      // native share permission resolves) and give the capture pipeline a
+      // moment to actually deliver a frame from *after* that repaint — a
+      // single requestAnimationFrame isn't reliably enough for screen-share
+      // video tracks, which often update well under the display's refresh rate.
+      setHideForCapture(true);
+      await new Promise(r => setTimeout(r, 150));
+      const MAX_W = 1600; // downscale — a raw display-resolution JPEG is overkill for context
       const scale = Math.min(1, MAX_W / video.videoWidth);
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(video.videoWidth * scale);
@@ -244,10 +249,12 @@ function BetaFeedback({ user }) {
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       video.pause();
       video.srcObject = null;
+      setHideForCapture(false);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       capturedRef.current[idx] = dataUrl;
       return dataUrl;
     } catch {
+      setHideForCapture(false);
       setCaptureError(true);
       return null;
     }
@@ -348,11 +355,14 @@ function BetaFeedback({ user }) {
         </button>
       )}
 
-      {/* Modal */}
+      {/* Modal — visibility (not unmounting) toggles during a capture so the
+          widget itself never ends up in its own screenshot, while staying
+          mounted so its state (drawing, comment, etc.) isn't lost. */}
       {open && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 10001, display: 'flex',
           alignItems: 'center', justifyContent: 'center', padding: 16,
-          background: 'rgba(10,8,6,0.6)', backdropFilter: 'blur(4px)' }}
+          background: 'rgba(10,8,6,0.6)', backdropFilter: 'blur(4px)',
+          visibility: hideForCapture ? 'hidden' : 'visible' }}
           onClick={e => { if (e.target === e.currentTarget) closeWidget(); }}>
 
           <div style={{ background: VM.paper, borderRadius: 16, width: '100%', maxWidth: 820,
