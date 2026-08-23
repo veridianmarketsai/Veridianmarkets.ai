@@ -6,7 +6,7 @@
 //   4. Risk & trajectory (donut + table)
 //   5. Holdings
 //   6. Portfolio supply chain
-const { useState: useStateMP, useEffect: useEffectMP, useMemo: useMemoMP } = React;
+const { useState: useStateMP, useEffect: useEffectMP, useMemo: useMemoMP, useCallback: useCallbackMP } = React;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const num      = s => parseFloat(String(s).replace(/[^0-9.\-]/g,'')) || 0;
@@ -489,29 +489,29 @@ function PortfolioScn({ pf }) {
 }
 
 // ── My feedback ────────────────────────────────────────────────────────────────
-// Every Feedback-button submission this signed-in user has made. Pulls from
-// lambda/feedback/vm-feedback (server-side scoped to this user's sub — see
-// BetaFeedback.jsx) when window.VM_FEEDBACK_URL is configured; otherwise falls
-// back to this browser's local copy, filtered by email. Screenshots are lazily
-// fetched on "View" (list calls return summaries only), same pattern as the
-// Admin → Beta → Feedback submissions view.
+// Every Feedback-button submission this signed-in user has made. AWS-only —
+// pulls from lambda/feedback/vm-feedback (server-side scoped to this user's
+// sub — see BetaFeedback.jsx); no local fallback, so a failed call is reported
+// as an error rather than silently showing an empty (or stale local-only) list.
+// Screenshots are lazily fetched on "View" (list calls return summaries only),
+// same pattern as the Admin → Feedback submissions view.
 function MyFeedback({ user }) {
   const [items, setItems] = useStateMP(null);   // null = loading
   const [expanded, setExpanded] = useStateMP(null);
+  const [loadError, setLoadError] = useStateMP(null);
 
-  useEffectMP(() => {
-    let cancelled = false;
-    (async () => {
-      if (window.VM_FEEDBACK_URL && window.vmFeedbackListMine) {
-        const r = await window.vmFeedbackListMine();
-        if (!cancelled && r.ok) { setItems(r.items); return; }
-      }
-      const local = (window.loadFeedback ? window.loadFeedback() : [])
-        .filter(f => f.userEmail === user?.email);
-      if (!cancelled) setItems(local);
-    })();
-    return () => { cancelled = true; };
-  }, [user?.email]);
+  const reload = useCallbackMP(async () => {
+    setItems(null);
+    setLoadError(null);
+    if (!window.VM_FEEDBACK_URL || !window.vmFeedbackListMine) {
+      setItems([]); setLoadError('feedback API not configured'); return;
+    }
+    const r = await window.vmFeedbackListMine();
+    if (r.ok) { setItems(r.items); return; }
+    setItems([]); setLoadError(r.error || 'failed to load');
+  }, []);
+
+  useEffectMP(() => { reload(); }, [reload]);
 
   const toggleExpand = async (fb) => {
     if (expanded === fb.id) { setExpanded(null); return; }
@@ -525,7 +525,12 @@ function MyFeedback({ user }) {
   return (
     <PfSection title="My feedback" icon="message-2-star" style={{ marginTop:18 }}>
       {items === null && <Mono size={11} color={VM.ink3}>Loading…</Mono>}
-      {items !== null && items.length === 0 && (
+      {items !== null && loadError && (
+        <Mono size={11} color={VM.downInk}>
+          Couldn't load your feedback ({loadError}). <span onClick={reload} style={{ textDecoration:'underline', cursor:'pointer' }}>Retry</span>
+        </Mono>
+      )}
+      {items !== null && !loadError && items.length === 0 && (
         <Mono size={11} color={VM.ink3}>You haven't submitted any feedback yet — use the Feedback button in the bottom-left corner of any page.</Mono>
       )}
       {items !== null && [...items].reverse().map(fb => (

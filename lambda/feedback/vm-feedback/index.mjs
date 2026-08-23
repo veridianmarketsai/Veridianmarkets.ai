@@ -48,17 +48,17 @@ const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const STATUSES = ['new', 'in_progress', 'resolved'];
 const URL_TTL_S = 600; // 10 min — plenty to load the modal / annotation canvas
 
-const CORS = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization,content-type',
-  'access-control-allow-methods': 'POST,OPTIONS',
-};
+// CORS is handled by the Function URL's own CORS config (AWS console/CLI —
+// see lambda/README.md), NOT here. Returning access-control-* headers from the
+// function too causes AWS to send them twice (e.g. "access-control-allow-origin:
+// *, *"), which every browser rejects outright — that was silently breaking
+// every call this Lambda ever served. Preflight OPTIONS is also handled by the
+// Function URL itself and never reaches this handler.
 
 let JWKS = null;
 async function jwks() { if (JWKS) return JWKS; JWKS = (await (await fetch(`${ISS}/.well-known/jwks.json`)).json()).keys; return JWKS; }
 
 export const handler = async (event) => {
-  if (event.requestContext?.http?.method === 'OPTIONS') return { statusCode: 204, headers: CORS };
   try {
     const auth = event.headers?.authorization || event.headers?.Authorization || '';
     const claims = await verifyJwt(auth.replace(/^Bearer\s+/i, ''));
@@ -146,11 +146,16 @@ async function doSubmit(claims, body) {
 }
 
 async function listBySub(sub) {
+  // ConsistentRead: Scan/Query default to eventually-consistent reads, which
+  // could otherwise make a just-submitted item briefly invisible right after
+  // doSubmit's PutItem — exactly the "feedback isn't there yet" symptom this
+  // is meant to avoid. Table is tiny, so the 2x read-capacity cost is nothing.
   const res = await db.send(new QueryCommand({
     TableName: TABLE,
     KeyConditionExpression: 'sub = :s',
     ExpressionAttributeValues: { ':s': { S: sub } },
     ScanIndexForward: false, // id is time-prefixed → newest first
+    ConsistentRead: true,
   }));
   return (res.Items || []).map(unmarshall).map(summarize);
 }
@@ -159,7 +164,7 @@ async function listAll() {
   const items = [];
   let ExclusiveStartKey;
   do {
-    const res = await db.send(new ScanCommand({ TableName: TABLE, ExclusiveStartKey }));
+    const res = await db.send(new ScanCommand({ TableName: TABLE, ExclusiveStartKey, ConsistentRead: true }));
     items.push(...(res.Items || []).map(unmarshall).map(summarize));
     ExclusiveStartKey = res.LastEvaluatedKey;
   } while (ExclusiveStartKey && items.length < 2000);
@@ -207,4 +212,4 @@ async function verifyJwt(token) {
   return payload;
 }
 
-const resp = (statusCode, body) => ({ statusCode, headers: { 'content-type': 'application/json', ...CORS }, body: JSON.stringify(body) });
+const resp = (statusCode, body) => ({ statusCode, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });

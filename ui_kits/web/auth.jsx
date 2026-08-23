@@ -64,13 +64,19 @@ function vmDecodeJwt(token) {
     return JSON.parse(new TextDecoder().decode(bytes));
   } catch { return {}; }
 }
+// Cognito names/email-derived fallbacks arrive in whatever case the user typed
+// (often all-lowercase) — title-case each word so "carlos faria" / "carlos"
+// display as "Carlos Faria" / "Carlos" everywhere the app shows user.name.
+function vmTitleCase(s) {
+  return s.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
 // The user object the rest of the app consumes: { email, name, role, sub, groups }.
 function vmUserFromClaims(idToken) {
   const p = vmDecodeJwt(idToken);
   const groups = p['cognito:groups'] || [];
   return {
     email: p.email || p['cognito:username'] || '',
-    name:  p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Member'),
+    name:  vmTitleCase(p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Member')),
     // admin/beta = real Cognito group membership. Checked in that order since
     // an admin who's also a beta tester should still get full admin UI, not
     // get shunted into the beta-only role.

@@ -418,10 +418,13 @@ function App() {
   const bare = effRoute==='signin' || effRoute==='betasignup';   // chromeless: no rail / ticker
   // Full-bleed marketing landing — its own nav/footer, no app chrome at all.
   const chromeless = effRoute==='landing';
+  // Beta/admin accounts always get the pre-release reminder, regardless of the
+  // admin-toggled site-wide flag (which is per-device and meant for other visitors).
+  const forceBetaBanner = !!(user && (user.role === 'admin' || user.role === 'beta'));
   if (chromeless) {
     return (
       <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
-        <BetaModeBanner />
+        <BetaModeBanner force={forceBetaBanner} />
         <div id="vm-main" style={{ flex:1, overflowY:'auto', overflowX:'hidden', background:VM.paperWarm }}>
           {screen}
         </div>
@@ -431,7 +434,7 @@ function App() {
 
   return (
     <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
-      <BetaModeBanner />
+      <BetaModeBanner force={forceBetaBanner} />
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
         <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>

@@ -2061,21 +2061,36 @@ function FeedbackTab({ isMobile }) {
   const { useState: useStateFbT, useEffect: useEffectFbT } = React;
   const [feedback, setFeedback] = useStateFbT([]);
   const [loaded,   setLoaded]   = useStateFbT(false);
+  const [loadError, setLoadError] = useStateFbT(null);   // set when the server fetch fails — distinct from a genuine zero-count
+  const [actionError, setActionError] = useStateFbT(null);   // set when a status/note save call fails
+  const [refreshing, setRefreshing] = useStateFbT(false);   // manual-refresh spinner (separate from the initial `loaded` gate)
   const [fbExpanded, setFbExp]  = useStateFbT(null);
   const [filter,   setFilter]   = useStateFbT('all');
   const [lightbox, setLightbox] = useStateFbT(null);   // screenshot URL currently shown full-screen
   const [noteEditing, setNoteEditing] = useStateFbT(null);   // id of item whose note textarea is open
   const [noteDraft, setNoteDraft]     = useStateFbT('');
 
+  // AWS-only: feedback lives in DynamoDB (lambda/feedback/vm-feedback), never in
+  // this browser's localStorage — a failed call is reported as an error, not
+  // quietly swapped for a local copy that would misreport real submissions as zero.
   const reload = async () => {
-    if (window.VM_FEEDBACK_URL && window.vmFeedbackListAll) {
-      const r = await window.vmFeedbackListAll();
-      if (r.ok) { setFeedback(r.items); setLoaded(true); return; }
+    setRefreshing(true);
+    if (!window.VM_FEEDBACK_URL || !window.vmFeedbackListAll) {
+      setFeedback([]); setLoadError('feedback API not configured'); setLoaded(true); setRefreshing(false);
+      return;
     }
-    setFeedback(window.loadFeedback ? window.loadFeedback() : []);
-    setLoaded(true);
+    const r = await window.vmFeedbackListAll();
+    if (r.ok) { setFeedback(r.items); setLoadError(null); setLoaded(true); setRefreshing(false); return; }
+    setFeedback([]); setLoadError(r.error || 'failed to load'); setLoaded(true); setRefreshing(false);
   };
-  useEffectFbT(() => { reload(); }, []);
+  useEffectFbT(() => {
+    reload();
+    // Poll while this tab is mounted — there's no push channel from the Lambda,
+    // so this is what makes a just-submitted item show up without a manual
+    // page reload (on top of the ConsistentRead fix in the Lambda itself).
+    const id = setInterval(reload, 15000);
+    return () => clearInterval(id);
+  }, []);
 
   const toggleExpand = async (fb) => {
     if (fbExpanded === fb.id) { setFbExp(null); return; }
@@ -2087,13 +2102,16 @@ function FeedbackTab({ isMobile }) {
   };
 
   const setStatus = async (fb, status) => {
+    const prevStatus = fb.status;
     setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, status } : f));
-    if (window.VM_FEEDBACK_URL && window.vmFeedbackSetStatus && fb.sub) {
-      await window.vmFeedbackSetStatus(fb.sub, fb.id, status);
-    } else if (window.loadFeedback && window.saveFeedback) {
-      const all = window.loadFeedback();
-      const idx = all.findIndex(f => f.id === fb.id);
-      if (idx >= 0) { all[idx] = { ...all[idx], status }; window.saveFeedback(all); }
+    if (!window.VM_FEEDBACK_URL || !window.vmFeedbackSetStatus || !fb.sub) {
+      setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, status: prevStatus } : f));
+      setActionError('feedback API not configured'); return;
+    }
+    const r = await window.vmFeedbackSetStatus(fb.sub, fb.id, status);
+    if (!r.ok) {
+      setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, status: prevStatus } : f));
+      setActionError(r.error || 'could not save status');
     }
   };
 
@@ -2101,14 +2119,17 @@ function FeedbackTab({ isMobile }) {
 
   const saveNote = async (fb) => {
     const note = noteDraft;
+    const prevNote = fb.adminNote;
     setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, adminNote: note } : f));
     setNoteEditing(null);
-    if (window.VM_FEEDBACK_URL && window.vmFeedbackSetNote && fb.sub) {
-      await window.vmFeedbackSetNote(fb.sub, fb.id, note);
-    } else if (window.loadFeedback && window.saveFeedback) {
-      const all = window.loadFeedback();
-      const idx = all.findIndex(f => f.id === fb.id);
-      if (idx >= 0) { all[idx] = { ...all[idx], adminNote: note }; window.saveFeedback(all); }
+    if (!window.VM_FEEDBACK_URL || !window.vmFeedbackSetNote || !fb.sub) {
+      setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, adminNote: prevNote } : f));
+      setActionError('feedback API not configured'); return;
+    }
+    const r = await window.vmFeedbackSetNote(fb.sub, fb.id, note);
+    if (!r.ok) {
+      setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, adminNote: prevNote } : f));
+      setActionError(r.error || 'could not save note');
     }
   };
 
@@ -2131,7 +2152,7 @@ function FeedbackTab({ isMobile }) {
             {counts.all} submission{counts.all === 1 ? '' : 's'} · {counts.new} new
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {['all', 'new', 'in_progress', 'resolved'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               style={{ fontFamily: VM.mono, fontSize: 11, padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
@@ -2140,10 +2161,34 @@ function FeedbackTab({ isMobile }) {
               {f === 'all' ? `All (${counts.all})` : `${FB_STATUS_LABEL[f]} (${counts[f]})`}
             </button>
           ))}
+          <button onClick={reload} disabled={refreshing} title="Refresh"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: VM.mono, fontSize: 11, padding: '5px 12px',
+              borderRadius: 999, cursor: refreshing ? 'default' : 'pointer', border: `1px solid ${VM.border}`,
+              background: VM.paper, color: VM.ink2, marginLeft: 4 }}>
+            <i className="ti ti-refresh" style={{ fontSize: 12, animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}></i>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
         </div>
       </div>
 
-      {loaded && visible.length === 0 && (
+      {actionError && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '9px 14px',
+          borderRadius: 8, fontFamily: VM.mono, fontSize: 11, color: VM.downInk,
+          background: 'rgba(163,45,45,0.08)', border: `1px solid ${VM.downInk}40` }}>
+          <i className="ti ti-alert-triangle" style={{ fontSize: 13 }}></i>
+          Couldn't save ({actionError}) — change was reverted.
+          <span onClick={() => setActionError(null)} style={{ marginLeft: 'auto', cursor: 'pointer', textDecoration: 'underline' }}>dismiss</span>
+        </div>
+      )}
+
+      {loaded && loadError && (
+        <div style={{ ...mono, padding: '40px 0', textAlign: 'center', color: VM.terra }}>
+          Couldn't load feedback from the server ({loadError}). This isn't necessarily zero submissions —
+          {' '}<span onClick={reload} style={{ textDecoration: 'underline', cursor: 'pointer' }}>retry</span>.
+        </div>
+      )}
+
+      {loaded && !loadError && visible.length === 0 && (
         <div style={{ ...mono, padding: '40px 0', textAlign: 'center' }}>
           {feedback.length === 0 ? 'No feedback submitted yet.' : 'Nothing in this filter.'}
         </div>

@@ -1,21 +1,16 @@
 // Veridian Markets — Beta Feedback Widget
 // Floating button visible to beta/admin users on every page.
 // Click → captures a screenshot via getDisplayMedia (native tab share) → canvas
-//       annotation → comment → submit (stored in localStorage + optional AWS endpoint).
+//       annotation → comment → submit straight to AWS (lambda/feedback/vm-feedback).
+// Feedback is never stored client-side — a submission either reaches DynamoDB
+// or the widget reports the failure; there's no local fallback to silently
+// diverge from what Admin → Feedback sees.
 //
-// window.VM_FEEDBACK_URL — optional: POST feedback JSON here.
-// Storage key: 'vm_beta_feedback'
+// window.VM_FEEDBACK_URL — POST feedback JSON here.
 
 const { useState: useStateFb, useEffect: useEffectFb, useRef: useRefFb, useCallback: useCallbackFb } = React;
 
-const FEEDBACK_KEY = 'vm_beta_feedback';
-function loadFeedback() { try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '[]'); } catch { return []; } }
-function saveFeedback(a) { try { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(a)); } catch {} }
-
 // ── AWS-backed feedback API (lambda/feedback/vm-feedback) ──────────────────────
-// Falls back to { ok:false } when window.VM_FEEDBACK_URL isn't configured or the
-// user isn't signed in with a real Cognito session — callers treat that as "use
-// the local-only copy instead", same fallback shape as vmUploadAvatar.
 async function vmFeedbackCall(body) {
   if (!window.VM_FEEDBACK_URL) return { ok: false, error: 'not configured' };
   let session = null; try { session = JSON.parse(localStorage.getItem('vm_session') || 'null'); } catch {}
@@ -38,7 +33,7 @@ function vmFeedbackGetItem(sub, id) { return vmFeedbackCall({ action: 'getItem',
 function vmFeedbackSetStatus(sub, id, status) { return vmFeedbackCall({ action: 'setStatus', sub, id, status }); }
 function vmFeedbackSetNote(sub, id, note) { return vmFeedbackCall({ action: 'setNote', sub, id, note }); }
 
-Object.assign(window, { loadFeedback, saveFeedback, vmFeedbackSubmit, vmFeedbackListMine, vmFeedbackListAll, vmFeedbackGetItem, vmFeedbackSetStatus, vmFeedbackSetNote });
+Object.assign(window, { vmFeedbackSubmit, vmFeedbackListMine, vmFeedbackListAll, vmFeedbackGetItem, vmFeedbackSetStatus, vmFeedbackSetNote });
 
 // ── Drawing canvas ────────────────────────────────────────────────────────────
 function AnnotationCanvas({ screenshotUrl, canvasRef, tool, color, lineWidth }) {
@@ -201,6 +196,7 @@ function BetaFeedback({ user }) {
   const [lineWidth, setLineWidth] = useStateFb(5);
   const [submitting, setSubmit]   = useStateFb(false);
   const [submitted, setSubmitted] = useStateFb(false);
+  const [submitError, setSubmitError] = useStateFb(null);
   const canvasRef                 = useRefFb(null);
   const capturedRef               = useRefFb({});            // {idx: dataUrl}
   const streamRef                 = useRefFb(null);          // shared getDisplayMedia stream for this session
@@ -262,6 +258,7 @@ function BetaFeedback({ user }) {
 
   const openWidget = async () => {
     setSubmitted(false);
+    setSubmitError(null);
     setCaptureError(false);
     setCapturing(true);
     const initialItem = { screenshot: null, comment: '' };
@@ -298,30 +295,20 @@ function BetaFeedback({ user }) {
     const finalScreenshot = canvas ? canvas.toDataURL('image/jpeg', 0.85) : items[activeIdx].screenshot;
     const finalItems = items.map((it, i) => i === activeIdx ? { ...it, screenshot: finalScreenshot } : it);
 
-    const feedback = {
-      id:        Math.random().toString(36).slice(2, 12),
-      page:      location.pathname,
-      route:     location.pathname.replace(/^\//, '') || 'front',
-      ts:        Date.now(),
-      userEmail: user?.email || 'unknown',
-      userName:  user?.name  || 'unknown',
-      items:     finalItems.map(it => ({ screenshot: it.screenshot, comment: it.comment })),
-      status:    'new',
-    };
+    const page  = location.pathname;
+    const route = location.pathname.replace(/^\//, '') || 'front';
+    const submitItems = finalItems.map(it => ({ screenshot: it.screenshot, comment: it.comment }));
 
     setSubmit(true);
-    // Always keep a local copy first — works even when AWS isn't configured,
-    // the user is offline, or the call below fails for any reason.
-    const all = loadFeedback();
-    all.push(feedback);
-    saveFeedback(all);
-
-    await vmFeedbackSubmit(feedback.items, feedback.page, feedback.route, feedback.userEmail, feedback.userName);
-
+    setSubmitError(null);
+    const r = await vmFeedbackSubmit(submitItems, page, route, user?.email || 'unknown', user?.name || 'unknown');
     setSubmit(false);
+
+    if (!r.ok) { setSubmitError(r.error || 'Could not reach the server.'); return; }
+
     setSubmitted(true);
     stopCaptureStream();
-    setTimeout(() => { setOpen(false); setItems([]); setActiveIdx(0); capturedRef.current = {}; }, 2200);
+    setTimeout(() => { setOpen(false); setItems([]); setActiveIdx(0); capturedRef.current = {}; setSubmitted(false); }, 2200);
   };
 
   const closeWidget = () => {
@@ -425,22 +412,31 @@ function BetaFeedback({ user }) {
 
             {/* Footer */}
             {!submitted && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '14px 20px', borderTop: `1px solid ${VM.borderSoft}`, gap: 10 }}>
-                <button onClick={addAnother}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: VM.mono, fontSize: 12,
-                    padding: '8px 16px', borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.faint,
-                    color: VM.ink2, cursor: 'pointer' }}>
-                  <i className="ti ti-plus" style={{ fontSize: 13 }}></i>
-                  Add another suggestion
-                </button>
-                <button onClick={submit} disabled={submitting}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VM.serif, fontSize: 15,
-                    fontWeight: 600, padding: '9px 24px', borderRadius: 8, border: 'none',
-                    background: VM.teal, color: VM.paper, cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.7 : 1 }}>
-                  {submitting ? 'Submitting…' : `Submit ${items.length > 1 ? `${items.length} suggestions` : 'feedback'}`}
-                </button>
+              <div style={{ borderTop: `1px solid ${VM.borderSoft}` }}>
+                {submitError && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px 0',
+                    fontFamily: VM.mono, fontSize: 11, color: VM.downInk }}>
+                    <i className="ti ti-alert-triangle" style={{ fontSize: 13 }}></i>
+                    Couldn't submit ({submitError}) — nothing was saved. Try again.
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '14px 20px', gap: 10 }}>
+                  <button onClick={addAnother}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: VM.mono, fontSize: 12,
+                      padding: '8px 16px', borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.faint,
+                      color: VM.ink2, cursor: 'pointer' }}>
+                    <i className="ti ti-plus" style={{ fontSize: 13 }}></i>
+                    Add another suggestion
+                  </button>
+                  <button onClick={submit} disabled={submitting}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VM.serif, fontSize: 15,
+                      fontWeight: 600, padding: '9px 24px', borderRadius: 8, border: 'none',
+                      background: VM.teal, color: VM.paper, cursor: submitting ? 'not-allowed' : 'pointer',
+                      opacity: submitting ? 0.7 : 1 }}>
+                    {submitting ? 'Submitting…' : submitError ? 'Retry' : `Submit ${items.length > 1 ? `${items.length} suggestions` : 'feedback'}`}
+                  </button>
+                </div>
               </div>
             )}
           </div>

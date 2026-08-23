@@ -13,7 +13,10 @@ function setBetaMode(on) {
   window.dispatchEvent(new Event('vm-beta-mode-change'));
 }
 
-function BetaModeBanner() {
+// `force`: show regardless of the admin-toggled flag — used for signed-in
+// beta/admin accounts, who should always be reminded they're on a pre-release
+// build rather than needing an admin to flip the (per-device) site-wide toggle.
+function BetaModeBanner({ force }) {
   const [on, setOn] = React.useState(isBetaModeOn());
   React.useEffect(() => {
     const sync = () => setOn(isBetaModeOn());
@@ -21,7 +24,7 @@ function BetaModeBanner() {
     window.addEventListener('vm-beta-mode-change', sync);
     return () => { window.removeEventListener('storage', sync); window.removeEventListener('vm-beta-mode-change', sync); };
   }, []);
-  if (!on) return null;
+  if (!on && !force) return null;
   return (
     <div style={{ flexShrink:0, background:VM.terra, color:'#FBF3EC', padding:'7px 14px', textAlign:'center',
       display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
