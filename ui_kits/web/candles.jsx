@@ -2,7 +2,7 @@
 // Lambda). Requires a paid Finnhub plan. Powers the "Chart" tab next to
 // Financials — see ChartTab.jsx for the range-button UI + ECharts render.
 
-const VM_CANDLES = { url: '' };   // set to the vm-candles Function URL once deployed (see plan)
+const VM_CANDLES = { url: 'https://qjhj4zxoqnyysvuewcssz2vedm0ptcmz.lambda-url.us-east-1.on.aws/' };
 const _vmCandlesCache = {};
 const VM_CANDLES_TTL = 5 * 60 * 1000;   // client cache 5 min (server TTL varies by resolution)
 

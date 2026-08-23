@@ -96,11 +96,16 @@ function useVMNewsSentiment(ticker) { return useVMPremium('news-sentiment', tick
 // ── Ownership / fund ownership ───────────────────────────────────────────
 // Raw: { ownership: [ { name, share, change, filingDate } ] } — same shape family for both.
 function _mapOwnership(raw) {
+  // Confirmed shape (live): { ownership: [ { name, share (raw share count),
+  // portfolioPercent (fund-ownership only — % of THAT FUND's own portfolio,
+  // not % of the company), change, filingDate } ] }. There's no "% of company
+  // owned" field on either endpoint, so institutional rows show a share count
+  // and fund rows show portfolioPercent when present.
   const rows = _pick(raw, ['ownership', 'data']) || [];
   return rows.slice(0, 20).map((r) => ({
     name: r.name || r.investorName || '—',
-    sharePct: r.share != null ? Math.round(r.share * 1000) / 10
-      : (r.portfolioPercent != null ? Math.round(r.portfolioPercent * 10) / 10 : null),
+    shares: r.share != null ? Number(r.share) : null,
+    portfolioPct: r.portfolioPercent != null ? Math.round(r.portfolioPercent * 10) / 10 : null,
     change: r.change,
     filingDate: r.filingDate,
   }));
@@ -111,17 +116,21 @@ function useVMFundOwnership(ticker) { return useVMPremium('fund-ownership', tick
 // ── Revenue breakdown ─────────────────────────────────────────────────────
 // Target shape matches the existing "Revenue mix" panel: [{k,v,c}], v = percent-of-total.
 const _SEGMENT_COLORS = ['#4f9dde', '#7fc8a9', '#e0b354', '#c97b7b', '#9b8bd6', '#6bbfbf', '#d68fb0', '#a3a3a3'];
+// Confirmed shape (live): { data: { annual: { revenue_by_product: [ [ { label,
+// data: [{period, value}, …oldest→newest] }, … ] ], revenue_by_geography: […],
+// ebit_by_geography: […], grossIncome_by_product: […] } }, currency }. We take
+// the latest period's value per product segment and turn it into % of total.
 function _mapRevenueBreakdown(raw) {
-  const rows = _pick(raw, ['data']) || [];
-  const latest = rows[0];
-  if (!latest) return null;
-  const seg = _pick(latest, ['revenueBreakdown', 'revenueMap', 'breakdown']);
-  if (!seg) return null;
-  const entries = Array.isArray(seg) ? seg.map((s) => [s.label || s.segment, s.value]) : Object.entries(seg);
-  const total = entries.reduce((a, [, v]) => a + (Number(v) || 0), 0);
+  const seriesArr = raw && raw.data && raw.data.annual && raw.data.annual.revenue_by_product;
+  const list = Array.isArray(seriesArr) && Array.isArray(seriesArr[0]) ? seriesArr[0] : null;
+  if (!list || !list.length) return null;
+  const rows = list
+    .map((s) => { const pts = s.data || []; const latest = pts[pts.length - 1]; return { label: s.label, value: latest ? Number(latest.value) : 0 }; })
+    .filter((r) => r.label && r.value > 0);
+  const total = rows.reduce((a, r) => a + r.value, 0);
   if (!total) return null;
-  return entries
-    .map(([label, v], i) => ({ k: label, v: Math.round((Number(v) / total) * 1000) / 10, c: _SEGMENT_COLORS[i % _SEGMENT_COLORS.length] }))
+  return rows
+    .map((r, i) => ({ k: r.label, v: Math.round((r.value / total) * 1000) / 10, c: _SEGMENT_COLORS[i % _SEGMENT_COLORS.length] }))
     .sort((a, b) => b.v - a.v)
     .slice(0, 8);
 }
@@ -154,22 +163,35 @@ function useVMSectorMetrics(region) {
 
 // ── Supply chain ──────────────────────────────────────────────────────────
 // Target shape matches ScnLiveDemo.jsx's SCN_DB node shape: {id,name,ticker,role,note,risk}.
-// Raw shape is uncertain (Finnhub's supply-chain relationships payload) — mapped
-// defensively; ScnLiveDemo falls back to its SCN_DB mock if this returns null.
+// Confirmed shape (live): { data: [ { symbol, name, industry, country,
+// customer, supplier (booleans), oneWeek/oneMonth/…/twoYearCorrelation } ] } —
+// a FLAT list of relationships (not nested under a sub-key), no revenue-%
+// field, so "note" carries industry + price correlation instead. This is a
+// broad correlation-based dataset (hundreds of rows for a large-cap), not a
+// short curated list, so we keep only the strongest MAX_NODES per side —
+// otherwise ScnLiveDemo's map (built for ~6-9 nodes/side) would be unusable.
+// Ranked by raw (signed) correlation, not magnitude: strong *positive*
+// correlation (moves with the company — e.g. a retailer that resells its
+// products) surfaces far more recognizable, intuitive names than strong
+// negative correlation does, which verified against live AAPL data.
+const _SCN_MAX_NODES = 8;
 function _mapSupplyChain(raw) {
-  const rows = _pick(raw, ['data']) || [];
-  const rel = rows[0] && _pick(rows[0], ['supplyChainRelationships', 'relationships']);
+  const rel = _pick(raw, ['data']) || [];
   if (!Array.isArray(rel) || !rel.length) return null;
   const inputs = [], customers = [];
   rel.forEach((r, i) => {
-    const ticker = r.relatedSymbol || r.symbol || r.ticker || null;
-    const name = r.relatedCompany || r.name || ticker;
+    const ticker = r.symbol || null;
+    const name = r.name || ticker;
     if (!ticker && !name) return;
-    const kind = String(r.relationship || r.type || '').toLowerCase();
-    const node = { id: ticker || `${name}-${i}`, name, ticker, group: 'company', cat: 'a', role: r.relationship || r.type || 'Supply-chain partner', note: '', risk: '' };
-    if (kind.includes('customer')) customers.push(node); else inputs.push(node);
+    const corr = r.oneYearCorrelation ?? r.sixMonthCorrelation ?? r.oneMonthCorrelation ?? null;
+    const role = r.customer && r.supplier ? 'Customer & supplier' : r.customer ? 'Customer' : 'Supplier';
+    const note = [r.industry, corr != null ? `${Math.round(corr * 100)}% price correlation` : null].filter(Boolean).join(' · ');
+    const node = { id: ticker || `${name}-${i}`, name, ticker, group: 'company', cat: 'a', role, note, risk: '', _corr: corr == null ? -2 : corr };
+    if (r.customer) customers.push(node); else inputs.push(node);
   });
-  return (inputs.length || customers.length) ? { inputs, customers } : null;
+  const top = (arr) => arr.sort((a, b) => b._corr - a._corr).slice(0, _SCN_MAX_NODES).map(({ _corr, ...n }) => n);
+  const outInputs = top(inputs), outCustomers = top(customers);
+  return (outInputs.length || outCustomers.length) ? { inputs: outInputs, customers: outCustomers } : null;
 }
 function useVMSupplyChain(ticker) { return useVMPremium('supply-chain', ticker, _mapSupplyChain); }
 

@@ -264,6 +264,31 @@ const OV_STEPS = [
     body:'Who runs the company, how long they have been in seat, and their background. Tenure correlates with execution continuity. Note whether key roles are internal promotes or outside hires — it often signals strategy shifts.' },
 ];
 
+// Raw share counts from /stock/ownership and /stock/fund-ownership (no % field on either).
+function _fmtShares(n) {
+  if (n == null) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B shs`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(1)}M shs`;
+  if (abs >= 1e3) return `${(n / 1e3).toFixed(0)}K shs`;
+  return `${n} shs`;
+}
+
+// Our curated overview.sector labels ("Technology · Consumer electronics") →
+// the GICS sector names /sector/metrics actually returns rows for.
+const _SECTOR_TO_GICS = {
+  'Technology': 'Information Technology', 'Finance': 'Financials', 'Retail': 'Consumer Discretionary',
+  'Auto': 'Consumer Discretionary', 'Health': 'Health Care', 'Energy': 'Energy', 'Materials': 'Materials',
+  'Utilities': 'Utilities', 'Industrials': 'Industrials', 'Real Estate': 'Real Estate', 'Communication': 'Communication Services',
+};
+// A handful of the ~69 sector-metrics keys worth showing at a glance; `.m` = sector median (avoids mega-cap skew in `.a`).
+const _SECTOR_METRIC_PICKS = [
+  ['peTTM', 'P/E (TTM)', (v) => v.toFixed(1)],
+  ['netProfitMarginTTM', 'Net margin', (v) => `${v.toFixed(1)}%`],
+  ['roeTTM', 'ROE', (v) => `${v.toFixed(1)}%`],
+  ['currentDividendYieldTTM', 'Dividend yield', (v) => `${v.toFixed(1)}%`],
+];
+
 function DashOverview({ c, data, go, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
@@ -277,10 +302,36 @@ function DashOverview({ c, data, go, isMobile }) {
   const ownLive  = typeof useVMOwnership === 'function' ? useVMOwnership(c.ticker) : { data:null, live:false };
   const fundLive = typeof useVMFundOwnership === 'function' ? useVMFundOwnership(c.ticker) : { data:null, live:false };
   const secLive  = typeof useVMSectorMetrics === 'function' ? useVMSectorMetrics('NA') : { data:null, live:false };
-  const secRow = secLive.live ? (secLive.data || []).find((r) => String(r.sector || r.industry || '').toLowerCase() === String(overview.sector || '').toLowerCase()) : null;
+  const secGics = _SECTOR_TO_GICS[String(overview.sector || '').split('·')[0].trim()];
+  const secRow = (secLive.live && secGics) ? (secLive.data || []).find((r) => r.sector === secGics) : null;
   const shownLeaders    = execLive.live ? execLive.data : leaders;
   const shownRevenueMix = revLive.live ? revLive.data : revenueMix;
   const shownRevMixMeta = revLive.live ? 'Live · Finnhub segment data' : revenueMixMeta;
+  // Overview price chart — same live candles that power the Chart tab.
+  const [chartRange, setChartRange] = React.useState('1M');
+  const [ovHLines, setOvHLines] = React.useState([]);
+  const ovChart = typeof useVMCandles === 'function' ? useVMCandles(c.ticker, chartRange) : { data:null, loading:false, live:false };
+  const ovResolution = (typeof VM_RANGES !== 'undefined' && VM_RANGES[chartRange] && VM_RANGES[chartRange].resolution) || 'D';
+  const ovLastPrice = ovChart.data && ovChart.data.length ? ovChart.data[ovChart.data.length-1].c : null;
+  const ovPctChange = (ovChart.live && ovChart.data && ovChart.data.length > 1)
+    ? (((ovChart.data[ovChart.data.length-1].c - ovChart.data[0].c) / ovChart.data[0].c) * 100) : null;
+  // Fullscreen: cover the #vm-main scroll area (same pattern as ScnLiveDemo/MyBusiness).
+  const [chartFull, setChartFull] = React.useState(false);
+  const [chartFullRect, setChartFullRect] = React.useState(null);
+  React.useEffect(() => {
+    if (!chartFull) { setChartFullRect(null); return; }
+    const compute = () => {
+      const main = document.getElementById('vm-main');
+      const r = main && main.getBoundingClientRect();
+      setChartFullRect(r ? { top:r.top, left:r.left, width:r.width, height:r.height }
+                          : { top:0, left:0, width:window.innerWidth, height:window.innerHeight });
+    };
+    compute();
+    const onKey = (e) => { if (e.key === 'Escape') setChartFull(false); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', compute);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('resize', compute); };
+  }, [chartFull]);
   return (
     <div style={{ marginTop:24 }}>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
@@ -314,22 +365,58 @@ function DashOverview({ c, data, go, isMobile }) {
             <MetaPair k="Index"        v={overview.index}       />
             <MetaPair k="Country"      v={overview.country}     />
           </div>
-          <div data-tour="vm-overview-chart" style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+          <div data-tour="vm-overview-chart" style={chartFull && chartFullRect
+            ? { position:'fixed', top:chartFullRect.top, left:chartFullRect.left, width:chartFullRect.width, height:chartFullRect.height,
+                zIndex:80, background:VM.paper, padding:16, boxSizing:'border-box', display:'flex', flexDirection:'column' }
+            : { background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, flexShrink:0 }}>
               <h3 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:16, margin:0 }}>
-                Price · 5Y <span style={{ color:VM.upInk, fontWeight:400, fontSize:13 }}>+218%</span>{' '}
-                <span style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3 }}>· split-adjusted</span>
+                Price · {chartRange}{' '}
+                {ovPctChange != null
+                  ? <span style={{ color: ovPctChange >= 0 ? VM.upInk : VM.terra, fontWeight:400, fontSize:13 }}>{ovPctChange >= 0 ? '+' : ''}{ovPctChange.toFixed(1)}%</span>
+                  : <span style={{ color:VM.upInk, fontWeight:400, fontSize:13 }}>+218%</span>}{' '}
+                <span style={{ fontFamily:VM.mono, fontSize:11, color:VM.ink3 }}>· {ovChart.live ? 'live' : 'split-adjusted'}</span>
               </h3>
-              <div style={{ display:'flex', gap:4 }}>
-                {['1D','5D','1M','6M','1Y','5Y','Max'].map((t,i) => (
-                  <span key={t} style={{ fontFamily:VM.mono, fontSize:10, padding:'3px 8px', borderRadius:5,
-                    border:`1px solid ${i===5 ? VM.teal : VM.borderSoft}`, color:i===5 ? VM.teal : VM.ink3 }}>{t}</span>
+              <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                {Object.keys(typeof VM_RANGES !== 'undefined' ? VM_RANGES : { '1D':1,'5D':1,'1M':1,'6M':1,'1Y':1,'5Y':1,'Max':1 }).map((t) => (
+                  <span key={t} onClick={()=>setChartRange(t)} style={{ fontFamily:VM.mono, fontSize:10, padding:'3px 8px', borderRadius:5, cursor:'pointer',
+                    border:`1px solid ${t===chartRange ? VM.teal : VM.borderSoft}`, color:t===chartRange ? VM.teal : VM.ink3 }}>{t}</span>
                 ))}
+                <button onClick={()=>setChartFull(f=>!f)} title={chartFull ? 'Exit full screen (Esc)' : 'Full screen'}
+                  style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:24, height:24, borderRadius:5, marginLeft:4,
+                    border:`1px solid ${VM.borderSoft}`, background:'transparent', color:VM.ink3, cursor:'pointer', padding:0 }}>
+                  <i className={'ti ti-' + (chartFull ? 'arrows-minimize' : 'arrows-maximize')} style={{ fontSize:13 }}></i>
+                </button>
               </div>
             </div>
-            <OverlayChart h={170} legend={false} />
-            <Mono size={11} color={VM.ink3} style={{ fontStyle:'italic', marginTop:4, display:'block' }}>
-              {c.ticker} · 5Y with dividends, splits, key events
+            {ovChart.data && ovChart.data.length > 0 && (
+              <div style={{ marginBottom:8, flexShrink:0 }}>
+                <HLineTool lines={ovHLines} onChange={setOvHLines} lastPrice={ovLastPrice} />
+              </div>
+            )}
+            <div style={chartFull ? { flex:1, minHeight:0 } : undefined}>
+              {(() => {
+                const h = chartFull && chartFullRect ? Math.max(240, chartFullRect.height - 90) : 170;
+                if (ovChart.loading) return (
+                  <div style={{ height:h, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <div style={{ padding:'10px 20px', borderRadius:8, border:`1px solid ${VM.borderSoft}`, background:VM.paperWarm }}>
+                      <Mono size={11} color={VM.ink3}>Loading market data…</Mono>
+                    </div>
+                  </div>
+                );
+                if (ovChart.live && ovChart.data && ovChart.data.length) return <CandleChart bars={ovChart.data} resolution={ovResolution} hLines={ovHLines} onChange={setOvHLines} height={h} />;
+                if (chartRange === '1D') return (
+                  <div style={{ height:h, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <div style={{ padding:'10px 20px', borderRadius:8, border:`1px solid ${VM.borderSoft}`, background:VM.paperWarm }}>
+                      <Mono size={11} color={VM.ink3}>Coming soon</Mono>
+                    </div>
+                  </div>
+                );
+                return <OverlayChart h={170} legend={false} />;
+              })()}
+            </div>
+            <Mono size={11} color={VM.ink3} style={{ fontStyle:'italic', marginTop:4, display:'block', flexShrink:0 }}>
+              {ovChart.loading || (!ovChart.live && chartRange === '1D') ? '' : ovChart.live ? `${c.ticker} · ${chartRange} · live via Finnhub` : `${c.ticker} · ${chartRange} · sample data with dividends, splits, key events`}
             </Mono>
           </div>
         </div>
@@ -399,7 +486,7 @@ function DashOverview({ c, data, go, isMobile }) {
                     {ownLive.data.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
                         <span style={{ fontFamily:VM.serif, fontSize:12.5 }}>{r.name}</span>
-                        <Mono size={11} weight={600}>{r.sharePct != null ? `${r.sharePct}%` : '—'}</Mono>
+                        <Mono size={11} weight={600}>{_fmtShares(r.shares)}</Mono>
                       </div>
                     ))}
                   </React.Fragment>
@@ -410,7 +497,7 @@ function DashOverview({ c, data, go, isMobile }) {
                     {fundLive.data.slice(0,5).map((r,i) => (
                       <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
                         <span style={{ fontFamily:VM.serif, fontSize:12.5 }}>{r.name}</span>
-                        <Mono size={11} weight={600}>{r.sharePct != null ? `${r.sharePct}%` : '—'}</Mono>
+                        <Mono size={11} weight={600}>{r.portfolioPct != null ? `${r.portfolioPct}% of fund` : _fmtShares(r.shares)}</Mono>
                       </div>
                     ))}
                   </React.Fragment>
@@ -420,13 +507,17 @@ function DashOverview({ c, data, go, isMobile }) {
           )}
           {secRow && (
             <div data-tour="vm-overview-sector">
-              <Panel title="Sector snapshot" meta={overview.sector}>
-                {Object.entries(secRow).filter(([k,v]) => typeof v === 'number' && k !== 'peCount').slice(0,4).map(([k,v],i) => (
-                  <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
-                    <Label>{k}</Label>
-                    <Mono size={11} weight={600}>{v}</Mono>
-                  </div>
-                ))}
+              <Panel title="Sector snapshot" meta={secRow.sector + ' · median'}>
+                {_SECTOR_METRIC_PICKS.map(([key, label, fmt], i) => {
+                  const m = secRow.metrics && secRow.metrics[key];
+                  if (!m || m.m == null) return null;
+                  return (
+                    <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
+                      <Label>{label}</Label>
+                      <Mono size={11} weight={600}>{fmt(m.m)}</Mono>
+                    </div>
+                  );
+                })}
               </Panel>
             </div>
           )}
@@ -501,6 +592,15 @@ const FIN_STEPS = [
   { sel:'[data-tour="vm-fin-table"]',
     title:'Reading the table.',
     body:'Bold rows are totals: Gross profit, Operating income, Net income. Indented grey rows are the components that feed into the bold line above them. Numbers in (parentheses) are negative — outflows or losses, shown in red.' },
+];
+
+const DIV_STEPS = [
+  { sel:'[data-tour="vm-fin-subtabs"]',
+    title:'A fourth statement, sort of.',
+    body:"Dividends aren't one of the three core financial statements, but they're real cash the company paid out — this tab lists every historical per-share payment Finnhub has on record for the ticker." },
+  { sel:'[data-tour="vm-fin-dividends-table"]',
+    title:'Reading the table.',
+    body:'Ex-date is the cutoff that matters most — you must own the stock before this date to receive that payment. Pay date is when cash actually lands (not always available). Amount is the per-share payout in USD.' },
 ];
 
 // Shared spotlight tutorial used by every tab. Pass a steps array + short label.
@@ -620,6 +720,7 @@ function DashFinancials({ data, c, isMobile }) {
   // Real "financials as reported" (SEC filings via Finnhub) when available for
   // this ticker/period; otherwise fall back to the curated mock (data).
   const fin = typeof useVMFinancials === 'function' ? useVMFinancials(c.ticker, period) : { data:null, loading:false, live:false };
+  const divLive = typeof useVMDividends === 'function' ? useVMDividends(c.ticker) : { data:null, loading:false, live:false };
   const D = fin.data || data;
   const rows = { income:D.income, balance:D.balance, cashflow:D.cashflow }[sheet];
   const periods = D.periods;
@@ -743,7 +844,7 @@ function DashFinancials({ data, c, isMobile }) {
     <div style={{ marginTop:24 }}>
       <div data-tour="vm-financials-toolbar" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', columnGap:14, rowGap:8, marginBottom:20 }}>
         <div data-tour="vm-fin-subtabs" style={{ display:'flex', flex:'1 1 240px', borderBottom:`1px solid ${VM.borderSoft}` }}>
-        {[['income','Income statement'],['balance','Balance sheet'],['cashflow','Cash flow']].map(([id,lbl]) => (
+        {[['income','Income statement'],['balance','Balance sheet'],['cashflow','Cash flow'],['dividends','Dividends']].map(([id,lbl]) => (
           <span key={id} onClick={()=>setSheet(id)} style={{
             fontFamily:VM.serif, fontSize:14, padding:'6px 16px 10px', cursor:'pointer', whiteSpace:'nowrap',
             color: sheet===id ? VM.ink : VM.ink3, fontWeight: sheet===id ? 700 : 400,
@@ -751,6 +852,7 @@ function DashFinancials({ data, c, isMobile }) {
           }}>{lbl}</span>
         ))}
         </div>
+        {sheet !== 'dividends' && (
         <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', paddingBottom:8 }}>
           {/* change-vs-prior-period toggles (independent) */}
           {!isMobile && (
@@ -806,7 +908,52 @@ function DashFinancials({ data, c, isMobile }) {
             <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
           </button>
         </div>
+        )}
+        {sheet === 'dividends' && (
+          <div style={{ paddingBottom:8 }}>
+            <button onClick={()=>setTutorialOpen(true)} title="Interactive tutorial — learn to read dividend history" style={TUTORIAL_BTN_STYLE}>
+              <i className="ti ti-graduation-cap" style={{ fontSize:12 }}></i>Tutorial
+            </button>
+          </div>
+        )}
       </div>
+      {sheet === 'dividends' ? (
+        <div style={{ marginTop:4 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:16, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.03em', color:VM.ink3 }}>
+            {divLive.loading
+              ? <><i className="ti ti-loader-2" style={{ fontSize:12 }}></i>Loading dividends…</>
+              : divLive.live
+                ? <><span style={{ width:7, height:7, borderRadius:'50%', background:VM.teal, display:'inline-block' }}></span>Live · Finnhub</>
+                : <><i className="ti ti-info-circle" style={{ fontSize:12 }}></i>Live dividend history unavailable for this ticker</>}
+          </div>
+          {divLive.live ? (
+            <table data-tour="vm-fin-dividends-table" style={{ width:'100%', borderCollapse:'collapse', maxWidth:480 }}>
+              <thead>
+                <tr style={{ borderBottom:`1.5px solid ${VM.borderSoft}` }}>
+                  <th style={{ textAlign:'left', padding:'6px 12px 8px', fontFamily:VM.mono, fontSize:9.5, fontWeight:500, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.06em' }}>Ex-date</th>
+                  <th style={{ textAlign:'left', padding:'6px 12px 8px', fontFamily:VM.mono, fontSize:9.5, fontWeight:500, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.06em' }}>Pay date</th>
+                  <th style={{ textAlign:'right', padding:'6px 12px 8px', fontFamily:VM.mono, fontSize:9.5, fontWeight:500, color:VM.ink3, textTransform:'uppercase', letterSpacing:'0.06em' }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {divLive.data.slice(0,20).map((d,i) => (
+                  <tr key={i} style={{ borderBottom:`1px solid ${VM.borderHair}` }}>
+                    <td style={{ padding:'7px 12px', fontFamily:VM.serif, fontSize:13 }}>{d.exDate || '—'}</td>
+                    <td style={{ padding:'7px 12px', fontFamily:VM.serif, fontSize:13, color:VM.ink3 }}>{d.payDate || '—'}</td>
+                    <td style={{ padding:'7px 12px', textAlign:'right', fontFamily:VM.mono, fontSize:12, fontWeight:600 }}>{d.amount != null ? `$${Number(d.amount).toFixed(4)}` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <Mono size={12} color={VM.ink3}>No dividend data to show.</Mono>
+          )}
+          <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:10 }}>
+            All figures USD · not financial advice
+          </Mono>
+        </div>
+      ) : (
+      <React.Fragment>
       {/* Source line: real SEC filings when available, else the illustrative mock. */}
       <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:12, fontFamily:VM.mono, fontSize:10, letterSpacing:'0.03em', color:VM.ink3 }}>
         {fin.loading
@@ -891,12 +1038,14 @@ function DashFinancials({ data, c, isMobile }) {
       <Mono size={10} color={VM.faint} style={{ display:'block', marginTop:10 }}>
         All figures USD · {fin.live ? 'as reported (SEC filings via Finnhub)' : 'illustrative mock data'}{unit === 'thousands' ? ' · all numbers in thousands' : ''} · not financial advice{showDelta ? ' · Δ vs prior period' : ''}
       </Mono>
+      </React.Fragment>
+      )}
       {legend && <FinLegendModal onClose={()=>setLegend(false)} />}
       {exportOpen && <FinExportModal ticker={c.ticker} curSheet={sheet}
         period={period === 'annual' ? 'Annual' : 'Quarterly'}
         initPct={showPct} initAbs={showAbs} buildGrid={buildGrid} onExport={runExport} onClose={()=>setExportOpen(false)} />}
       {analysisOpen && <AnalysisModal open={analysisOpen} onClose={()=>setAnalysisOpen(false)} data={data} c={c} analysisButtonRef={analysisBtnRef} />}
-      {tutorialOpen && <TutorialOverlay steps={FIN_STEPS} label="Financials tutorial" onClose={()=>setTutorialOpen(false)} />}
+      {tutorialOpen && <TutorialOverlay steps={sheet === 'dividends' ? DIV_STEPS : FIN_STEPS} label={sheet === 'dividends' ? 'Dividends tutorial' : 'Financials tutorial'} onClose={()=>setTutorialOpen(false)} />}
     </div>
   );
 }
