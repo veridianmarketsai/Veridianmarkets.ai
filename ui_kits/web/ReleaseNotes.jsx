@@ -1,8 +1,10 @@
 // Veridian Markets — Release notes / "what we've shipped" page.
 // Public (no sign-in required, like landing/signin) — a plain-language list of
-// shipped features for users, not an engineering changelog. Content is
-// curated by hand from CLAUDEMemory.md's change log; add a new entry at the
-// top of RELEASE_NOTES whenever something real ships.
+// shipped features for users, not an engineering changelog. Reads live from
+// the vm-updates Lambda (posted by Admin → Updates) when available; RELEASE_NOTES
+// below is the fallback mock (and what renders before vm-updates existed) —
+// keep it curated by hand from CLAUDEMemory.md's change log too, since it's
+// still what shows if the Lambda is ever unreachable.
 const RELEASE_NOTES = [
   { date: '2026-07-20', tag: 'Admin', title: 'Admin account actions',
     body: 'Support staff can now suspend, reactivate, or change the plan on an account directly from the admin panel — with extra confirmation steps for anything irreversible.' },
@@ -39,6 +41,11 @@ const RELEASE_NOTES = [
 ];
 
 function ReleaseNotes({ go, isMobile }) {
+  const live = typeof useVMUpdates === 'function' ? useVMUpdates() : { updates: null, live: false };
+  const notes = live.live ? live.updates : RELEASE_NOTES;
+  React.useEffect(() => {
+    if (notes.length && typeof vmMarkUpdatesSeen === 'function') vmMarkUpdatesSeen(notes[0].createdAt || Date.now());
+  }, [notes]);
   const tagTone = (tag) => ({
     Admin:'rgba(163,45,45,0.10)', Security:'rgba(196,106,59,0.12)', 'For you':VM.tealTint,
     Account:'rgba(29,78,58,0.10)', Data:VM.tealTint, Billing:'rgba(196,106,59,0.12)',
@@ -60,8 +67,8 @@ function ReleaseNotes({ go, isMobile }) {
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {RELEASE_NOTES.map((n, i) => (
-          <div key={i} style={{ display: 'flex', gap: 16, padding: '20px 0', borderTop: i === 0 ? 'none' : `1px solid ${VM.borderHair}` }}>
+        {notes.map((n, i) => (
+          <div key={n.id || i} style={{ display: 'flex', gap: 16, padding: '20px 0', borderTop: i === 0 ? 'none' : `1px solid ${VM.borderHair}` }}>
             <div style={{ flexShrink: 0, width: isMobile ? 74 : 96 }}>
               <Mono size={11} color={VM.ink3}>{n.date}</Mono>
             </div>
@@ -71,7 +78,9 @@ function ReleaseNotes({ go, isMobile }) {
                   color: tagFg(n.tag), background: tagTone(n.tag), borderRadius: 5, padding: '2px 8px' }}>{n.tag}</span>
                 <span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 17, color: VM.ink }}>{n.title}</span>
               </div>
-              <p style={{ fontFamily: VM.serif, fontSize: 14.5, color: VM.ink2, margin: 0, lineHeight: 1.55 }}>{n.body}</p>
+              <div style={{ fontFamily: VM.serif, fontSize: 14.5, color: VM.ink2, lineHeight: 1.55 }}>
+                {typeof vmRenderMarkdown === 'function' ? vmRenderMarkdown(n.body) : n.body}
+              </div>
             </div>
           </div>
         ))}

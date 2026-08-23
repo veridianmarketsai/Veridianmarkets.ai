@@ -1,6 +1,38 @@
 // Veridian Markets — app chrome: masthead, left rail, index strip.
 const VM_HEADER_H = 52; // height of the green global top bar
 
+// ── Site-wide beta mode ──────────────────────────────────────────────────────
+// A single admin-toggled flag (Admin → Beta) that shows an orange "beta mode"
+// banner across the whole app for every visitor on this device — including
+// the admin. Same localStorage-only persistence as the rest of the beta
+// programme (vm_beta_users/vm_beta_invites in BetaSignup.jsx).
+const BETA_MODE_KEY = 'vm_beta_mode';
+function isBetaModeOn() { try { return localStorage.getItem(BETA_MODE_KEY) === '1'; } catch { return false; } }
+function setBetaMode(on) {
+  try { localStorage.setItem(BETA_MODE_KEY, on ? '1' : '0'); } catch {}
+  window.dispatchEvent(new Event('vm-beta-mode-change'));
+}
+
+function BetaModeBanner() {
+  const [on, setOn] = React.useState(isBetaModeOn());
+  React.useEffect(() => {
+    const sync = () => setOn(isBetaModeOn());
+    window.addEventListener('storage', sync);
+    window.addEventListener('vm-beta-mode-change', sync);
+    return () => { window.removeEventListener('storage', sync); window.removeEventListener('vm-beta-mode-change', sync); };
+  }, []);
+  if (!on) return null;
+  return (
+    <div style={{ flexShrink:0, background:VM.terra, color:'#FBF3EC', padding:'7px 14px', textAlign:'center',
+      display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+      <i className="ti ti-flask" style={{ fontSize:13 }}></i>
+      <span style={{ fontFamily:VM.mono, fontWeight:700, fontSize:11, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+        Beta mode — you're using a pre-release version of Veridian Markets
+      </span>
+    </div>
+  );
+}
+
 // Full-width green top bar: branding (= home button) + hamburger on mobile.
 function GlobalHeader({ go, isMobile, menuOpen, onToggleMenu, hideMenuButton }) {
   return (
@@ -237,4 +269,4 @@ function Footer({ go }) {
   );
 }
 
-Object.assign(window, { Masthead, Rail, IndexStrip, Footer, GlobalHeader });
+Object.assign(window, { Masthead, Rail, IndexStrip, Footer, GlobalHeader, BetaModeBanner, isBetaModeOn, setBetaMode });

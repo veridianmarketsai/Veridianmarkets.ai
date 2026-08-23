@@ -238,6 +238,90 @@ const OV_STEPS = [
     body:'Who runs the company, how long they have been in seat, and their background. Tenure correlates with execution continuity. Note whether key roles are internal promotes or outside hires — it often signals strategy shifts.' },
 ];
 
+// ── Notes & reminders ────────────────────────────────────────────────────────
+// Per-ticker scratchpad below the price chart. Each published note freezes the
+// price/date/time it was written at (like a dated annotation), so re-reading it
+// later shows what the price was when the thought was captured. Local-only
+// (localStorage), same persistence tier as vmFavs — no backend table for this yet.
+function vmNotesKey(ticker) { return `vm_notes_${String(ticker || '').toUpperCase()}`; }
+function vmGetNotes(ticker) {
+  try { return JSON.parse(localStorage.getItem(vmNotesKey(ticker)) || '[]'); } catch { return []; }
+}
+function vmSaveNotes(ticker, notes) {
+  try { localStorage.setItem(vmNotesKey(ticker), JSON.stringify(notes)); } catch {}
+}
+function vmFmtNoteStamp(ts) {
+  const d = new Date(ts);
+  return `${d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' })} · ${d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' })}`;
+}
+
+function NotesSection({ c, isMobile }) {
+  const live  = typeof useVMQuote === 'function' ? useVMQuote(c.ticker) : null;
+  const price = live ? live.price.toFixed(2) : c.price;
+  const [draft, setDraft] = React.useState('');
+  const [notes, setNotes] = React.useState(() => vmGetNotes(c.ticker));
+
+  function publish() {
+    const text = draft.trim();
+    if (!text) return;
+    const note = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), text, price, ts: Date.now() };
+    const next = [note, ...notes];
+    setNotes(next);
+    vmSaveNotes(c.ticker, next);
+    setDraft('');
+    if (typeof vmCapture === 'function') vmCapture('note_add', { ticker: c.ticker, price });
+  }
+  function remove(id) {
+    const next = notes.filter(n => n.id !== id);
+    setNotes(next);
+    vmSaveNotes(c.ticker, next);
+  }
+
+  return (
+    <div style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12, padding:16 }}>
+      <h3 style={{ fontFamily:VM.serif, fontWeight:700, fontSize:16, margin:'0 0 10px' }}>Notes &amp; reminders</h3>
+      <div style={{ display:'flex', gap:8, alignItems:'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={`Jot a note or reminder about ${c.ticker}…`}
+          rows={2}
+          style={{ flex:1, width: isMobile ? '100%' : 'auto', resize:'vertical', fontFamily:VM.serif, fontSize:13, color:VM.ink,
+            padding:'8px 10px', borderRadius:8, border:`1px solid ${VM.border}`, background:VM.paper }}
+        />
+        <button onClick={publish} disabled={!draft.trim()} style={{
+          fontFamily:VM.mono, fontSize:11, fontWeight:700, padding:'8px 16px', borderRadius:6, whiteSpace:'nowrap',
+          cursor: draft.trim() ? 'pointer' : 'default',
+          border:`1px solid ${VM.forest}`, background: draft.trim() ? VM.forest : VM.paper,
+          color: draft.trim() ? VM.paperWarm : VM.faint, opacity: draft.trim() ? 1 : 0.5 }}>
+          Publish
+        </button>
+      </div>
+      {price != null && (
+        <Mono size={10} color={VM.ink3} style={{ display:'block', marginTop:6 }}>
+          Publishing records the price (${price}), date, and time right now.
+        </Mono>
+      )}
+      <div style={{ marginTop: notes.length ? 14 : 8 }}>
+        {notes.length === 0 && <Mono size={11} color={VM.ink3} style={{ fontStyle:'italic' }}>No notes yet.</Mono>}
+        {notes.map((n) => (
+          <div key={n.id} style={{ padding:'10px 0', borderBottom:`1px dotted ${VM.border}` }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+              <Mono size={10} color={VM.terra} weight={700}>
+                {n.price != null ? `$${n.price}` : '—'} · {vmFmtNoteStamp(n.ts)}
+              </Mono>
+              <button onClick={() => remove(n.id)} title="Delete note" style={{ background:'none', border:'none', cursor:'pointer', color:VM.ink3, padding:0, lineHeight:1 }}>
+                <i className="ti ti-x" style={{ fontSize:12 }}></i>
+              </button>
+            </div>
+            <div style={{ fontFamily:VM.serif, fontSize:14, color:VM.ink, marginTop:4, whiteSpace:'pre-wrap' }}>{n.text}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashOverview({ c, data, go, isMobile }) {
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const { overview, quick, revenueMix, revenueMixMeta, leaders } = data;
@@ -293,6 +377,9 @@ function DashOverview({ c, data, go, isMobile }) {
             <Mono size={11} color={VM.ink3} style={{ fontStyle:'italic', marginTop:4, display:'block' }}>
               {c.ticker} · 5Y with dividends, splits, key events
             </Mono>
+          </div>
+          <div style={{ marginTop:16 }}>
+            <NotesSection c={c} isMobile={isMobile} />
           </div>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:18 }}>

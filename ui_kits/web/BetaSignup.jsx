@@ -144,6 +144,7 @@ function BetaSignup({ go, signIn }) {
   const [error,    setError]    = useStateBs('');
   const [loading,  setLoading]  = useStateBs(false);
   const [invite,   setInvite]   = useStateBs(null);
+  const [showPassword, setShowPassword] = useStateBs(false);
 
   useEffectBs(() => {
     const inv = validateToken(token);
@@ -274,10 +275,19 @@ function BetaSignup({ go, signIn }) {
           <div>
             <label style={{ fontFamily: VM.mono, fontSize: 10, color: VM.ink3, letterSpacing: '0.06em',
               display: 'block', marginBottom: 6 }}>PASSWORD</label>
-            <input value={password} onChange={e => { setPassword(e.target.value); setError(''); }}
-              type="password" placeholder="At least 8 characters" style={field}
-              onFocus={e => e.target.style.borderColor = VM.teal}
-              onBlur={e  => e.target.style.borderColor = VM.border} />
+            <div style={{ position: 'relative' }}>
+              <input value={password} onChange={e => { setPassword(e.target.value); setError(''); }}
+                type={showPassword ? 'text' : 'password'} placeholder="At least 8 characters" style={{ ...field, paddingRight: 42 }}
+                onFocus={e => e.target.style.borderColor = VM.teal}
+                onBlur={e  => e.target.style.borderColor = VM.border} />
+              <button type="button" onClick={() => setShowPassword(x => !x)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                  border: 'none', background: 'transparent', cursor: 'pointer', color: VM.ink3,
+                  padding: 8, display: 'flex', alignItems: 'center' }}>
+                <i className={'ti ti-eye' + (showPassword ? '-off' : '')} style={{ fontSize: 16 }}></i>
+              </button>
+            </div>
           </div>
 
           {error && (

@@ -253,15 +253,14 @@ function BetaFeedback({ user }) {
       {/* Floating trigger button */}
       {!open && (
         <button onClick={openWidget}
-          style={{ position: 'fixed', bottom: 80, left: 16, zIndex: 500,
-            display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px',
-            background: VM.forest, color: VM.paper, border: 'none', borderRadius: 999,
-            fontFamily: VM.mono, fontSize: 11, letterSpacing: '0.06em', cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(29,78,58,0.35)', transition: 'transform .15s',
+          style={{ position: 'fixed', bottom: 80, left: 8, zIndex: 500, width: 192, textAlign: 'left',
+            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+            background: 'transparent', color: VM.teal, border: '1px solid transparent', borderRadius: 7,
+            fontFamily: VM.serif, fontSize: 15, fontWeight: 400, cursor: 'pointer', transition: 'background .12s',
           }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
-          <i className="ti ti-message-2-star" style={{ fontSize: 14 }}></i>
+          onMouseEnter={e => e.currentTarget.style.background = VM.paper}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          <i className="ti ti-message-2-star" style={{ fontSize: 15 }}></i>
           Feedback
         </button>
       )}

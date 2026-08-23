@@ -198,6 +198,7 @@ function AdminPanel({ go, user, isMobile }) {
     { id: 'heatmap',   label: 'Heatmap',   icon: 'flame',             show: true },
     { id: 'beta',      label: 'Beta',      icon: 'test-pipe',         show: true },
     { id: 'media',     label: 'Media',     icon: 'photo-video',       show: true },
+    { id: 'updates',   label: 'Updates',   icon: 'news',              show: true },
     { id: 'analytics', label: 'Analytics', icon: 'chart-histogram',   show: canAnalytics },
     { id: 'team',      label: 'Team',      icon: 'shield-lock',       show: isFullAdmin },
   ].filter(t => t.show);
@@ -245,6 +246,7 @@ function AdminPanel({ go, user, isMobile }) {
         {tab === 'heatmap'   && <HeatmapAdmin isMobile={isMobile} />}
         {tab === 'beta'      && <BetaTab isMobile={isMobile} />}
         {tab === 'media'     && <MediaTab isMobile={isMobile} />}
+        {tab === 'updates'   && <UpdatesTab isMobile={isMobile} />}
         {tab === 'analytics' && <AnalyticsTab stats={stats} isMobile={isMobile} />}
         {tab === 'team'      && <TeamTab user={user} isMobile={isMobile} />}
       </div>
@@ -1836,6 +1838,13 @@ function BetaTab({ isMobile }) {
   const [feedback, setFeedback] = useStateBeta([]);
   const [copied,   setCopied]   = useStateBeta('');
   const [fbExpanded, setFbExp]  = useStateBeta(null);
+  const [betaMode, setBetaModeState] = useStateBeta(window.isBetaModeOn ? window.isBetaModeOn() : false);
+
+  const toggleBetaMode = () => {
+    const next = !betaMode;
+    setBetaModeState(next);
+    if (window.setBetaMode) window.setBetaMode(next);
+  };
 
   const reload = () => {
     setInvites(window.loadBetaInvites  ? window.loadBetaInvites()  : []);
@@ -1880,6 +1889,28 @@ function BetaTab({ isMobile }) {
             background: VM.teal, color: VM.paper, border: 'none', fontFamily: VM.mono, fontSize: 12,
             letterSpacing: '0.06em', cursor: 'pointer' }}>
           <i className="ti ti-plus" style={{ fontSize: 14 }}></i>Generate invite link
+        </button>
+      </div>
+
+      {/* Site-wide beta mode toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+        padding: '14px 16px', borderRadius: 10, marginBottom: 24,
+        border: `1px solid ${betaMode ? VM.terra : VM.borderSoft}`,
+        background: betaMode ? VM.terra + '14' : VM.faint }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <i className="ti ti-flask" style={{ fontSize: 16, color: betaMode ? VM.terra : VM.ink3 }}></i>
+          <div>
+            <div style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 700, color: VM.ink }}>Beta mode</div>
+            <div style={{ fontFamily: VM.mono, fontSize: 10.5, color: VM.ink3, marginTop: 2 }}>
+              Shows an orange "beta mode" banner across the whole site for every visitor, including admins.
+            </div>
+          </div>
+        </div>
+        <button onClick={toggleBetaMode} role="switch" aria-checked={betaMode}
+          style={{ position: 'relative', flexShrink: 0, width: 44, height: 24, borderRadius: 999, cursor: 'pointer',
+            border: 'none', background: betaMode ? VM.terra : VM.border, transition: 'background .15s' }}>
+          <span style={{ position: 'absolute', top: 3, left: betaMode ? 23 : 3, width: 18, height: 18, borderRadius: '50%',
+            background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left .15s' }} />
         </button>
       </div>
 
@@ -1975,6 +2006,201 @@ function BetaTab({ isMobile }) {
                 </div>
               </div>
             ))}
+          </div>
+        ))}
+      </BetaSection>
+    </div>
+  );
+}
+
+// ── Updates ("what's new") ───────────────────────────────────────────────────
+// Admin authors posts here; every signed-in (and signed-out, on the public
+// /updates page) user reads them via the vm-updates Lambda — see
+// ui_kits/web/updates.jsx (useVMUpdates/vmCreateUpdate/vmEditUpdate/vmDeleteUpdate)
+// and ui_kits/web/ReleaseNotes.jsx (the public page that renders the feed).
+const UPDATE_TAGS = ['Update', 'Data', 'Account', 'Security', 'Billing', 'Admin', 'Business', 'Learn', 'For you'];
+
+function UpdatesTab({ isMobile }) {
+  const live = typeof useVMUpdates === 'function' ? useVMUpdates() : { updates: null, loading: false, live: false };
+  const [drafts, setDrafts] = useStateAdmin(null);   // local optimistic copy once loaded
+  const [form, setForm] = useStateAdmin({ title: '', body: '', tag: 'Update' });
+  const [editingId, setEditingId] = useStateAdmin(null);
+  const [busy, setBusy] = useStateAdmin(false);
+  const [msg, setMsg] = useStateAdmin(null);   // { ok, text }
+  const bodyRef = React.useRef(null);
+
+  React.useEffect(() => { if (live.updates && !drafts) setDrafts(live.updates); }, [live.updates]);
+  const list = drafts || live.updates || [];
+
+  const resetForm = () => { setForm({ title: '', body: '', tag: 'Update' }); setEditingId(null); };
+  const startEdit = (n) => { setForm({ title: n.title, body: n.body, tag: n.tag || 'Update' }); setEditingId(n.id); };
+
+  // Markdown toolbar — wraps the current selection (or inserts at the caret
+  // with no selection) in **bold**/*italic*, or prefixes each selected line
+  // with "- " for a bullet list. Restores focus + selection so it feels like
+  // a real editor toolbar, not a plain textarea.
+  const wrapSelection = (before, after = before) => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e, value } = el;
+    const next = value.slice(0, s) + before + value.slice(s, e) + after + value.slice(e);
+    setForm(f => ({ ...f, body: next }));
+    requestAnimationFrame(() => { el.focus(); el.selectionStart = s + before.length; el.selectionEnd = e + before.length; });
+  };
+  const toggleBullets = () => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e, value } = el;
+    const lineStart = value.lastIndexOf('\n', s - 1) + 1;
+    const lineEnd = value.indexOf('\n', e); const end = lineEnd === -1 ? value.length : lineEnd;
+    const block = value.slice(lineStart, end);
+    const lines = block.split('\n');
+    const allBulleted = lines.every(l => /^\s*[-*]\s+/.test(l) || !l.trim());
+    const nextLines = lines.map(l => {
+      if (!l.trim()) return l;
+      return allBulleted ? l.replace(/^\s*[-*]\s+/, '') : (/^\s*[-*]\s+/.test(l) ? l : `- ${l}`);
+    });
+    const next = value.slice(0, lineStart) + nextLines.join('\n') + value.slice(end);
+    setForm(f => ({ ...f, body: next }));
+    requestAnimationFrame(() => el.focus());
+  };
+
+  const submit = async () => {
+    if (!window.VM_UPDATES || !window.VM_UPDATES.url) {
+      setMsg({ ok: false, text: 'vm-updates Lambda URL is not set — add it to VM_UPDATES.url in updates.jsx after deploying (see lambda/updates/vm-updates).' });
+      return;
+    }
+    if (!form.title.trim() || !form.body.trim()) { setMsg({ ok: false, text: 'Title and body are required.' }); return; }
+    setBusy(true); setMsg(null);
+    try {
+      if (editingId) {
+        await vmEditUpdate(editingId, form);
+        setDrafts(d => (d || []).map(n => n.id === editingId ? { ...n, ...form } : n));
+        setMsg({ ok: true, text: 'Update saved.' });
+      } else {
+        const created = await vmCreateUpdate(form);
+        setDrafts(d => [created, ...(d || [])]);
+        setMsg({ ok: true, text: 'Update published — visible to everyone now.' });
+      }
+      resetForm();
+    } catch (e) {
+      setMsg({ ok: false, text: e.message || 'Could not save.' });
+    }
+    setBusy(false);
+  };
+
+  const remove = async (id) => {
+    setBusy(true); setMsg(null);
+    try {
+      await vmDeleteUpdate(id);
+      setDrafts(d => (d || []).filter(n => n.id !== id));
+      if (editingId === id) resetForm();
+    } catch (e) {
+      setMsg({ ok: false, text: e.message || 'Could not delete.' });
+    }
+    setBusy(false);
+  };
+
+  const mono = { fontFamily: VM.mono, fontSize: 11, color: VM.ink3 };
+  const field = { width: '100%', fontFamily: VM.serif, fontSize: 14, color: VM.ink, padding: '9px 12px',
+    borderRadius: 8, border: `1px solid ${VM.border}`, background: VM.paper, outline: 'none' };
+
+  return (
+    <div style={{ maxWidth: 1000 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink }}>Updates</div>
+          <div style={mono}>
+            {list.length} published · shown on the public /updates page, and nudged to users when they next sign in
+          </div>
+        </div>
+      </div>
+
+      {!window.VM_UPDATES?.url && (
+        <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, fontFamily: VM.mono, fontSize: 11, lineHeight: 1.7,
+          color: VM.terra, background: 'rgba(196,106,59,0.1)', border: `1px solid ${VM.terra}40` }}>
+          vm-updates Lambda URL not set — writes will fail until it's deployed (see lambda/updates/vm-updates) and
+          <code> VM_UPDATES.url</code> is set in ui_kits/web/updates.jsx. Reads fall back to the static mock in ReleaseNotes.jsx.
+        </div>
+      )}
+
+      {/* Composer */}
+      <BetaSection label={editingId ? 'Edit update' : 'New update'} icon={editingId ? 'edit' : 'plus'}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 640 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Title" style={{ ...field, flex: '1 1 300px' }} />
+            <select value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))}
+              style={{ ...field, flex: '0 0 150px', cursor: 'pointer' }}>
+              {UPDATE_TAGS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: 2, padding: '4px', borderRadius: '8px 8px 0 0', border: `1px solid ${VM.border}`, borderBottom: 'none', background: VM.faint }}>
+            {[
+              { icon: 'bold', title: 'Bold', run: () => wrapSelection('**') },
+              { icon: 'italic', title: 'Italic', run: () => wrapSelection('*') },
+              { icon: 'list', title: 'Bullet list', run: toggleBullets },
+            ].map(b => (
+              <button key={b.icon} type="button" onClick={b.run} title={b.title}
+                style={{ width: 28, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: 'none', borderRadius: 5, background: 'transparent', color: VM.ink2, cursor: 'pointer' }}>
+                <i className={`ti ti-${b.icon}`} style={{ fontSize: 14 }}></i>
+              </button>
+            ))}
+          </div>
+          <textarea ref={bodyRef} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+            placeholder="What changed, in plain language… select text and use the toolbar above for **bold**, *italic*, or bullet lists"
+            rows={4} style={{ ...field, borderRadius: '0 0 8px 8px', resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={submit} disabled={busy}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8,
+                background: VM.teal, color: VM.paper, border: 'none', fontFamily: VM.mono, fontSize: 12,
+                letterSpacing: '0.06em', cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1 }}>
+              <i className={`ti ti-${busy ? 'loader-2' : editingId ? 'check' : 'send'}`}
+                style={{ fontSize: 14, animation: busy ? 'spin 1s linear infinite' : 'none' }}></i>
+              {editingId ? 'Save changes' : 'Publish'}
+            </button>
+            {editingId && (
+              <button onClick={resetForm} style={{ fontFamily: VM.mono, fontSize: 11, padding: '9px 14px', borderRadius: 8,
+                border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink2, cursor: 'pointer' }}>Cancel</button>
+            )}
+          </div>
+          {msg && (
+            <div style={{ fontFamily: VM.mono, fontSize: 11, lineHeight: 1.6, padding: '9px 12px', borderRadius: 8,
+              color: msg.ok ? VM.teal : VM.downInk,
+              background: msg.ok ? 'rgba(0,140,120,0.08)' : 'rgba(163,45,45,0.08)',
+              border: `1px solid ${(msg.ok ? VM.teal : VM.downInk)}40` }}>{msg.text}</div>
+          )}
+        </div>
+      </BetaSection>
+
+      {/* Published list */}
+      <BetaSection label="Published" icon="list" style={{ marginTop: 28 }}>
+        {live.loading && !drafts && <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>Loading…</div>}
+        {!live.loading && list.length === 0 && (
+          <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No updates published yet.</div>
+        )}
+        {list.map(n => (
+          <div key={n.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '12px 0', borderBottom: `1px solid ${VM.borderSoft}` }}>
+            <div style={{ flexShrink: 0, width: 88 }}><Mono size={10} color={VM.ink3}>{n.date}</Mono></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  color: VM.tealInk, background: VM.tealTint, borderRadius: 5, padding: '2px 8px' }}>{n.tag}</span>
+                <span style={{ fontFamily: VM.serif, fontWeight: 700, fontSize: 14.5, color: VM.ink }}>{n.title}</span>
+              </div>
+              <div style={{ fontFamily: VM.serif, fontSize: 13, color: VM.ink2, lineHeight: 1.5 }}>
+                {typeof vmRenderMarkdown === 'function' ? vmRenderMarkdown(n.body) : n.body}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+              <button onClick={() => startEdit(n)} title="Edit" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: VM.ink3, padding: 6 }}>
+                <i className="ti ti-pencil" style={{ fontSize: 15 }}></i>
+              </button>
+              <button onClick={() => remove(n.id)} title="Delete" disabled={busy} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: VM.downInk, padding: 6 }}>
+                <i className="ti ti-trash" style={{ fontSize: 15 }}></i>
+              </button>
+            </div>
           </div>
         ))}
       </BetaSection>

@@ -312,6 +312,21 @@ function App() {
   // shows what was starred elsewhere, instead of trusting only this
   // browser's localStorage (see vmSyncFavourites in capture.jsx).
   useEffectApp(() => { if (signedIn && typeof vmSyncFavourites === 'function') vmSyncFavourites(); }, [signedIn]);
+  // "New update" nudge — on sign-in, check the vm-updates feed for anything
+  // posted since this browser last saw one (see updates.jsx / Admin → Updates).
+  const [newUpdate, setNewUpdate] = useStateApp(null);
+  useEffectApp(() => {
+    if (!signedIn || typeof vmFetchUpdates !== 'function') return;
+    vmFetchUpdates().then(list => {
+      if (!list || !list.length) return;
+      const lastSeen = typeof vmUpdatesLastSeen === 'function' ? vmUpdatesLastSeen() : 0;
+      if (list[0].createdAt > lastSeen) setNewUpdate(list[0]);
+    });
+  }, [signedIn]);
+  const dismissUpdate = () => {
+    if (newUpdate && typeof vmMarkUpdatesSeen === 'function') vmMarkUpdatesSeen(newUpdate.createdAt);
+    setNewUpdate(null);
+  };
   // Silent data capture: identify who the user is (name/email/plan) and mark the
   // session start. Keeps identity fresh as the user signs in / changes plan.
   useEffectApp(() => {
@@ -395,14 +410,18 @@ function App() {
   const chromeless = effRoute==='landing';
   if (chromeless) {
     return (
-      <div key={'app-'+theme} id="vm-main" style={{ height:'100vh', overflowY:'auto', overflowX:'hidden', background:VM.paperWarm }}>
-        {screen}
+      <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
+        <BetaModeBanner />
+        <div id="vm-main" style={{ flex:1, overflowY:'auto', overflowX:'hidden', background:VM.paperWarm }}>
+          {screen}
+        </div>
       </div>
     );
   }
 
   return (
     <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
+      <BetaModeBanner />
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
         <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
@@ -423,7 +442,7 @@ function App() {
       )}
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
-      {user?.role === 'beta' && <BetaFeedback user={user} />}
+      {(user?.role === 'beta' || isPaying) && <BetaFeedback user={user} />}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
           display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',
@@ -440,6 +459,21 @@ function App() {
           </span>
           <i onClick={dismissNudge} className="ti ti-x"
             style={{ fontSize:13, color:VM.ink3, cursor:'pointer', flexShrink:0, marginLeft:2 }} title="Dismiss"></i>
+        </div>
+      )}
+      {newUpdate && (
+        <div style={{ position:'fixed', top: isMobile ? 60 : 64, right: isMobile ? 12 : 24, zIndex:70, maxWidth: isMobile ? 'calc(100vw - 24px)' : 320,
+          background:VM.paper, border:`1px solid ${VM.teal}`, borderRadius:12,
+          boxShadow:'0 10px 30px rgba(31,29,26,0.18)', padding:'13px 15px', display:'flex', flexDirection:'column', gap:6 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+            <Mono size={9} color={VM.teal} weight={700} style={{ letterSpacing:'0.08em', textTransform:'uppercase' }}>New update</Mono>
+            <i onClick={dismissUpdate} className="ti ti-x" style={{ fontSize:13, color:VM.ink3, cursor:'pointer', flexShrink:0 }} title="Dismiss"></i>
+          </div>
+          <div style={{ fontFamily:VM.serif, fontWeight:700, fontSize:14, color:VM.ink, lineHeight:1.3 }}>{newUpdate.title}</div>
+          <span onClick={() => { dismissUpdate(); go('updates'); }}
+            style={{ fontFamily:VM.mono, fontSize:11, color:VM.teal, cursor:'pointer', userSelect:'none' }}>
+            See what's new →
+          </span>
         </div>
       )}
       {activeTourId && <TourEngine key={activeTourId} tourId={activeTourId} onDone={() => setActiveTourId(null)} />}
