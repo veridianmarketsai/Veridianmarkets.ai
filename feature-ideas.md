@@ -69,6 +69,9 @@ park things so they don't get lost.
 - ~~Remove email from the menu tab.~~ — complete on 2026-07-21: dropped the checkmark + email row that sat under the "Good evening" greeting in the nav rail (`ui_kits/web/chrome.jsx`).
 - ~~Company dashboard breadcrumb: going back deleted the path forward.~~ — complete on 2026-07-21 (raised directly, not from this list): going back to an earlier crumb now just moves a pointer instead of truncating the trail, so crumbs ahead stay in place, greyed out, and clickable to go forward again. Current crumb highlighted in green (`VM.forest`). Two new corner buttons: cog "Reset to initial principle" (jump to the first crumb) and "P" "Make new principle" (collapse the trail to just the current company). Note: this is the *company-dashboard* breadcrumb (`CompanyHead.jsx`) — the separate SCN/dependency-map breadcrumb item above is still open.
 - ~~Remove the chart from the news story tiles.~~ — complete on 2026-07-21 (raised directly, not from this list): dropped the little sparkline from each "For you" / "Global News" story tile on the front page (`FrontPage.jsx`'s `StoryTile`) — it was a fabricated up/down squiggle unrelated to the article, not real per-story data.
+- Feedback widget (screenshot + comment button, beta testers and paying subscribers) — code complete and live-verified on `beta-testing-feature` (2026-08-18): new `vm-feedback` Lambda (presigned S3 upload + submit, real server-side eligibility check — beta/admin group or a real non-free plan, not trusted from the client), `vm-admin-actions` gained a `listFeedback` admin action, new admin **Feedback** tab reads real submissions. **Not yet live in AWS** — `vm-feedback` needs deploying (zip, not paste — needs `s3-request-presigner`), `vm-feedback` DynamoDB table + IAM role need creating, `vm-admin-actions` needs redeploying with `listFeedback`, and `window.VM_FEEDBACK_URL` needs setting in `index.html` once the Function URL exists.
+- ~~Beta signup: sign-up form collects a name but the greeting shows the raw email instead.~~ — complete on 2026-08-19: `vmSignUp` never sent the `name` field to Cognito at all. Fixed for all future signups (beta and regular); the one test account created before the fix needs its name set manually once, via Settings → Personal details or directly in Cognito.
+- ~~Let anyone try Plus/Pro without paying — no commitment, just switch modes.~~ — complete on 2026-08-19: added `VM_BILLING.freeTrialMode` (`billing.jsx`) — while true, both Pricing and Settings → Subscription skip real Stripe entirely and just flip the plan locally, for every plan including switching back to Free. One flag flips this off once Stripe goes live with real keys.
 
 ---
 
@@ -79,3 +82,6 @@ park things so they don't get lost.
 - 2026-07-20 — Added a fresh batch of raw feature ideas from the user.
 - 2026-07-20 — Shipped the Release Notes page and the Admin Overview
   real-data swap (branch `feature-idea-refinements`), ticked off above.
+- 2026-08-18 — Feedback widget wired to real AWS storage (code + local
+  verification done on `beta-testing-feature`); AWS deployment steps still
+  pending, see entry above.

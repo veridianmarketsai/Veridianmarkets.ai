@@ -349,7 +349,16 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('resize', compute); };
   }, [isFull]);
 
-  const data = scnGet(current);
+  const mockData = scnGet(current);
+  // Live Finnhub /stock/supply-chain relationships override the mock inputs/customers
+  // when available (premium plan); the principle's name/meta/groups stay from the mock.
+  const liveSupply = typeof useVMSupplyChain === 'function' ? useVMSupplyChain(current) : { data:null, live:false };
+  const data = (liveSupply.live && liveSupply.data)
+    ? { ...mockData,
+        inputs: (liveSupply.data.inputs || []).length ? liveSupply.data.inputs : mockData.inputs,
+        customers: (liveSupply.data.customers || []).length ? liveSupply.data.customers : mockData.customers,
+        liveSupply: true }
+    : mockData;
   // Per-instrument groups + column labels (commodities/forex override the equity defaults).
   const supGroups  = data.supGroups  || SCN_SUP_GROUPS;
   const custGroups = data.custGroups || SCN_CUST_GROUPS;
@@ -595,6 +604,9 @@ function ScnLiveDemo({ go, isMobile, initialTicker, compact }) {
       <div data-tour="vm-supply-filters" style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginBottom:6 }}>
         <Label style={{ marginRight:2 }}>Filters:</Label>
         {tab('all','All')}{tab('companies','Companies')}{tab('external','External')}
+        <Mono size={10} color={data.liveSupply ? VM.teal : VM.faint} style={{ marginLeft:'auto' }}>
+          {data.liveSupply ? '● live · Finnhub' : '○ sample data'}
+        </Mono>
       </div>
 
       {/* desktop canvas — 3-column map + SVG connectors (full-screen lives here) */}

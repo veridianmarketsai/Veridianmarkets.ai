@@ -1,6 +1,6 @@
 // Veridian Markets — shared company header (breadcrumb, ticker lockup, tabs, quote).
 function CompanyHead({ c, tab, onTabChange, go, isMobile, trail, trailIndex, onResetPrinciple, onNewPrinciple }) {
-  const tabs = ['Overview','Supply chain','Financials','Patents','History','News'];
+  const tabs = ['Overview','Supply chain','Financials','Chart','Patents','History','News'];
   // Live quote (Finnhub via our cached Lambda); falls back to the mock price.
   const live = useVMQuote(c.ticker);
   const price = live ? live.price.toFixed(2) : c.price;

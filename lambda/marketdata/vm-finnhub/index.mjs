@@ -32,6 +32,18 @@ const EP = {
   'usa-spending':      { path: 'stock/usa-spending',              ttl: 86400, params: ['symbol', 'from', 'to'],          win: { from: -365, to: 0 } },
   'lobbying':          { path: 'stock/lobbying',                  ttl: 86400, params: ['symbol', 'from', 'to'],          win: { from: -365, to: 0 } },
   'sec-filings':       { path: 'stock/filings',                   ttl: 21600, params: ['symbol', 'from', 'to', 'form'],  win: { from: -180, to: 0 } },
+
+  // premium endpoints (require a paid Finnhub plan) — see finnhub-roadmap.md
+  'executives':        { path: 'stock/executive',                 ttl: 86400, params: ['symbol'] },
+  'dividends':         { path: 'stock/dividend2',                 ttl: 86400, params: ['symbol'] },
+  'press-releases':    { path: 'press-releases',                  ttl: 21600, params: ['symbol', 'from', 'to'],          win: { from: -180, to: 0 } },
+  'news-sentiment':    { path: 'news-sentiment',                  ttl: 21600, params: ['symbol'] },
+  'ownership':         { path: 'stock/ownership',                 ttl: 86400, params: ['symbol', 'limit'], def: { limit: 20 } },
+  'fund-ownership':    { path: 'stock/fund-ownership',             ttl: 86400, params: ['symbol', 'limit'], def: { limit: 20 } },
+  'revenue-breakdown': { path: 'stock/revenue-breakdown2',        ttl: 86400, params: ['symbol'] },
+  'price-target':      { path: 'stock/price-target',              ttl: 21600, params: ['symbol'] },
+  'sector-metrics':    { path: 'sector/metrics',                  ttl: 86400, params: ['region'], def: { region: 'NA' } },
+  'supply-chain':      { path: 'stock/supply-chain',              ttl: 86400, params: ['symbol'] },
 };
 
 const ymd = (d) => d.toISOString().slice(0, 10);

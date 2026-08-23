@@ -300,6 +300,16 @@ function App() {
   // logged in across days without re-entering the password).
   useEffectApp(() => { vmEnsureFreshSession().then(u => { if (u) setUser(u); }); }, []);
 
+  // ── Feedback-button preview mode (admin testing utility) ───────────────────
+  // Lets an admin preview whether the floating Feedback button shows for a
+  // 'beta'-group user vs a plain 'user', without needing to actually reassign
+  // themselves in Cognito and re-sign-in. Only ever overrides the role used by
+  // the Feedback button below — never isAdmin/isPaying/routing, so an admin can
+  // never lock themselves out by toggling this. Toggled from Admin → Beta.
+  const [fbPreview, setFbPreview] = useStateApp(() => { try { return localStorage.getItem('vm_feedback_preview') || null; } catch { return null; } });
+  useEffectApp(() => { try { fbPreview ? localStorage.setItem('vm_feedback_preview', fbPreview) : localStorage.removeItem('vm_feedback_preview'); } catch {} }, [fbPreview]);
+  window.vmSetFeedbackPreview = setFbPreview;   // read by Admin → Beta's mode buttons
+
   // ── Subscription plan (MOCK until Stripe/billing) ──────────────────────────
   // Everyone starts on 'free'; the /upgrade page flips them to a paid plan. A
   // paying user (signed in + plan≠free) unlocks the gated rail items.
@@ -367,7 +377,7 @@ function App() {
   // bounces a signed-out visitor to sign-in first. Admin still additionally
   // needs the admin role once signed in.
   const isAdmin = !!(user && user.role === 'admin');
-  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates';
+  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates' && route !== 'betasignup';
   const gatedFromAdmin = route==='admin' && !isAdmin;
   const gatedByPlan = GATED_ROUTES.includes(route) && !isPaying;   // paywall
   const effRoute = appGated ? 'signin'
@@ -397,7 +407,7 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} onUpgrade={upgradePlan} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
@@ -442,7 +452,15 @@ function App() {
       )}
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
-      {(user?.role === 'beta' || isPaying) && <BetaFeedback user={user} />}
+      {(() => {
+        // Admin-only preview override — see fbPreview above. While previewing,
+        // 'normal' always hides the button regardless of the admin's real
+        // plan (that's the whole point of simulating a non-eligible user);
+        // otherwise eligibility is admin, real beta, or a paying subscriber.
+        const fbUser = (user?.role === 'admin' && fbPreview) ? { ...user, role: fbPreview } : user;
+        const eligible = fbPreview ? fbUser.role === 'beta' : (fbUser?.role === 'admin' || fbUser?.role === 'beta' || isPaying);
+        return eligible && <BetaFeedback user={fbUser} />;
+      })()}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
           display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',

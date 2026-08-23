@@ -11,6 +11,17 @@ function analystMatch(score, v) {
   return true;
 }
 
+// Does a live trailing dividend yield (%) satisfy the chosen DIVIDEND filter value?
+// Unknown yield (still loading / premium plan not deployed) → keep the row.
+function dividendMatch(yieldPct, v) {
+  if (yieldPct == null) return true;
+  if (v === 'Any')   return yieldPct > 0;
+  if (v === '> 1%')  return yieldPct > 1;
+  if (v === '> 2%')  return yieldPct > 2;
+  if (v === '> 4%')  return yieldPct > 4;
+  return true;
+}
+
 function Screener({ go, isMobile }) {
   const [open, setOpen] = React.useState(null);
   const [filters, setFilters] = React.useState([
@@ -27,7 +38,12 @@ function Screener({ go, isMobile }) {
   // live consensus and keep only those that meet the threshold.
   const analystFilter = filters.find(f => f.k === 'ANALYST');
   const consensus = typeof useVMConsensus === 'function' ? useVMConsensus(analystFilter ? searched.map(c => c.ticker) : []) : {};
-  const shown = analystFilter ? searched.filter(c => analystMatch(consensus[c.ticker], analystFilter.v)) : searched;
+  const byAnalyst = analystFilter ? searched.filter(c => analystMatch(consensus[c.ticker], analystFilter.v)) : searched;
+  // Real dividend filter: when a DIVIDEND chip is active, fetch each company's
+  // live trailing yield and keep only those that meet the threshold.
+  const dividendFilter = filters.find(f => f.k === 'DIVIDEND');
+  const divYield = typeof useVMDividendYield === 'function' ? useVMDividendYield(dividendFilter ? byAnalyst.map(c => c.ticker) : []) : {};
+  const shown = dividendFilter ? byAnalyst.filter(c => dividendMatch(divYield[c.ticker], dividendFilter.v)) : byAnalyst;
   const liveMap = useVMQuotes(shown.map(c => c.ticker));   // live quotes overlay
 
   // No curated match — look up the query against the whole US listing universe
@@ -77,7 +93,7 @@ function Screener({ go, isMobile }) {
           </span>
         )}
       </div>
-      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {shown.length} of {VM_COMPANIES.length} companies{ql ? ` · “${query}”` : ''}{analystFilter ? ` · analyst: ${analystFilter.v} (live)` : ''} · sort: 5Y analogue match</Mono>
+      <Mono size={10} color={VM.ink3} style={{ display:'block', marginBottom:8 }}>showing {shown.length} of {VM_COMPANIES.length} companies{ql ? ` · “${query}”` : ''}{analystFilter ? ` · analyst: ${analystFilter.v} (live)` : ''}{dividendFilter ? ` · dividend: ${dividendFilter.v} (live)` : ''} · sort: 5Y analogue match</Mono>
 
       <div data-tour="vm-screener-results" style={{ background:VM.paper, border:`1px solid ${VM.borderSoft}`, borderRadius:12 }}>
         {!isMobile && (

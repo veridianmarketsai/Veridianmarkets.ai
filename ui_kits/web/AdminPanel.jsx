@@ -82,12 +82,22 @@ function realUserStatus(u) {
   if (u.lastActive && (Date.now() - u.lastActive.getTime()) < 7 * DAY_MS) return 'active';
   return 'inactive';
 }
+// Beta signups are tracked client-side only (BetaSignup.jsx, this browser's
+// localStorage) — Cognito/vm-admin-analytics has no concept of "beta" at
+// all. This cross-references by email so the real Users table can still
+// label them, purely a display join; it doesn't change what plan is
+// actually enforced (that still needs a real Change-plan grant).
+function isLocalBetaUser(email) {
+  if (!email || typeof loadBetaUsers !== 'function') return false;
+  return loadBetaUsers().some(b => b.email.toLowerCase() === email.toLowerCase());
+}
 function normalizeAdminUser(u) {
   const plan = u.plan || 'free';
   return {
     id: u.sub, name: u.name || (u.email ? u.email.split('@')[0] : 'Member'), email: u.email || '',
     plan: plan.charAt(0).toUpperCase() + plan.slice(1),
     planRaw: plan,
+    isBeta: isLocalBetaUser(u.email),
     cognitoStatus: u.status,
     enabled: u.enabled !== false,
     joined: u.created ? new Date(u.created) : null,
@@ -197,6 +207,7 @@ function AdminPanel({ go, user, isMobile }) {
     { id: 'courses',   label: 'Courses',   icon: 'book',              show: canCourses },
     { id: 'heatmap',   label: 'Heatmap',   icon: 'flame',             show: true },
     { id: 'beta',      label: 'Beta',      icon: 'test-pipe',         show: true },
+    { id: 'feedback',  label: 'Feedback',  icon: 'message-2-star',    show: true },
     { id: 'media',     label: 'Media',     icon: 'photo-video',       show: true },
     { id: 'updates',   label: 'Updates',   icon: 'news',              show: true },
     { id: 'analytics', label: 'Analytics', icon: 'chart-histogram',   show: canAnalytics },
@@ -245,6 +256,7 @@ function AdminPanel({ go, user, isMobile }) {
         {tab === 'courses'   && <CoursesTab go={go} isMobile={isMobile} />}
         {tab === 'heatmap'   && <HeatmapAdmin isMobile={isMobile} />}
         {tab === 'beta'      && <BetaTab isMobile={isMobile} />}
+        {tab === 'feedback'  && <FeedbackTab isMobile={isMobile} />}
         {tab === 'media'     && <MediaTab isMobile={isMobile} />}
         {tab === 'updates'   && <UpdatesTab isMobile={isMobile} />}
         {tab === 'analytics' && <AnalyticsTab stats={stats} isMobile={isMobile} />}
@@ -1280,17 +1292,33 @@ const A_USER_COLS = '1.7fr 0.6fr 0.8fr 0.9fr 0.7fr 34px';
 function UsersTab({ onAccess, isMobile }) {
   const { users: realUsers, loading: realLoading, refresh: refreshRealUsers } = useRealAdminUsers();
   const real = !!realUsers;
-  const source = real ? realUsers : VM_USERS;
-  const statusMap = real ? A_STATUS_REAL : A_STATUS;
-  const statusFilters = real ? ['all', 'active', 'inactive', 'unconfirmed', 'suspended'] : ['all', 'active', 'trial', 'churned'];
-  const statusOf = (u) => real ? realUserStatus(u) : u.status;
 
+  // Every hook this component uses must run on every render (Rules of
+  // Hooks) — the loading spinner below is an early *render* branch, not an
+  // early *return*, so it can't skip any of these.
   const [q, setQ] = useStateAdmin('');
   const [status, setStatus] = useStateAdmin('all');
   const [shown, setShown] = useStateAdmin(40);
   const [detail, setDetail] = useStateAdmin(null);
   const [pendingAction, setPendingAction] = useStateAdmin(null);
   const [toast, setToast] = useStateAdmin('');
+
+  // While the real roster is still loading, show a spinner rather than the
+  // 100-user mock set — that was flashing full (but fake) content on every
+  // load, not just a genuine "live data unavailable" fallback.
+  if (realLoading) {
+    return (
+      <div style={{ padding: '48px 16px', textAlign: 'center', fontFamily: VM.mono, fontSize: 11, color: VM.ink3 }}>
+        <i className="ti ti-loader-2" style={{ fontSize: 18 }}></i> Loading live user data…
+      </div>
+    );
+  }
+
+  const source = real ? realUsers : VM_USERS;
+  const statusMap = real ? A_STATUS_REAL : A_STATUS;
+  const statusFilters = real ? ['all', 'active', 'inactive', 'unconfirmed', 'suspended'] : ['all', 'active', 'trial', 'churned'];
+  const statusOf = (u) => real ? realUserStatus(u) : u.status;
+
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
   const access = (u) => { setDetail(null); onAccess(u); };
   const actionDone = (msg) => { setPendingAction(null); setDetail(null); if (real) refreshRealUsers(); showToast(msg); };
@@ -1329,7 +1357,7 @@ function UsersTab({ onAccess, isMobile }) {
           ))}
           {visible.length === 0 && (
             <div style={{ padding: '32px 16px', textAlign: 'center', fontFamily: VM.serif, color: VM.ink3 }}>
-              {(users||[]).length === 0 ? 'No beta users have signed up yet.' : 'No users match.'}
+              {source.length === 0 ? 'No users yet.' : 'No users match.'}
             </div>
           )}
         </div>
@@ -1375,7 +1403,14 @@ function UserRow({ u, real, last, onView, onAccess, onAction, onToast }) {
           <div style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 600, color: VM.ink }}>{u.name}</div>
           <Mono size={10} color={VM.ink3} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{u.email}</Mono>
         </div>
-        <div style={{ textAlign: 'center' }}><Mono size={10.5} weight={600} color={A_PLAN_COLOR[u.plan] || VM.ink2}>{u.plan}</Mono></div>
+        <div style={{ textAlign: 'center' }}>
+          {u.isBeta ? (
+            <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5,
+              color: VM.rustDeep || VM.terra, background: 'rgba(196,106,59,0.14)', border: `1px solid ${VM.terra}` }}>PRO-BETA</span>
+          ) : (
+            <Mono size={10.5} weight={600} color={A_PLAN_COLOR[u.plan] || VM.ink2}>{u.plan}</Mono>
+          )}
+        </div>
         <div style={{ textAlign: 'center' }}>
           <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5, color: st.fg, background: st.bg, border: `1px solid ${st.bd}` }}>{st.label}</span>
         </div>
@@ -1460,7 +1495,7 @@ function UserDetailModal({ u, real, onClose, onAccess, onAction, onToast }) {
   if (real) {
     const st = A_STATUS_REAL[realUserStatus(u)];
     const detail = [
-      ['User ID', u.id], ['Plan', u.plan], ['Status', st.label],
+      ['User ID', u.id], ['Plan', u.isBeta ? 'PRO-BETA' : u.plan], ['Status', st.label],
       ['Joined', u.joined ? aDate(u.joined) : '—'],
       ['Last active', u.lastActive ? aRelReal(u.lastActive) : 'never'],
       ['Events captured', u.eventCount.toLocaleString('en-US')],
@@ -1835,10 +1870,11 @@ function BetaTab({ isMobile }) {
   const { useState: useStateBeta, useEffect: useEffectBeta } = React;
   const [invites,  setInvites]  = useStateBeta([]);
   const [users,    setUsers]    = useStateBeta([]);
-  const [feedback, setFeedback] = useStateBeta([]);
   const [copied,   setCopied]   = useStateBeta('');
-  const [fbExpanded, setFbExp]  = useStateBeta(null);
   const [betaMode, setBetaModeState] = useStateBeta(window.isBetaModeOn ? window.isBetaModeOn() : false);
+  const [fbPreview, setFbPreviewLocal] = useStateBeta(() => { try { return localStorage.getItem('vm_feedback_preview') || null; } catch { return null; } });
+  const [invitesLoading, setInvitesLoading] = useStateBeta(true);
+  const [genError, setGenError] = useStateBeta('');
 
   const toggleBetaMode = () => {
     const next = !betaMode;
@@ -1846,20 +1882,36 @@ function BetaTab({ isMobile }) {
     if (window.setBetaMode) window.setBetaMode(next);
   };
 
-  const reload = () => {
-    setInvites(window.loadBetaInvites  ? window.loadBetaInvites()  : []);
-    setUsers(  window.loadBetaUsers    ? window.loadBetaUsers()    : []);
-    setFeedback(window.loadFeedback    ? window.loadFeedback()    : []);
+  // Invites are real now (vm-admin-actions' createInvite/listInvites/
+  // redeemInvite) — this is the list a token actually has to exist in for
+  // signup to grant anything. Beta users themselves are still the local
+  // tracking record for now (a separate, smaller gap — see PRO-BETA badge
+  // notes elsewhere).
+  const reload = async () => {
+    setUsers(window.loadBetaUsers ? window.loadBetaUsers() : []);
+    setInvitesLoading(true);
+    const r = typeof vmAdminAction === 'function' ? await vmAdminAction('listInvites') : { ok: false };
+    setInvites(r.ok ? r.invites : []);
+    setInvitesLoading(false);
   };
-  useEffectBeta(reload, []);
+  useEffectBeta(() => { reload(); }, []);
 
-  const generateLink = () => {
-    const token = window.generateInviteToken ? window.generateInviteToken() : Math.random().toString(36).slice(2, 14);
-    const inv = { token, createdAt: Date.now(), usedAt: null, usedBy: null };
-    const all = window.loadBetaInvites ? window.loadBetaInvites() : [];
-    all.push(inv);
-    if (window.saveBetaInvites) window.saveBetaInvites(all);
-    setInvites([...all]);
+  // Toggles the floating Feedback button between showing (as a beta user would
+  // see it) and hidden (as a plain signed-in user would) for YOUR OWN admin
+  // session only — a quick way to preview it without reassigning yourself in
+  // Cognito and re-signing in. Clicking the already-active mode turns it off
+  // (back to your real role). Doesn't touch anyone else's account.
+  const setFbMode = (mode) => {
+    const next = fbPreview === mode ? null : mode;
+    setFbPreviewLocal(next);
+    if (window.vmSetFeedbackPreview) window.vmSetFeedbackPreview(next);
+  };
+
+  const generateLink = async () => {
+    setGenError('');
+    const r = typeof vmAdminAction === 'function' ? await vmAdminAction('createInvite') : { ok: false, error: 'not configured' };
+    if (r.ok) setInvites(inv => [r.invite, ...inv]);
+    else setGenError(r.error || 'Could not create an invite link.');
   };
 
   const copyLink = (token) => {
@@ -1881,16 +1933,43 @@ function BetaTab({ isMobile }) {
         <div>
           <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink }}>Beta programme</div>
           <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 4 }}>
-            {users.length} beta users · {invites.filter(i => !i.usedAt).length} unused invites · {feedback.length} feedback items
+            {users.length} beta users · {invites.filter(i => !i.usedAt).length} unused invites
           </div>
         </div>
-        <button onClick={generateLink}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8,
-            background: VM.teal, color: VM.paper, border: 'none', fontFamily: VM.mono, fontSize: 12,
-            letterSpacing: '0.06em', cursor: 'pointer' }}>
-          <i className="ti ti-plus" style={{ fontSize: 14 }}></i>Generate invite link
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={() => setFbMode('beta')} title="Preview the Feedback button as a beta user would see it (your session only)"
+              style={{ fontFamily: VM.mono, fontSize: 11, padding: '7px 14px', borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${fbPreview === 'beta' ? VM.teal : VM.border}`,
+                background: fbPreview === 'beta' ? VM.teal : VM.paper, color: fbPreview === 'beta' ? VM.paper : VM.ink2 }}>
+              Beta mode
+            </button>
+            <button onClick={() => setFbMode('normal')} title="Preview the app as a plain signed-in user would see it (your session only)"
+              style={{ fontFamily: VM.mono, fontSize: 11, padding: '7px 14px', borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${fbPreview === 'normal' ? VM.ink : VM.border}`,
+                background: fbPreview === 'normal' ? VM.ink : VM.paper, color: fbPreview === 'normal' ? VM.paper : VM.ink2 }}>
+              Normal mode
+            </button>
+          </div>
+          <button onClick={generateLink}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8,
+              background: VM.teal, color: VM.paper, border: 'none', fontFamily: VM.mono, fontSize: 12,
+              letterSpacing: '0.06em', cursor: 'pointer' }}>
+            <i className="ti ti-plus" style={{ fontSize: 14 }}></i>Generate invite link
+          </button>
+        </div>
       </div>
+      {fbPreview && (
+        <div style={{ ...mono, marginBottom: 20, padding: '7px 12px', borderRadius: 6, background: VM.faint }}>
+          <i className="ti ti-eye" style={{ fontSize: 12, marginRight: 5 }}></i>
+          Previewing the Feedback button as <strong style={{ color: VM.ink2 }}>{fbPreview === 'beta' ? 'a beta user' : 'a normal user'}</strong> — only affects your own session. Click the mode again to go back to your real role.
+        </div>
+      )}
+
+      {genError && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, fontFamily: VM.mono, fontSize: 11,
+          color: VM.downInk, background: 'rgba(163,45,45,0.08)', border: `1px solid ${VM.downInk}40` }}>{genError}</div>
+      )}
 
       {/* Site-wide beta mode toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
@@ -1916,10 +1995,11 @@ function BetaTab({ isMobile }) {
 
       {/* Invite links */}
       <BetaSection label="Invite links" icon="link">
-        {invites.length === 0 && (
+        {invitesLoading && <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}><i className="ti ti-loader-2"></i> Loading invites…</div>}
+        {!invitesLoading && invites.length === 0 && (
           <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No invites yet — click Generate to create one.</div>
         )}
-        {[...invites].reverse().map(inv => {
+        {!invitesLoading && invites.map(inv => {
           const url = `${location.origin}/invite/${inv.token}`;
           return (
             <div key={inv.token} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
@@ -1969,46 +2049,220 @@ function BetaTab({ isMobile }) {
           </table>
         </div>
       </BetaSection>
+    </div>
+  );
+}
 
-      {/* Feedback */}
-      <BetaSection label="Feedback submissions" icon="message-2-star" style={{ marginTop: 28 }}>
-        {feedback.length === 0 && (
-          <div style={{ ...mono, padding: '20px 0', textAlign: 'center' }}>No feedback yet.</div>
-        )}
-        {[...feedback].reverse().map(fb => (
-          <div key={fb.id} style={{ borderBottom: `1px solid ${VM.borderSoft}`, padding: '12px 0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 600, color: VM.ink }}>{fb.userName}</span>
-              <span style={{ ...mono, fontSize: 10 }}>{fb.userEmail}</span>
-              <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>·</span>
-              <span style={{ ...mono, fontSize: 10 }}>{fb.route}</span>
-              <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>·</span>
-              <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>{new Date(fb.ts).toLocaleString()}</span>
-              {badge(`${fb.items?.length || 1} suggestion${(fb.items?.length || 1) > 1 ? 's' : ''}`, VM.terra)}
-              <button onClick={() => setFbExp(fbExpanded === fb.id ? null : fb.id)}
-                style={{ marginLeft: 'auto', fontFamily: VM.mono, fontSize: 10, padding: '3px 10px',
-                  borderRadius: 5, border: `1px solid ${VM.border}`, background: VM.faint, color: VM.ink2, cursor: 'pointer' }}>
-                {fbExpanded === fb.id ? 'Collapse' : 'View'}
-              </button>
+
+const FB_STATUS_LABEL = { new: 'New', in_progress: 'In progress', resolved: 'Resolved' };
+const FB_STATUS_COLOR = { new: VM.terra, in_progress: VM.teal, resolved: VM.ink3 };
+
+function FeedbackTab({ isMobile }) {
+  const { useState: useStateFbT, useEffect: useEffectFbT } = React;
+  const [feedback, setFeedback] = useStateFbT([]);
+  const [loaded,   setLoaded]   = useStateFbT(false);
+  const [fbExpanded, setFbExp]  = useStateFbT(null);
+  const [filter,   setFilter]   = useStateFbT('all');
+  const [lightbox, setLightbox] = useStateFbT(null);   // screenshot URL currently shown full-screen
+  const [noteEditing, setNoteEditing] = useStateFbT(null);   // id of item whose note textarea is open
+  const [noteDraft, setNoteDraft]     = useStateFbT('');
+
+  const reload = async () => {
+    if (window.VM_FEEDBACK_URL && window.vmFeedbackListAll) {
+      const r = await window.vmFeedbackListAll();
+      if (r.ok) { setFeedback(r.items); setLoaded(true); return; }
+    }
+    setFeedback(window.loadFeedback ? window.loadFeedback() : []);
+    setLoaded(true);
+  };
+  useEffectFbT(() => { reload(); }, []);
+
+  const toggleExpand = async (fb) => {
+    if (fbExpanded === fb.id) { setFbExp(null); return; }
+    setFbExp(fb.id);
+    if (!fb.items && window.VM_FEEDBACK_URL && window.vmFeedbackGetItem) {
+      const r = await window.vmFeedbackGetItem(fb.sub, fb.id);
+      if (r.ok) setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, items: r.item.items } : f));
+    }
+  };
+
+  const setStatus = async (fb, status) => {
+    setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, status } : f));
+    if (window.VM_FEEDBACK_URL && window.vmFeedbackSetStatus && fb.sub) {
+      await window.vmFeedbackSetStatus(fb.sub, fb.id, status);
+    } else if (window.loadFeedback && window.saveFeedback) {
+      const all = window.loadFeedback();
+      const idx = all.findIndex(f => f.id === fb.id);
+      if (idx >= 0) { all[idx] = { ...all[idx], status }; window.saveFeedback(all); }
+    }
+  };
+
+  const openNoteEditor = (fb) => { setNoteEditing(fb.id); setNoteDraft(fb.adminNote || ''); };
+
+  const saveNote = async (fb) => {
+    const note = noteDraft;
+    setFeedback(prev => prev.map(f => f.id === fb.id ? { ...f, adminNote: note } : f));
+    setNoteEditing(null);
+    if (window.VM_FEEDBACK_URL && window.vmFeedbackSetNote && fb.sub) {
+      await window.vmFeedbackSetNote(fb.sub, fb.id, note);
+    } else if (window.loadFeedback && window.saveFeedback) {
+      const all = window.loadFeedback();
+      const idx = all.findIndex(f => f.id === fb.id);
+      if (idx >= 0) { all[idx] = { ...all[idx], adminNote: note }; window.saveFeedback(all); }
+    }
+  };
+
+  const mono = { fontFamily: VM.mono, fontSize: 11, color: VM.ink3 };
+  const sorted = [...feedback].sort((a, b) => b.ts - a.ts);
+  const counts = {
+    all: sorted.length,
+    new: sorted.filter(f => (f.status || 'new') === 'new').length,
+    in_progress: sorted.filter(f => f.status === 'in_progress').length,
+    resolved: sorted.filter(f => f.status === 'resolved').length,
+  };
+  const visible = filter === 'all' ? sorted : sorted.filter(f => (f.status || 'new') === filter);
+
+  return (
+    <div style={{ maxWidth: 1000 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <div style={{ fontFamily: VM.serif, fontSize: 22, fontWeight: 700, color: VM.ink }}>Feedback</div>
+          <div style={{ fontFamily: VM.mono, fontSize: 11, color: VM.ink3, marginTop: 4 }}>
+            {counts.all} submission{counts.all === 1 ? '' : 's'} · {counts.new} new
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {['all', 'new', 'in_progress', 'resolved'].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{ fontFamily: VM.mono, fontSize: 11, padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
+                border: `1px solid ${filter === f ? VM.forest : VM.border}`,
+                background: filter === f ? VM.forest : VM.paper, color: filter === f ? VM.paperWarm : VM.ink2 }}>
+              {f === 'all' ? `All (${counts.all})` : `${FB_STATUS_LABEL[f]} (${counts[f]})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loaded && visible.length === 0 && (
+        <div style={{ ...mono, padding: '40px 0', textAlign: 'center' }}>
+          {feedback.length === 0 ? 'No feedback submitted yet.' : 'Nothing in this filter.'}
+        </div>
+      )}
+
+      {visible.map(fb => (
+        <div key={fb.id} style={{ borderBottom: `1px solid ${VM.borderSoft}`, padding: '14px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 600, color: VM.ink }}>{fb.userName}</span>
+            <span style={{ ...mono, fontSize: 10 }}>{fb.userEmail}</span>
+            <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>·</span>
+            <span style={{ ...mono, fontSize: 10 }}>{fb.route}</span>
+            <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>·</span>
+            <span style={{ ...mono, fontSize: 10, color: VM.ink3 }}>{new Date(fb.ts).toLocaleString()}</span>
+            <span style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+              padding: '2px 7px', borderRadius: 4, background: VM.terra + '18', color: VM.terra, border: `1px solid ${VM.terra}40` }}>
+              {fb.itemCount || fb.items?.length || 1} suggestion{(fb.itemCount || fb.items?.length || 1) > 1 ? 's' : ''}
+            </span>
+            <button onClick={() => openNoteEditor(fb)}
+              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, fontFamily: VM.mono, fontSize: 10, padding: '3px 10px',
+                borderRadius: 5, border: `1px solid ${VM.border}`, background: VM.faint, color: VM.ink2, cursor: 'pointer' }}>
+              <i className="ti ti-message-plus" style={{ fontSize: 12 }}></i>{fb.adminNote ? 'Edit comment' : 'Add comment'}
+            </button>
+            <button onClick={() => toggleExpand(fb)}
+              style={{ fontFamily: VM.mono, fontSize: 10, padding: '3px 10px',
+                borderRadius: 5, border: `1px solid ${VM.border}`, background: VM.faint, color: VM.ink2, cursor: 'pointer' }}>
+              {fbExpanded === fb.id ? 'Collapse' : 'View'}
+            </button>
+          </div>
+
+          {noteEditing === fb.id ? (
+            <div style={{ margin: '8px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <textarea autoFocus value={noteDraft} onChange={e => setNoteDraft(e.target.value)}
+                placeholder="Internal note — not visible to the submitter…" rows={2}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, fontFamily: VM.serif, fontSize: 13,
+                  border: `1.5px solid ${VM.teal}`, background: VM.paper, color: VM.ink, resize: 'vertical', outline: 'none' }} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => saveNote(fb)}
+                  style={{ fontFamily: VM.mono, fontSize: 10, padding: '4px 12px', borderRadius: 5, border: 'none',
+                    background: VM.teal, color: VM.paper, cursor: 'pointer' }}>Save</button>
+                <button onClick={() => setNoteEditing(null)}
+                  style={{ fontFamily: VM.mono, fontSize: 10, padding: '4px 12px', borderRadius: 5,
+                    border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink2, cursor: 'pointer' }}>Cancel</button>
+              </div>
             </div>
+          ) : fb.adminNote && (
+            <div style={{ margin: '8px 0', padding: '8px 10px', borderRadius: 6, background: VM.faint,
+              borderLeft: `3px solid ${VM.teal}` }}>
+              <div style={{ ...mono, fontSize: 9, textTransform: 'uppercase', marginBottom: 3 }}>Your note</div>
+              <div style={{ fontFamily: VM.serif, fontSize: 13, color: VM.ink2, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{fb.adminNote}</div>
+            </div>
+          )}
 
-            {fbExpanded === fb.id && (fb.items || []).map((item, i) => (
-              <div key={i} style={{ marginTop: 10, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                {item.screenshot && (
-                  <img src={item.screenshot} alt={`Suggestion ${i+1}`}
-                    style={{ width: 220, borderRadius: 6, border: `1px solid ${VM.border}`, flexShrink: 0 }} />
-                )}
-                <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ ...mono, marginBottom: 4, textTransform: 'uppercase', fontSize: 9 }}>Suggestion {i+1}</div>
-                  <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.55 }}>
-                    {item.comment || <span style={{ color: VM.ink3 }}>No comment left.</span>}
-                  </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <span style={{ ...mono, fontSize: 9, marginRight: 2 }}>STATUS</span>
+            {['new', 'in_progress', 'resolved'].map(s => {
+              const active = (fb.status || 'new') === s;
+              return (
+                <button key={s} onClick={() => setStatus(fb, s)}
+                  style={{ fontFamily: VM.mono, fontSize: 9, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase',
+                    padding: '3px 9px', borderRadius: 5, cursor: 'pointer',
+                    border: `1px solid ${active ? FB_STATUS_COLOR[s] : VM.border}`,
+                    background: active ? FB_STATUS_COLOR[s] + '18' : VM.paper,
+                    color: active ? FB_STATUS_COLOR[s] : VM.ink3 }}>
+                  {FB_STATUS_LABEL[s]}
+                </button>
+              );
+            })}
+          </div>
+
+          {fbExpanded === fb.id && !fb.items && (
+            <div style={{ ...mono, padding: '10px 0' }}>
+              <i className="ti ti-loader-2" style={{ fontSize: 12, marginRight: 6, animation: 'spin 1s linear infinite' }}></i>
+              Loading screenshots…
+            </div>
+          )}
+
+          {fbExpanded === fb.id && (fb.items || []).map((item, i) => (
+            <div key={i} style={{ marginTop: 10, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {item.screenshot && (
+                <img src={item.screenshot} alt={`Suggestion ${i+1}`} onClick={() => setLightbox(item.screenshot)}
+                  style={{ width: 220, borderRadius: 6, border: `1px solid ${VM.border}`, flexShrink: 0, cursor: 'zoom-in' }} />
+              )}
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ ...mono, marginBottom: 4, textTransform: 'uppercase', fontSize: 9 }}>Suggestion {i+1}</div>
+                <div style={{ fontFamily: VM.serif, fontSize: 14, color: VM.ink2, lineHeight: 1.55 }}>
+                  {item.comment || <span style={{ color: VM.ink3 }}>No comment left.</span>}
                 </div>
               </div>
-            ))}
-          </div>
-        ))}
-      </BetaSection>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}
+    </div>
+  );
+}
+
+// Full-screen click-to-zoom viewer for a single screenshot — Escape or a click
+// anywhere outside the image closes it.
+function ImageLightbox({ src, onClose }) {
+  const { useEffect: useEffectLb } = React;
+  useEffectLb(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 32, background: 'rgba(10,8,6,0.85)', cursor: 'zoom-out' }}>
+      <img src={src} alt="Feedback screenshot, full size"
+        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8,
+          boxShadow: '0 24px 80px rgba(0,0,0,0.5)' }} />
+      <button onClick={onClose}
+        style={{ position: 'fixed', top: 20, right: 24, background: 'transparent', border: 'none', cursor: 'pointer',
+          color: VM.paperWarm, fontSize: 28, lineHeight: 1, padding: '4px 10px' }}>✕</button>
     </div>
   );
 }
