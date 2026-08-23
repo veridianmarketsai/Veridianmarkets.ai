@@ -258,6 +258,9 @@ function MyPortfolio({ go, user, isMobile }) {
         <PortfolioScn pf={pf} />
       </PfSection>
 
+      {/* ── 7. My feedback ───────────────────────────────────────────────── */}
+      <MyFeedback user={user} />
+
       {tutorialOpen && <TutorialOverlay steps={PF_STEPS} label="My Account tutorial" onClose={()=>setTutorialOpen(false)} />}
 
     </div>
@@ -482,6 +485,82 @@ function PortfolioScn({ pf }) {
       {/* SCN canvas */}
       <ScnLiveDemo compact={true} initialTicker={active} key={active} />
     </div>
+  );
+}
+
+// ── My feedback ────────────────────────────────────────────────────────────────
+// Every Feedback-button submission this signed-in user has made. Pulls from
+// lambda/feedback/vm-feedback (server-side scoped to this user's sub — see
+// BetaFeedback.jsx) when window.VM_FEEDBACK_URL is configured; otherwise falls
+// back to this browser's local copy, filtered by email. Screenshots are lazily
+// fetched on "View" (list calls return summaries only), same pattern as the
+// Admin → Beta → Feedback submissions view.
+function MyFeedback({ user }) {
+  const [items, setItems] = useStateMP(null);   // null = loading
+  const [expanded, setExpanded] = useStateMP(null);
+
+  useEffectMP(() => {
+    let cancelled = false;
+    (async () => {
+      if (window.VM_FEEDBACK_URL && window.vmFeedbackListMine) {
+        const r = await window.vmFeedbackListMine();
+        if (!cancelled && r.ok) { setItems(r.items); return; }
+      }
+      const local = (window.loadFeedback ? window.loadFeedback() : [])
+        .filter(f => f.userEmail === user?.email);
+      if (!cancelled) setItems(local);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.email]);
+
+  const toggleExpand = async (fb) => {
+    if (expanded === fb.id) { setExpanded(null); return; }
+    setExpanded(fb.id);
+    if (!fb.items && window.VM_FEEDBACK_URL && window.vmFeedbackGetItem) {
+      const r = await window.vmFeedbackGetItem(user.sub, fb.id);
+      if (r.ok) setItems(prev => prev.map(f => f.id === fb.id ? { ...f, items: r.item.items } : f));
+    }
+  };
+
+  return (
+    <PfSection title="My feedback" icon="message-2-star" style={{ marginTop:18 }}>
+      {items === null && <Mono size={11} color={VM.ink3}>Loading…</Mono>}
+      {items !== null && items.length === 0 && (
+        <Mono size={11} color={VM.ink3}>You haven't submitted any feedback yet — use the Feedback button in the bottom-left corner of any page.</Mono>
+      )}
+      {items !== null && [...items].reverse().map(fb => (
+        <div key={fb.id} style={{ borderBottom:`1px dotted ${VM.borderHair}`, padding:'10px 0' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+            <Mono size={11} weight={700} color={VM.ink2}>{fb.route}</Mono>
+            <Mono size={10} color={VM.ink3}>{new Date(fb.ts).toLocaleString()}</Mono>
+            <Mono size={9} color={VM.ink3} style={{ letterSpacing:'0.06em', textTransform:'uppercase' }}>{fb.status || 'new'}</Mono>
+            <button onClick={()=>toggleExpand(fb)}
+              style={{ marginLeft:'auto', fontFamily:VM.mono, fontSize:10, padding:'3px 10px', borderRadius:5,
+                border:`1px solid ${VM.border}`, background:VM.faint, color:VM.ink2, cursor:'pointer' }}>
+              {expanded === fb.id ? 'Collapse' : 'View'}
+            </button>
+          </div>
+
+          {expanded === fb.id && !fb.items && (
+            <Mono size={11} color={VM.ink3} style={{ display:'block', padding:'8px 0' }}>Loading…</Mono>
+          )}
+          {expanded === fb.id && (fb.items || []).map((item, i) => (
+            <div key={i} style={{ marginTop:10, display:'flex', gap:12, flexWrap:'wrap' }}>
+              {item.screenshot && (
+                <img src={item.screenshot} alt={`Suggestion ${i+1}`}
+                  style={{ width:200, borderRadius:6, border:`1px solid ${VM.border}`, flexShrink:0 }} />
+              )}
+              <div style={{ flex:1, minWidth:180 }}>
+                <Mono size={9} color={VM.ink3} style={{ display:'block', marginBottom:4, textTransform:'uppercase' }}>Suggestion {i+1}</Mono>
+                <div style={{ fontFamily:VM.serif, fontSize:13, color:VM.ink2, lineHeight:1.5 }}>
+                  {item.comment || <span style={{ color:VM.ink3 }}>No comment left.</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </PfSection>
   );
 }
 

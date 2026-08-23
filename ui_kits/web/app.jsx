@@ -300,6 +300,16 @@ function App() {
   // logged in across days without re-entering the password).
   useEffectApp(() => { vmEnsureFreshSession().then(u => { if (u) setUser(u); }); }, []);
 
+  // ── Feedback-button preview mode (admin testing utility) ───────────────────
+  // Lets an admin preview whether the floating Feedback button shows for a
+  // 'beta'-group user vs a plain 'user', without needing to actually reassign
+  // themselves in Cognito and re-sign-in. Only ever overrides the role used by
+  // the Feedback button below — never isAdmin/isPaying/routing, so an admin can
+  // never lock themselves out by toggling this. Toggled from Admin → Beta.
+  const [fbPreview, setFbPreview] = useStateApp(() => { try { return localStorage.getItem('vm_feedback_preview') || null; } catch { return null; } });
+  useEffectApp(() => { try { fbPreview ? localStorage.setItem('vm_feedback_preview', fbPreview) : localStorage.removeItem('vm_feedback_preview'); } catch {} }, [fbPreview]);
+  window.vmSetFeedbackPreview = setFbPreview;   // read by Admin → Beta's mode buttons
+
   // ── Subscription plan (MOCK until Stripe/billing) ──────────────────────────
   // Everyone starts on 'free'; the /upgrade page flips them to a paid plan. A
   // paying user (signed in + plan≠free) unlocks the gated rail items.
@@ -308,6 +318,10 @@ function App() {
   // Source of truth = the backend (vm-billing-status). On load / after sign-in,
   // fetch the real plan and reconcile the local cache. No-op until statusUrl is set.
   useEffectApp(() => { if (signedIn && typeof vmFetchPlan === 'function') vmFetchPlan().then(p => { if (p) setPlan(p); }); }, [signedIn]);
+  // Pull favourites back from the account so a different browser/device
+  // shows what was starred elsewhere, instead of trusting only this
+  // browser's localStorage (see vmSyncFavourites in capture.jsx).
+  useEffectApp(() => { if (signedIn && typeof vmSyncFavourites === 'function') vmSyncFavourites(); }, [signedIn]);
   // Silent data capture: identify who the user is (name/email/plan) and mark the
   // session start. Keeps identity fresh as the user signs in / changes plan.
   useEffectApp(() => {
@@ -348,7 +362,7 @@ function App() {
   // bounces a signed-out visitor to sign-in first. Admin still additionally
   // needs the admin role once signed in.
   const isAdmin = !!(user && user.role === 'admin');
-  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates';
+  const appGated = !signedIn && route !== 'landing' && route !== 'signin' && route !== 'updates' && route !== 'betasignup';
   const gatedFromAdmin = route==='admin' && !isAdmin;
   const gatedByPlan = GATED_ROUTES.includes(route) && !isPaying;   // paywall
   const effRoute = appGated ? 'signin'
@@ -378,7 +392,7 @@ function App() {
   else if(effRoute==='myportfolio') screen = <MyPortfolio go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='mybusiness') screen = <MyBusiness go={go} user={user} isMobile={isMobile} />;
   else if(effRoute==='admin') screen = <AdminPanel go={go} user={user} isMobile={isMobile} />;
-  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} />;
+  else if(effRoute==='settings') screen = <AccountSettings go={go} user={user} onSignOut={signOut} onUserRefresh={refreshUser} isMobile={isMobile} theme={theme} onThemeChange={(n)=>window.applyVMTheme(n)} plan={plan} onUpgrade={upgradePlan} />;
   else if(effRoute==='calendar') screen = <Calendar go={go} isMobile={isMobile} />;
   else if(effRoute==='news') screen = <News go={go} isMobile={isMobile} user={user} />;
   else if(effRoute==='upgrade') screen = <Pricing go={go} plan={plan} signedIn={signedIn} user={user} onUpgrade={upgradePlan} blockedRoute={pendingRoute} isMobile={isMobile} />;
@@ -399,6 +413,12 @@ function App() {
 
   return (
     <div key={'app-'+theme} style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:VM.paperWarm }}>
+      {user?.role === 'beta' && (
+        <div style={{ flexShrink:0, padding:'4px 0', textAlign:'center', background:VM.terra,
+          fontFamily:VM.mono, fontSize:10.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:VM.paperWarm }}>
+          Beta mode
+        </div>
+      )}
       <GlobalHeader go={go} isMobile={isMobile} menuOpen={menuOpen} onToggleMenu={()=>setMenuOpen(o=>!o)} hideMenuButton={bare} />
       {bare ? (
         <main id="vm-main" style={{ flex:1, overflowY:'auto', minHeight:0, background:VM.paperWarm, paddingBottom: isMobile ? 76 : 0 }}>
@@ -419,7 +439,15 @@ function App() {
       )}
       {isMobile && <MobileAppCta />}
       <AiAssistant isMobile={isMobile} bottom={isMobile ? 86 : (isMobile ? 16 : 24)} />
-      {user?.role === 'beta' && <BetaFeedback user={user} />}
+      {(() => {
+        // Admin-only preview override — see fbPreview above. While previewing,
+        // 'normal' always hides the button regardless of the admin's real
+        // plan (that's the whole point of simulating a non-eligible user);
+        // otherwise eligibility is admin, real beta, or a paying subscriber.
+        const fbUser = (user?.role === 'admin' && fbPreview) ? { ...user, role: fbPreview } : user;
+        const eligible = fbPreview ? fbUser.role === 'beta' : (fbUser?.role === 'admin' || fbUser?.role === 'beta' || isPaying);
+        return eligible && <BetaFeedback user={fbUser} />;
+      })()}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',
           display:'flex', alignItems:'center', gap:11, padding:'12px 22px 12px 18px',
@@ -443,4 +471,32 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// Catches render-time errors anywhere in the tree so one bad component (e.g.
+// a page's data assumption breaking, or one of the ~40 babel-standalone
+// script tags failing to load/parse over a flaky connection) shows a
+// "something went wrong" screen instead of React silently unmounting the
+// whole app to a blank white page. Colors are hardcoded rather than read
+// from VM.* — the failure this guards against can itself be an earlier
+// script (including the one defining VM) not having loaded.
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) {
+    console.error('VM render error', error, info);
+    if (typeof vmCapture === 'function') vmCapture('render_error', { message: String((error && error.message) || error).slice(0, 200) });
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14, background:'#faf7f2', fontFamily:'Georgia, serif', padding:24, textAlign:'center' }}>
+        <div style={{ fontSize:18, color:'#1f1d1a' }}>Something went wrong loading this page.</div>
+        <button onClick={() => window.location.reload()}
+          style={{ fontFamily:'inherit', fontSize:14, padding:'10px 20px', borderRadius:999, border:'1px solid #1f1d1a', background:'#1f1d1a', color:'#faf7f2', cursor:'pointer' }}>
+          Reload
+        </button>
+      </div>
+    );
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);

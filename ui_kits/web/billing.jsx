@@ -10,6 +10,10 @@
 const VM_BILLING = {
   currency: '$',   // display currency (USD). NOTE: Stripe products are still GBP —
                    // recreate the Stripe prices in USD before go-live (see review.md).
+  // Pre-launch: everyone can switch Free/Plus/Pro freely, no Stripe, no charge —
+  // let people try the full product. Flip to false once Stripe goes live with
+  // real keys, which re-enables the real checkout below for plus/pro.
+  freeTrialMode: true,
   apiBase: 'https://47tm6sz4m3l4hzlbygg6v7lxu40fsqqb.lambda-url.us-east-1.on.aws/',   // vm-billing-checkout Lambda (one customer per user)
   statusUrl: 'https://v4fittjxd55ruqgtiqxbqyxvai0huddy.lambda-url.us-east-1.on.aws/', // vm-billing-status Lambda (returns the real plan)
   portalUrl: 'https://yl7uzroqmm5np3y3kmvxnf5l2u0sliho.lambda-url.us-east-1.on.aws/', // vm-billing-portal Lambda (cancel / switch)
@@ -30,6 +34,7 @@ const VM_BILLING = {
 async function vmStartCheckout(planId) {
   if (typeof vmCapture === 'function') vmCapture('checkout_start', { plan: planId });
   if (planId === 'free' || planId === 'business') return false;
+  if (VM_BILLING.freeTrialMode) return false;   // pre-launch: caller's local mock flips the plan, no real charge
   const user = typeof vmLoadUser === 'function' ? vmLoadUser() : null;
   let session = null; try { session = JSON.parse(localStorage.getItem('vm_session') || 'null'); } catch {}
 

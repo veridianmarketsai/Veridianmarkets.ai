@@ -1,9 +1,8 @@
 // Veridian Markets — Beta Feedback Widget
-// Floating button visible to beta users on every page.
-// Click → captures a screenshot of the current page → canvas annotation
-//       → comment → submit (stored in localStorage + optional AWS endpoint).
+// Floating button visible to beta/admin users on every page.
+// Click → captures a screenshot via getDisplayMedia (native tab share) → canvas
+//       annotation → comment → submit (stored in localStorage + optional AWS endpoint).
 //
-// Requires html2canvas (loaded via CDN in index.html).
 // window.VM_FEEDBACK_URL — optional: POST feedback JSON here.
 // Storage key: 'vm_beta_feedback'
 
@@ -12,7 +11,34 @@ const { useState: useStateFb, useEffect: useEffectFb, useRef: useRefFb, useCallb
 const FEEDBACK_KEY = 'vm_beta_feedback';
 function loadFeedback() { try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '[]'); } catch { return []; } }
 function saveFeedback(a) { try { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(a)); } catch {} }
-Object.assign(window, { loadFeedback, saveFeedback });
+
+// ── AWS-backed feedback API (lambda/feedback/vm-feedback) ──────────────────────
+// Falls back to { ok:false } when window.VM_FEEDBACK_URL isn't configured or the
+// user isn't signed in with a real Cognito session — callers treat that as "use
+// the local-only copy instead", same fallback shape as vmUploadAvatar.
+async function vmFeedbackCall(body) {
+  if (!window.VM_FEEDBACK_URL) return { ok: false, error: 'not configured' };
+  let session = null; try { session = JSON.parse(localStorage.getItem('vm_session') || 'null'); } catch {}
+  if (!session || !session.access) return { ok: false, error: 'not signed in' };
+  try {
+    const res = await fetch(window.VM_FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access}` },
+      body: JSON.stringify(body),
+    });
+    return await res.json();
+  } catch { return { ok: false, error: 'network error' }; }
+}
+function vmFeedbackSubmit(items, page, route, userEmail, userName) {
+  return vmFeedbackCall({ action: 'submit', items, page, route, userEmail, userName });
+}
+function vmFeedbackListMine() { return vmFeedbackCall({ action: 'listMine' }); }
+function vmFeedbackListAll()  { return vmFeedbackCall({ action: 'listAll' }); }
+function vmFeedbackGetItem(sub, id) { return vmFeedbackCall({ action: 'getItem', sub, id }); }
+function vmFeedbackSetStatus(sub, id, status) { return vmFeedbackCall({ action: 'setStatus', sub, id, status }); }
+function vmFeedbackSetNote(sub, id, note) { return vmFeedbackCall({ action: 'setNote', sub, id, note }); }
+
+Object.assign(window, { loadFeedback, saveFeedback, vmFeedbackSubmit, vmFeedbackListMine, vmFeedbackListAll, vmFeedbackGetItem, vmFeedbackSetStatus, vmFeedbackSetNote });
 
 // ── Drawing canvas ────────────────────────────────────────────────────────────
 function AnnotationCanvas({ screenshotUrl, canvasRef, tool, color, lineWidth }) {
@@ -77,7 +103,7 @@ function AnnotationCanvas({ screenshotUrl, canvasRef, tool, color, lineWidth }) 
 }
 
 // ── Single feedback item editor ───────────────────────────────────────────────
-function FeedbackEditor({ index, total, screenshot, comment, onCommentChange, canvasRef, tool, setTool, color, setColor, lineWidth, setLineWidth }) {
+function FeedbackEditor({ index, total, screenshot, comment, onCommentChange, canvasRef, tool, setTool, color, setColor, lineWidth, setLineWidth, captureError, onRetryCapture }) {
   const COLORS = ['#e05', '#f80', '#2a8', '#47f', '#ff0', '#1a1814', '#fff'];
   const btnBase = { fontFamily: VM.mono, fontSize: 10, padding: '4px 10px', borderRadius: 6,
     border: '1px solid rgba(0,0,0,0.15)', cursor: 'pointer', letterSpacing: '0.04em' };
@@ -124,11 +150,22 @@ function FeedbackEditor({ index, total, screenshot, comment, onCommentChange, ca
         {screenshot ? (
           <AnnotationCanvas screenshotUrl={screenshot} canvasRef={canvasRef}
             tool={tool} color={color} lineWidth={lineWidth} />
+        ) : captureError ? (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', flexDirection: 'column', gap: 10, color: VM.ink3, padding: 20, textAlign: 'center' }}>
+            <i className="ti ti-camera-off" style={{ fontSize: 28 }}></i>
+            <span style={{ fontFamily: VM.mono, fontSize: 11 }}>Screenshot permission was denied or cancelled.</span>
+            <button onClick={onRetryCapture}
+              style={{ fontFamily: VM.mono, fontSize: 11, padding: '6px 14px', borderRadius: 6,
+                border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink, cursor: 'pointer' }}>
+              Retry
+            </button>
+          </div>
         ) : (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
             justifyContent: 'center', flexDirection: 'column', gap: 10, color: VM.ink3 }}>
             <i className="ti ti-loader-2" style={{ fontSize: 28, animation: 'spin 1s linear infinite' }}></i>
-            <span style={{ fontFamily: VM.mono, fontSize: 11 }}>Capturing page…</span>
+            <span style={{ fontFamily: VM.mono, fontSize: 11 }}>Waiting for screen-share permission…</span>
           </div>
         )}
       </div>
@@ -166,22 +203,66 @@ function BetaFeedback({ user }) {
   const [submitted, setSubmitted] = useStateFb(false);
   const canvasRef                 = useRefFb(null);
   const capturedRef               = useRefFb({});            // {idx: dataUrl}
+  const streamRef                 = useRefFb(null);          // shared getDisplayMedia stream for this session
+  const [captureError, setCaptureError] = useStateFb(false);
+  const [hideForCapture, setHideForCapture] = useStateFb(false); // briefly hides the modal so it isn't in its own screenshot
 
+  const stopCaptureStream = useCallbackFb(() => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+  }, []);
+
+  // Grabs a frame straight from the browser's own compositor (native tab/screen
+  // share) instead of html2canvas's JS DOM walk — that walk could take many
+  // seconds (or hang) on this app's large, deeply-styled pages and cross-origin
+  // resources; a compositor frame grab is effectively instant regardless of
+  // page complexity. One native "share this tab" prompt per feedback session
+  // (the stream is reused for subsequent items via "Add another suggestion").
   const captureScreen = useCallbackFb(async idx => {
     if (capturedRef.current[idx]) return capturedRef.current[idx];
-    const el = document.getElementById('vm-main') || document.body;
     try {
-      const canvas = await html2canvas(el, { scale: 0.6, useCORS: true, logging: false });
+      if (!streamRef.current) {
+        streamRef.current = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: 'browser' },
+          preferCurrentTab: true,
+          selfBrowserSurface: 'include',
+        });
+        // If the user stops sharing via the browser's own "Stop sharing" bar.
+        streamRef.current.getVideoTracks()[0].addEventListener('ended', stopCaptureStream);
+      }
+      const video = document.createElement('video');
+      video.srcObject = streamRef.current;
+      video.muted = true;
+      await video.play();
+      // Hide the modal itself (it's already painted on screen by the time the
+      // native share permission resolves) and give the capture pipeline a
+      // moment to actually deliver a frame from *after* that repaint — a
+      // single requestAnimationFrame isn't reliably enough for screen-share
+      // video tracks, which often update well under the display's refresh rate.
+      setHideForCapture(true);
+      await new Promise(r => setTimeout(r, 150));
+      const MAX_W = 1600; // downscale — a raw display-resolution JPEG is overkill for context
+      const scale = Math.min(1, MAX_W / video.videoWidth);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      video.pause();
+      video.srcObject = null;
+      setHideForCapture(false);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       capturedRef.current[idx] = dataUrl;
       return dataUrl;
     } catch {
+      setHideForCapture(false);
+      setCaptureError(true);
       return null;
     }
-  }, []);
+  }, [stopCaptureStream]);
 
   const openWidget = async () => {
     setSubmitted(false);
+    setCaptureError(false);
     setCapturing(true);
     const initialItem = { screenshot: null, comment: '' };
     setItems([initialItem]);
@@ -229,21 +310,29 @@ function BetaFeedback({ user }) {
     };
 
     setSubmit(true);
+    // Always keep a local copy first — works even when AWS isn't configured,
+    // the user is offline, or the call below fails for any reason.
     const all = loadFeedback();
     all.push(feedback);
     saveFeedback(all);
 
-    if (window.VM_FEEDBACK_URL) {
-      fetch(window.VM_FEEDBACK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...feedback, items: finalItems.map(it => ({ comment: it.comment })) }),
-      }).catch(() => {});
-    }
+    await vmFeedbackSubmit(feedback.items, feedback.page, feedback.route, feedback.userEmail, feedback.userName);
 
     setSubmit(false);
     setSubmitted(true);
+    stopCaptureStream();
     setTimeout(() => { setOpen(false); setItems([]); setActiveIdx(0); capturedRef.current = {}; }, 2200);
+  };
+
+  const closeWidget = () => {
+    stopCaptureStream();
+    setOpen(false);
+  };
+
+  const retryCapture = async () => {
+    setCaptureError(false);
+    const url = await captureScreen(activeIdx);
+    setItems(prev => prev.map((it, i) => i === activeIdx ? { ...it, screenshot: url } : it));
   };
 
   if (!user) return null;
@@ -266,12 +355,15 @@ function BetaFeedback({ user }) {
         </button>
       )}
 
-      {/* Modal */}
+      {/* Modal — visibility (not unmounting) toggles during a capture so the
+          widget itself never ends up in its own screenshot, while staying
+          mounted so its state (drawing, comment, etc.) isn't lost. */}
       {open && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 10001, display: 'flex',
           alignItems: 'center', justifyContent: 'center', padding: 16,
-          background: 'rgba(10,8,6,0.6)', backdropFilter: 'blur(4px)' }}
-          onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
+          background: 'rgba(10,8,6,0.6)', backdropFilter: 'blur(4px)',
+          visibility: hideForCapture ? 'hidden' : 'visible' }}
+          onClick={e => { if (e.target === e.currentTarget) closeWidget(); }}>
 
           <div style={{ background: VM.paper, borderRadius: 16, width: '100%', maxWidth: 820,
             maxHeight: '92vh', display: 'flex', flexDirection: 'column',
@@ -296,7 +388,7 @@ function BetaFeedback({ user }) {
                     #{i + 1}
                   </button>
                 ))}
-                <button onClick={() => setOpen(false)}
+                <button onClick={closeWidget}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer',
                     color: VM.ink3, fontSize: 20, lineHeight: 1, padding: '2px 6px' }}>✕</button>
               </div>
@@ -326,6 +418,8 @@ function BetaFeedback({ user }) {
                   tool={tool} setTool={setTool}
                   color={color} setColor={setColor}
                   lineWidth={lineWidth} setLineWidth={setLineWidth}
+                  captureError={captureError}
+                  onRetryCapture={retryCapture}
                 />
               )}
             </div>
