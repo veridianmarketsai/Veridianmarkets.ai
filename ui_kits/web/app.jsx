@@ -418,8 +418,7 @@ function App() {
   const bare = effRoute==='signin' || effRoute==='betasignup';   // chromeless: no rail / ticker
   // Full-bleed marketing landing — its own nav/footer, no app chrome at all.
   const chromeless = effRoute==='landing';
-  // Beta/admin accounts always get the pre-release reminder, regardless of the
-  // admin-toggled site-wide flag (which is per-device and meant for other visitors).
+  // Beta/admin accounts get the pre-release reminder banner automatically.
   const forceBetaBanner = !!(user && (user.role === 'admin' || user.role === 'beta'));
   if (chromeless) {
     return (

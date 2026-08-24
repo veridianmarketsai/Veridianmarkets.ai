@@ -1411,8 +1411,11 @@ function UserRow({ u, real, last, onView, onAccess, onAction, onToast }) {
             <Mono size={10.5} weight={600} color={A_PLAN_COLOR[u.plan] || VM.ink2}>{u.plan}</Mono>
           )}
         </div>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
           <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5, color: st.fg, background: st.bg, border: `1px solid ${st.bd}` }}>{st.label}</span>
+          {u.isBeta && (
+            <span style={{ fontFamily: VM.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 5, color: VM.terra, background: 'rgba(196,106,59,0.14)', border: `1px solid ${VM.terra}` }}>Beta</span>
+          )}
         </div>
         <Mono size={11} color={VM.ink3}>{u.joined ? aDate(u.joined) : '—'}</Mono>
         <Mono size={10.5} color={VM.ink3}>{u.lastActive ? (real ? aRelReal(u.lastActive) : aRel(u.lastActive)) : 'never'}</Mono>
@@ -1871,16 +1874,9 @@ function BetaTab({ isMobile }) {
   const [invites,  setInvites]  = useStateBeta([]);
   const [users,    setUsers]    = useStateBeta([]);
   const [copied,   setCopied]   = useStateBeta('');
-  const [betaMode, setBetaModeState] = useStateBeta(window.isBetaModeOn ? window.isBetaModeOn() : false);
   const [fbPreview, setFbPreviewLocal] = useStateBeta(() => { try { return localStorage.getItem('vm_feedback_preview') || null; } catch { return null; } });
   const [invitesLoading, setInvitesLoading] = useStateBeta(true);
   const [genError, setGenError] = useStateBeta('');
-
-  const toggleBetaMode = () => {
-    const next = !betaMode;
-    setBetaModeState(next);
-    if (window.setBetaMode) window.setBetaMode(next);
-  };
 
   // Invites are real now (vm-admin-actions' createInvite/listInvites/
   // redeemInvite) — this is the list a token actually has to exist in for
@@ -1970,28 +1966,6 @@ function BetaTab({ isMobile }) {
         <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, fontFamily: VM.mono, fontSize: 11,
           color: VM.downInk, background: 'rgba(163,45,45,0.08)', border: `1px solid ${VM.downInk}40` }}>{genError}</div>
       )}
-
-      {/* Site-wide beta mode toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        padding: '14px 16px', borderRadius: 10, marginBottom: 24,
-        border: `1px solid ${betaMode ? VM.terra : VM.borderSoft}`,
-        background: betaMode ? VM.terra + '14' : VM.faint }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <i className="ti ti-flask" style={{ fontSize: 16, color: betaMode ? VM.terra : VM.ink3 }}></i>
-          <div>
-            <div style={{ fontFamily: VM.serif, fontSize: 14, fontWeight: 700, color: VM.ink }}>Beta mode</div>
-            <div style={{ fontFamily: VM.mono, fontSize: 10.5, color: VM.ink3, marginTop: 2 }}>
-              Shows an orange "beta mode" banner across the whole site for every visitor, including admins.
-            </div>
-          </div>
-        </div>
-        <button onClick={toggleBetaMode} role="switch" aria-checked={betaMode}
-          style={{ position: 'relative', flexShrink: 0, width: 44, height: 24, borderRadius: 999, cursor: 'pointer',
-            border: 'none', background: betaMode ? VM.terra : VM.border, transition: 'background .15s' }}>
-          <span style={{ position: 'absolute', top: 3, left: betaMode ? 23 : 3, width: 18, height: 18, borderRadius: '50%',
-            background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left .15s' }} />
-        </button>
-      </div>
 
       {/* Invite links */}
       <BetaSection label="Invite links" icon="link">

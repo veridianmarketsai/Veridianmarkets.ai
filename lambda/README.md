@@ -188,7 +188,11 @@ Attach a policy granting:
    - `COGNITO_POOL_ID` = your user pool ID
    - `COGNITO_REGION` = `us-east-1` (or your pool's region)
 7. **Function URL** → Create → Auth type: **NONE** (the Lambda verifies the
-   caller's Cognito token itself — no API Gateway authorizer) → CORS: allow `*`
+   caller's Cognito token itself — no API Gateway authorizer) → **leave CORS
+   disabled/unconfigured**. The code itself sets `access-control-*` headers on
+   every response (see the `CORS` const in `index.mjs`) — also enabling CORS
+   here on the Function URL causes AWS to send those headers twice (browsers
+   reject the resulting `"*, *"` value outright, silently breaking every call).
 8. Copy the Function URL
 
 ### 5. Wire it up in index.html

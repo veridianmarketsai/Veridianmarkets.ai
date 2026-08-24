@@ -2,29 +2,10 @@
 const VM_HEADER_H = 52; // height of the green global top bar
 
 // ── Site-wide beta mode ──────────────────────────────────────────────────────
-// A single admin-toggled flag (Admin → Beta) that shows an orange "beta mode"
-// banner across the whole app for every visitor on this device — including
-// the admin. Same localStorage-only persistence as the rest of the beta
-// programme (vm_beta_users/vm_beta_invites in BetaSignup.jsx).
-const BETA_MODE_KEY = 'vm_beta_mode';
-function isBetaModeOn() { try { return localStorage.getItem(BETA_MODE_KEY) === '1'; } catch { return false; } }
-function setBetaMode(on) {
-  try { localStorage.setItem(BETA_MODE_KEY, on ? '1' : '0'); } catch {}
-  window.dispatchEvent(new Event('vm-beta-mode-change'));
-}
-
-// `force`: show regardless of the admin-toggled flag — used for signed-in
-// beta/admin accounts, who should always be reminded they're on a pre-release
-// build rather than needing an admin to flip the (per-device) site-wide toggle.
+// Shows an orange "beta mode" banner for signed-in beta/admin accounts — no
+// manual toggle, `force` is set by app.jsx from the account's role.
 function BetaModeBanner({ force }) {
-  const [on, setOn] = React.useState(isBetaModeOn());
-  React.useEffect(() => {
-    const sync = () => setOn(isBetaModeOn());
-    window.addEventListener('storage', sync);
-    window.addEventListener('vm-beta-mode-change', sync);
-    return () => { window.removeEventListener('storage', sync); window.removeEventListener('vm-beta-mode-change', sync); };
-  }, []);
-  if (!on && !force) return null;
+  if (!force) return null;
   return (
     <div style={{ flexShrink:0, background:VM.terra, color:'#FBF3EC', padding:'7px 14px', textAlign:'center',
       display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
@@ -272,4 +253,4 @@ function Footer({ go }) {
   );
 }
 
-Object.assign(window, { Masthead, Rail, IndexStrip, Footer, GlobalHeader, BetaModeBanner, isBetaModeOn, setBetaMode });
+Object.assign(window, { Masthead, Rail, IndexStrip, Footer, GlobalHeader, BetaModeBanner });

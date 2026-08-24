@@ -48,17 +48,25 @@ const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const STATUSES = ['new', 'in_progress', 'resolved'];
 const URL_TTL_S = 600; // 10 min — plenty to load the modal / annotation canvas
 
-// CORS is handled by the Function URL's own CORS config (AWS console/CLI —
-// see lambda/README.md), NOT here. Returning access-control-* headers from the
-// function too causes AWS to send them twice (e.g. "access-control-allow-origin:
-// *, *"), which every browser rejects outright — that was silently breaking
-// every call this Lambda ever served. Preflight OPTIONS is also handled by the
-// Function URL itself and never reaches this handler.
+// CORS is handled entirely HERE, in code — not via the Function URL's CORS
+// config, which must be turned OFF (Configuration → Function URL → Edit →
+// uncheck "Configure cross-origin resource sharing"). Having both active at
+// once previously caused duplicate access-control-allow-origin headers
+// ("*, *"), which every browser rejects; relying on the Function URL's config
+// alone later left the OPTIONS preflight response with no CORS headers at all
+// (only the actual POST got them) — either way breaks every browser call.
+// One source of truth, in code, avoids both failure modes for good.
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization,content-type',
+  'access-control-allow-methods': 'POST,OPTIONS',
+};
 
 let JWKS = null;
 async function jwks() { if (JWKS) return JWKS; JWKS = (await (await fetch(`${ISS}/.well-known/jwks.json`)).json()).keys; return JWKS; }
 
 export const handler = async (event) => {
+  if (event.requestContext?.http?.method === 'OPTIONS') return { statusCode: 204, headers: CORS };
   try {
     const auth = event.headers?.authorization || event.headers?.Authorization || '';
     const claims = await verifyJwt(auth.replace(/^Bearer\s+/i, ''));
@@ -212,4 +220,4 @@ async function verifyJwt(token) {
   return payload;
 }
 
-const resp = (statusCode, body) => ({ statusCode, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+const resp = (statusCode, body) => ({ statusCode, headers: { 'content-type': 'application/json', ...CORS }, body: JSON.stringify(body) });
