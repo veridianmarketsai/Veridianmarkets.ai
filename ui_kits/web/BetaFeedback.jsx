@@ -1,6 +1,7 @@
 // Veridian Markets — Beta Feedback Widget
 // Floating button visible to beta/admin users on every page.
-// Click → captures a screenshot via getDisplayMedia (native tab share) → canvas
+// Click → captures a screenshot (getDisplayMedia on desktop, html-to-image
+//       fallback on mobile — see VM_SUPPORTS_DISPLAY_MEDIA below) → canvas
 //       annotation → comment → submit straight to AWS (lambda/feedback/vm-feedback).
 // Feedback is never stored client-side — a submission either reaches DynamoDB
 // or the widget reports the failure; there's no local fallback to silently
@@ -9,6 +10,16 @@
 // window.VM_FEEDBACK_URL — POST feedback JSON here.
 
 const { useState: useStateFb, useEffect: useEffectFb, useRef: useRefFb, useCallback: useCallbackFb } = React;
+
+// getDisplayMedia (native tab/screen share) is desktop-only in practice —
+// iOS Safari doesn't implement it at all, and Android Chrome's support is
+// unreliable — so on a phone the "share this tab" prompt never appears and
+// every capture attempt fails the same way, no matter how many times you
+// retry. Feature-detect it once and use html-to-image (renders the DOM via
+// SVG foreignObject, loaded via CDN in index.html) as the capture path
+// wherever it's missing.
+const VM_SUPPORTS_DISPLAY_MEDIA = typeof navigator !== 'undefined'
+  && !!navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function';
 
 // ── AWS-backed feedback API (lambda/feedback/vm-feedback) ──────────────────────
 async function vmFeedbackCall(body) {
@@ -149,7 +160,9 @@ function FeedbackEditor({ index, total, screenshot, comment, onCommentChange, ca
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
             justifyContent: 'center', flexDirection: 'column', gap: 10, color: VM.ink3, padding: 20, textAlign: 'center' }}>
             <i className="ti ti-camera-off" style={{ fontSize: 28 }}></i>
-            <span style={{ fontFamily: VM.mono, fontSize: 11 }}>Screenshot permission was denied or cancelled.</span>
+            <span style={{ fontFamily: VM.mono, fontSize: 11 }}>
+              {VM_SUPPORTS_DISPLAY_MEDIA ? 'Screenshot permission was denied or cancelled.' : "Couldn't capture the screen."}
+            </span>
             <button onClick={onRetryCapture}
               style={{ fontFamily: VM.mono, fontSize: 11, padding: '6px 14px', borderRadius: 6,
                 border: `1px solid ${VM.border}`, background: VM.paper, color: VM.ink, cursor: 'pointer' }}>
@@ -186,7 +199,7 @@ function FeedbackEditor({ index, total, screenshot, comment, onCommentChange, ca
 }
 
 // ── Main widget ───────────────────────────────────────────────────────────────
-function BetaFeedback({ user }) {
+function BetaFeedback({ user, isMobile }) {
   const [open, setOpen]           = useStateFb(false);
   const [capturing, setCapturing] = useStateFb(false);
   const [items, setItems]         = useStateFb([]);          // [{screenshot, comment}]
@@ -208,45 +221,99 @@ function BetaFeedback({ user }) {
     streamRef.current = null;
   }, []);
 
+  const MAX_W = 1600; // downscale — a raw display-resolution JPEG is overkill for context
+  const canvasToJpeg = (canvas) => {
+    const scale = Math.min(1, MAX_W / canvas.width);
+    if (scale === 1) return canvas.toDataURL('image/jpeg', 0.85);
+    const small = document.createElement('canvas');
+    small.width = Math.round(canvas.width * scale);
+    small.height = Math.round(canvas.height * scale);
+    small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+    return small.toDataURL('image/jpeg', 0.85);
+  };
+
   // Grabs a frame straight from the browser's own compositor (native tab/screen
-  // share) instead of html2canvas's JS DOM walk — that walk could take many
-  // seconds (or hang) on this app's large, deeply-styled pages and cross-origin
-  // resources; a compositor frame grab is effectively instant regardless of
+  // share) instead of a JS DOM walk (html-to-image, used below on mobile) —
+  // that walk could take many seconds (or hang) on this app's large,
+  // deeply-styled pages and cross-origin resources; a compositor frame grab
+  // is effectively instant regardless of
   // page complexity. One native "share this tab" prompt per feedback session
   // (the stream is reused for subsequent items via "Add another suggestion").
+  const captureViaDisplayMedia = async () => {
+    if (!streamRef.current) {
+      streamRef.current = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' },
+        preferCurrentTab: true,
+        selfBrowserSurface: 'include',
+      });
+      // If the user stops sharing via the browser's own "Stop sharing" bar.
+      streamRef.current.getVideoTracks()[0].addEventListener('ended', stopCaptureStream);
+    }
+    const video = document.createElement('video');
+    video.srcObject = streamRef.current;
+    video.muted = true;
+    await video.play();
+    // Hide the modal itself (it's already painted on screen by the time the
+    // native share permission resolves) and give the capture pipeline a
+    // moment to actually deliver a frame from *after* that repaint — a
+    // single requestAnimationFrame isn't reliably enough for screen-share
+    // video tracks, which often update well under the display's refresh rate.
+    setHideForCapture(true);
+    await new Promise(r => setTimeout(r, 150));
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    video.pause();
+    video.srcObject = null;
+    setHideForCapture(false);
+    return canvas;
+  };
+
+  // 1x1 transparent GIF — stands in for any image htmlToImage can't fetch
+  // (e.g. a company logo from an external CDN without permissive CORS
+  // headers) so one broken image doesn't sink the whole capture.
+  const TRANSPARENT_PX = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7';
+
+  // Mobile fallback: render the DOM to an image via SVG foreignObject
+  // (html-to-image) instead of the native tab-share compositor grab. No
+  // permission prompt needed — just render what's currently on screen (the
+  // visible viewport, not the whole scrollable page, to match what
+  // getDisplayMedia captures on desktop).
+  const captureViaDom = async () => {
+    if (typeof htmlToImage === 'undefined') throw new Error('html-to-image not loaded');
+    setHideForCapture(true);
+    // Two rAFs so the hide has actually painted before the DOM is walked.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    try {
+      let lastErr;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          return await htmlToImage.toJpeg(document.body, {
+            quality: 0.85, skipFonts: true, // icon-font glyphs don't embed either way — skip the fetch cost
+            pixelRatio: Math.min(2, window.devicePixelRatio || 1),
+            width: window.innerWidth, height: window.innerHeight,
+            imagePlaceholder: TRANSPARENT_PX,
+          });
+        } catch (e) {
+          lastErr = e;
+          await new Promise(r => setTimeout(r, 120));
+        }
+      }
+      throw lastErr;
+    } finally {
+      setHideForCapture(false);
+    }
+  };
+
   const captureScreen = useCallbackFb(async idx => {
     if (capturedRef.current[idx]) return capturedRef.current[idx];
     try {
-      if (!streamRef.current) {
-        streamRef.current = await navigator.mediaDevices.getDisplayMedia({
-          video: { displaySurface: 'browser' },
-          preferCurrentTab: true,
-          selfBrowserSurface: 'include',
-        });
-        // If the user stops sharing via the browser's own "Stop sharing" bar.
-        streamRef.current.getVideoTracks()[0].addEventListener('ended', stopCaptureStream);
-      }
-      const video = document.createElement('video');
-      video.srcObject = streamRef.current;
-      video.muted = true;
-      await video.play();
-      // Hide the modal itself (it's already painted on screen by the time the
-      // native share permission resolves) and give the capture pipeline a
-      // moment to actually deliver a frame from *after* that repaint — a
-      // single requestAnimationFrame isn't reliably enough for screen-share
-      // video tracks, which often update well under the display's refresh rate.
-      setHideForCapture(true);
-      await new Promise(r => setTimeout(r, 150));
-      const MAX_W = 1600; // downscale — a raw display-resolution JPEG is overkill for context
-      const scale = Math.min(1, MAX_W / video.videoWidth);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(video.videoWidth * scale);
-      canvas.height = Math.round(video.videoHeight * scale);
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-      video.pause();
-      video.srcObject = null;
-      setHideForCapture(false);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      // getDisplayMedia gives back a raw <canvas> frame (needs JPEG encoding);
+      // htmlToImage.toJpeg already returns a finished data URL.
+      const dataUrl = VM_SUPPORTS_DISPLAY_MEDIA
+        ? canvasToJpeg(await captureViaDisplayMedia())
+        : await captureViaDom();
       capturedRef.current[idx] = dataUrl;
       return dataUrl;
     } catch {
@@ -326,16 +393,28 @@ function BetaFeedback({ user }) {
 
   return (
     <>
-      {/* Floating trigger button */}
+      {/* Floating trigger button. Desktop: sits transparent in the Rail
+          sidebar's blank space below Settings/Sign out, so it blends in
+          rather than looking like a stray box. Mobile has no persistent
+          sidebar there — that same fixed spot sits over ordinary page
+          content instead, so it needs an opaque background there or the
+          button's own text becomes illegible against whatever's under it. */}
       {!open && (
         <button onClick={openWidget}
-          style={{ position: 'fixed', bottom: 80, left: 8, zIndex: 500, width: 192, textAlign: 'left',
+          style={isMobile ? {
+            position: 'fixed', bottom: 80, left: 8, zIndex: 500, width: 192, textAlign: 'left',
+            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+            background: VM.paper, color: VM.teal, border: `1px solid ${VM.border}`, borderRadius: 7,
+            boxShadow: '0 4px 14px rgba(31,29,26,0.16)',
+            fontFamily: VM.serif, fontSize: 15, fontWeight: 400, cursor: 'pointer',
+          } : {
+            position: 'fixed', bottom: 80, left: 8, zIndex: 500, width: 192, textAlign: 'left',
             display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
             background: 'transparent', color: VM.teal, border: '1px solid transparent', borderRadius: 7,
             fontFamily: VM.serif, fontSize: 15, fontWeight: 400, cursor: 'pointer', transition: 'background .12s',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = VM.paper}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          onMouseEnter={e => { if (!isMobile) e.currentTarget.style.background = VM.paper; }}
+          onMouseLeave={e => { if (!isMobile) e.currentTarget.style.background = 'transparent'; }}>
           <i className="ti ti-message-2-star" style={{ fontSize: 15 }}></i>
           Feedback
         </button>

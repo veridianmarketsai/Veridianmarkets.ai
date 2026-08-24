@@ -240,11 +240,18 @@ function AdminPanel({ go, user, isMobile }) {
         </div>
       )}
 
-      <div data-tour="vm-admin-tabs" style={{ display: 'flex', gap: 6, marginTop: 20, borderBottom: `1px solid ${VM.borderSoft}` }}>
+      {/* overflowX:auto — with up to 10 tabs this doesn't fit a phone width, and
+          unlike CompanyHead's tab strip this one previously had no scroll
+          mechanism at all, so tabs past the edge were simply unreachable on
+          mobile (not just visually clipped). Native touch-scroll handles the
+          swipe; no drag-to-scroll JS needed since this isn't desktop-mouse-only. */}
+      <div data-tour="vm-admin-tabs" className="vm-noscroll" style={{ display: 'flex', gap: 6, marginTop: 20,
+        borderBottom: `1px solid ${VM.borderSoft}`, overflowX: 'auto', overflowY: 'hidden' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: VM.serif, fontSize: 15,
             padding: '9px 14px', cursor: 'pointer', background: 'transparent', border: 'none', color: tab === t.id ? VM.ink : VM.ink3,
-            fontWeight: tab === t.id ? 700 : 400, borderBottom: `2px solid ${tab === t.id ? VM.forest : 'transparent'}`, marginBottom: -1 }}>
+            fontWeight: tab === t.id ? 700 : 400, borderBottom: `2px solid ${tab === t.id ? VM.forest : 'transparent'}`, marginBottom: -1,
+            whiteSpace: 'nowrap', flexShrink: 0 }}>
             <i className={'ti ti-' + t.icon} style={{ fontSize: 16 }}></i>{t.label}
           </button>
         ))}

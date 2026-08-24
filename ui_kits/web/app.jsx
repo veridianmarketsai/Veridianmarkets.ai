@@ -461,7 +461,7 @@ function App() {
         // otherwise eligibility is admin, real beta, or a paying subscriber.
         const fbUser = (user?.role === 'admin' && fbPreview) ? { ...user, role: fbPreview } : user;
         const eligible = fbPreview ? fbUser.role === 'beta' : (fbUser?.role === 'admin' || fbUser?.role === 'beta' || isPaying);
-        return eligible && <BetaFeedback user={fbUser} />;
+        return eligible && <BetaFeedback user={fbUser} isMobile={isMobile} />;
       })()}
       {showNudge && (
         <div style={{ position:'fixed', bottom: isMobile ? 148 : 90, left:'50%',

@@ -57,6 +57,13 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- BetaFeedback.jsx's mobile fallback capture path (getDisplayMedia isn't
+       available on most mobile browsers) — renders the DOM to an image via SVG
+       foreignObject. (html2canvas was tried first but its iframe-cloning
+       technique throws "Unable to find element in cloned iframe" on current
+       Chromium — a known, long-unresolved issue in that library — regardless
+       of target element or options; html-to-image doesn't use that technique.) -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
 
   <!-- Optional overrides (hard-coded URL takes priority over admin-panel setting):
        window.VM_FOUNDER_VIDEO_URL = 'https://...your-video-url...';
